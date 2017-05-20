@@ -1,10 +1,9 @@
 
 # USD Qt Components
 
-This goal of this project is to provide a set of reusable UI components for 
-viewing and authoring USD files.
+Reusable UI components for viewing and authoring USD files.
 
-** This is a first look to start some conversations. This repo may go away!**
+**This is a first look to start some conversations. This repo may go away!**
 
 ## Installing
 
@@ -21,7 +20,7 @@ run the following (and cross your fingers):
 pip install PySide --user
 ```
 
-Also, make sure that the `pxr` USD modules are on the `PYTHONPATH`.
+You'll also obviously need to make sure that you've built USD and placed the `pxr` python package on the `PYTHONPATH`.
 
 ## Testing
 
