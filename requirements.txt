@@ -1,2 +1,2 @@
-Qt.py>=1.0
+Qt.py>=1.0.0b1
 typing
