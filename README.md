@@ -3,6 +3,8 @@
 
 Reusable UI components for viewing and authoring USD files.
 
+The components in usdview are good reference, but they’re purpose built for the usdview application and are implemented in a way that makes them difficult to extract. All widgets in this library use separate models and views and a standardized set of signals to trigger updates makeing it easy to customize views and build applications a la carte.  Also, since these widgets are meant to be consumed anywhere and by everything, they will be designed to work in PyQt4/PyQt5/PySide/PySide2. Our long term goal is to break up the remaining parts of usdview and add them to this collection as well, such that it can be used to build usdview-like applications that are more easily customized.
+
 **This is a first look to get feedback. This repo may go away!**
 
 ## Components
