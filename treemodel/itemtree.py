@@ -1,5 +1,5 @@
 import collections
-import pylib.types
+# import pylib.types
 
 from typing import (Any, Dict, Generic, Hashable, Iterable, Iterator, List,
                     Optional, Set, Tuple, Type, TypeVar, Union, TYPE_CHECKING)
@@ -43,7 +43,7 @@ class ItemTree(Generic[T]):
             Explicit item to use as the root of the tree. If omitted, a new
             ``TreeItem`` instance will be used.
         '''
-        self._itemBase = pylib.types.get_generic_type(self.__class__, T)
+        # self._itemBase = pylib.types.get_generic_type(self.__class__, T)
 
         if rootItem is None:
             rootItem = TreeItem('__ROOT__')
@@ -59,9 +59,10 @@ class ItemTree(Generic[T]):
         return item in self._parentToChildren
 
     def _validateItemType(self, item):
-        if not issubclass(type(item), self._itemBase):
-            raise TypeError('Item class {0!r} does not inherit base tree item '
-                            'class {1!r}'.format(item.__class__, self._itemBase))
+        pass
+#         if not issubclass(type(item), self._itemBase):
+#             raise TypeError('Item class {0!r} does not inherit base tree item '
+#                             'class {1!r}'.format(item.__class__, self._itemBase))
 
     @property
     def root(self):
