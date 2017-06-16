@@ -1,1 +1,1 @@
-from treemodel.qt.base import Column,
+from treemodel.qt.base import Column, AbstractTreeModelMixin

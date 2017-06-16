@@ -10,7 +10,7 @@ from treemodel.qt.base import AbstractTreeModelMixin, Column
 from typing import (Any, Dict, Generic, Iterable, Iterator, List, Optional,
                     Tuple, TypeVar, Union, TYPE_CHECKING)
 
-from luma_qt.Qt import QtCore, QtGui
+from Qt import QtCore, QtGui
 
 T = TypeVar('T')
 U = TypeVar('U')
