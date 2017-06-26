@@ -3,12 +3,11 @@ from __future__ import absolute_import
 import operator
 
 from pxr import Sdf, Usd
-import usdlib.stage
 import usdlib.utils
 import usdlib.variants
 from Qt import QtCore, QtGui, QtWidgets
 from treemodel.itemtree import LazyItemTree, TreeItem
-from treemodel.qt import AbstractTreeModelMixin
+from treemodel.qt.base import AbstractTreeModelMixin
 from usdqt.common import NULL_INDEX, DARK_ORANGE
 
 from typing import (Any, Dict, Iterable, Iterator, List, Optional,
@@ -391,6 +390,9 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
 
 
 class OutlinerTreeView(AssetTreeView):
+    # emitted when a prim has been selected in the view
+    primSelectionChanged = QtCore.Signal(list, list)
+
     def __init__(self, dataModel, parent=None):
         '''
         Parameters
@@ -402,6 +404,9 @@ class OutlinerTreeView(AssetTreeView):
         self.setModel(dataModel)
         self._dataModel = dataModel
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
+        # keep a ref for model because of refCount bug in pyside
+        selectionModel = self.selectionModel()
+        selectionModel.selectionChanged.connect(self._selectionChanged)
 
     # Qt methods ---------------------------------------------------------------
     def contextMenuEvent(self, event):
@@ -430,6 +435,17 @@ class OutlinerTreeView(AssetTreeView):
         if not prim:
             return (index, item, None)
         return (index, item, prim)
+
+    def _selectionChanged(self, selected, deselected):
+        '''Connected to selectionChanged '''
+        def toPrims(qSelection):
+            indexes = qSelection.indexes()
+            prims = [index.internalPointer().prim for index in indexes
+                     if index.column() == 0]
+            return prims
+
+        self.primSelectionChanged.emit(toPrims(selected), toPrims(deselected))
+
 
     def togglePrimActive(self):
         index, item, prim = self._getSelectedIndexItemAndPrim()
@@ -463,8 +479,8 @@ class OutlinerTreeView(AssetTreeView):
                 self,
                 'Confirm Prim Removal',
                 'Remove prim (and any children) at {0}?'.format(prim.GetPath()),
-                QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel,
-                QtWidgets.QMessageBox.Ok) == QtWidgets.QMessageBox.Ok:
+                buttons=(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel),
+                defaultButton=QtWidgets.QMessageBox.Ok) == QtWidgets.QMessageBox.Ok:
             self._dataModel.removePrimFromCurrentLayer(index, prim, item=item)
 
     # FIXME: luma-specific
@@ -479,9 +495,42 @@ class OutlinerTreeView(AssetTreeView):
         '''
         import luma_qt.lumaFileBrowser
         import luma_usd.registry
+        import luma_usd.dbfiles
+        import luma.project
+        import luma.filepath
+
+        # Try to find the project...
+        startPath = None
+        project = None
+        try:
+            usdPathsToTry = [self._dataModel.stage.GetRootLayer().identifier]
+            # stage might be an in-memory, so root layer might be an anonymous...
+            # so try subLayersPaths too
+            usdPathsToTry.extend(self._dataModel.stage.GetRootLayer().subLayerPaths)
+            for usdPath in usdPathsToTry:
+                try:
+                    parsedSqlPath = luma_usd.dbfiles.parse(usdPath)
+                except luma_usd.dbfiles.UsdDBParsingError:
+                    try:
+                        project = luma.filepath.Path(usdPath).projectClass()
+                    except luma.filepath.NamingConventionError:
+                        pass
+                else:
+                    if 'project' in parsedSqlPath[1]:
+                        project = luma.project.Project(parsedSqlPath[1]['project'])
+                if project is not None:
+                    startPath = project.modelDir
+                    break
+        except Exception:
+            import traceback
+            print "Error extracting project modelDir:"
+            traceback.print_exc()
+
         result = luma_qt.lumaFileBrowser.lumaBrowser(
             package='maya',
-            mode=luma_qt.lumaFileBrowser.UsdAssetBrowser.mode)
+            mode=luma_qt.lumaFileBrowser.UsdAssetBrowser.mode,
+            initialPath=startPath
+        )
         if not result:
             return
 

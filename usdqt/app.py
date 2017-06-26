@@ -2,7 +2,6 @@ from __future__ import absolute_import
 
 from pxr import Sdf, Usd
 from Qt import QtCore, QtGui, QtWidgets
-import usdlib.stage
 from usdqt.outliner import (OutlinerTreeView, OutlinerViewDelegate,
                             OutlinerStageModel)
 from usdqt.layers import LayerTextViewDialog, SubLayerDialog
@@ -20,7 +19,7 @@ class UsdOutliner(QtWidgets.QDialog):
         self.dataModel = OutlinerStageModel(self.stage, parent=self)
 
         # Widget and other Qt setup
-        self.setModal(True)
+        self.setModal(False)
         self.updateTitle()
 
         self._menuBar = QtWidgets.QMenuBar(self)
@@ -68,7 +67,7 @@ class UsdOutliner(QtWidgets.QDialog):
         toolsMenu = self.getMenu('tools')
 
         def showEditTargetLayerText():
-            # FIXME: only allow one window
+            # FIXME: only allow one window. per layer could be nice here?
             d = LayerTextViewDialog(self.stage.GetEditTarget().GetLayer(),
                                     parent=self)
             d.layerEdited.connect(self.dataModel.resetStage)
@@ -88,7 +87,11 @@ class UsdOutliner(QtWidgets.QDialog):
 
     @classmethod
     def fromUsdFile(cls, usdFile, parent=None):
-        return cls(usdlib.stage.getStage(usdFile), parent=parent)
+        with Usd.StageCacheContext(Usd.BlockStageCaches):
+            stage = Usd.Stage.Open(usdFile, Usd.Stage.LoadNone)
+            assert stage
+            stage.SetEditTarget(stage.GetSessionLayer())
+        return cls(stage, parent=parent)
 
 
 if __name__ == '__main__':

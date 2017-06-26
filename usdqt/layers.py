@@ -3,7 +3,7 @@ from __future__ import absolute_import
 from pxr import Sdf, Usd, Tf
 from Qt import QtCore, QtGui, QtWidgets
 from treemodel.itemtree import TreeItem, ItemTree
-from treemodel.qt import AbstractTreeModelMixin
+from treemodel.qt.base import AbstractTreeModelMixin
 from usdqt.common import NULL_INDEX
 
 from typing import (Any, Dict, Iterable, Iterator, List, Optional,
@@ -97,17 +97,21 @@ class SubLayerModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         '''
         assert isinstance(stage, Usd.Stage)
         self._stage = stage
-        self._rootLayer = LayerItem(stage.GetRootLayer())
-        itemTree = ItemTree(self._rootLayer)
-        super(SubLayerModel, self).__init__(itemTree=itemTree, parent=parent)
-        self.populateUnder(self._rootLayer)
+        super(SubLayerModel, self).__init__(parent=parent)
+        sessionLayer = self._stage.GetSessionLayer()
+        if sessionLayer:
+            self.populateUnder(sessionLayer)
+
+        self.populateUnder(stage.GetRootLayer())
 
     def columnCount(self, parentIndex):
         return 3
 
     def flags(self, modelIndex):
         if modelIndex.isValid():
-            return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
+            item = modelIndex.internalPointer()
+            if item.layer.permissionToEdit:
+                return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
         return QtCore.Qt.NoItemFlags
 
     def headerData(self, section, orientation, role=QtCore.Qt.DisplayRole):
@@ -126,6 +130,8 @@ class SubLayerModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
             column = modelIndex.column()
             item = modelIndex.internalPointer()
             if column == 0:
+                if item.layer.anonymous:
+                    return 'anonymous.usd'
                 return item.layer.identifier.split('/')[-1]
             elif column == 1:
                 return item.layer.identifier
@@ -140,19 +146,19 @@ class SubLayerModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
 
     # Custom Methods -----------------------------------------------------------
 
-    def populateUnder(self, layerItem):
+    def populateUnder(self, layer, parent=None):
         '''
         Parameters
         ----------
-        layerItem : LayerItem
+        layer : SdfLayer
+        parent : Optional[LayerItem]
         '''
-        subLayers = [LayerItem(Sdf.Layer.FindOrOpen(l))
-                     for l in layerItem.layer.subLayerPaths]
-        if subLayers:
-            self.itemTree.addItems(subLayers,
-                                   parent=layerItem)
-            for subLayer in subLayers:
-                self.populateUnder(subLayer)
+        layerItem = LayerItem(layer)
+        self.itemTree.addItems(layerItem, parent=parent)
+
+        for subLayerPath in layer.subLayerPaths:
+            subLayer = Sdf.Layer.FindOrOpen(subLayerPath)
+            self.populateUnder(subLayer, parent=layerItem)
 
 
 class SubLayerDialog(QtWidgets.QDialog):
@@ -181,11 +187,13 @@ class SubLayerDialog(QtWidgets.QDialog):
         self.view.setModel(self.dataModel)
         layout.addWidget(self.view)
         self.view.setColumnWidth(0, 160)
-        self.view.setColumnWidth(1, 100)
+        self.view.setColumnWidth(1, 300)
         self.view.setColumnWidth(2, 100)
+        self.view.setExpandsOnDoubleClick(False)
         self.view.doubleClicked.connect(self.selectLayer)
+        self.view.expandAll()
 
-        self.resize(500, 200)
+        self.resize(700, 200)
 
     def selectLayer(self, selectedIndex=None):
         if not selectedIndex:
@@ -196,7 +204,7 @@ class SubLayerDialog(QtWidgets.QDialog):
 
         selectedLayer = selectedIndex.internalPointer().layer
         currentLayer = self.stage.GetEditTarget().GetLayer()
-        if selectedLayer == currentLayer:
+        if selectedLayer == currentLayer or not selectedLayer.permissionToEdit:
             return
 
         if currentLayer.dirty:

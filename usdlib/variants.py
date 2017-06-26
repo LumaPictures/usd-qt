@@ -389,7 +389,7 @@ class VariantContext(object):
             iterable of tuples mapping variantSetName to variantName that can
             represent a hierarchy of nested variants.
         setAsDefaults : bool
-            Set the variants in variantTuples as the default variant 
+            Set the variants in variantTuples as the default variant
             in the editContext layer
         '''
         self.contexts = []
@@ -686,10 +686,8 @@ class VariablePrimHelper(PrimInterfaceBase):
 
     def pinCurrentVariants(self, refresh=True):
         self.sessionPrimSpec.variantSelections.update(self.activeVariants)
-        if refresh:
-            # the pinned status is gathered live in getVariantSetInfo, so we
-            # don't need to refresh all the data.
-            pass
+        # The pinned status is gathered live in getVariantSetInfo, so we don't
+        # need to refresh all the data.
         return True
 
     @property
@@ -709,7 +707,7 @@ class VariablePrimHelper(PrimInterfaceBase):
 
 
 class MultipleVariablePrimHelper(PrimInterfaceBase):
-    '''A helper class for gathering information on multiple prim's 
+    '''A helper class for gathering information on multiple prim's
     variant selections at once and making bulk changes to them.'''
 
     def __init__(self, prims):
@@ -862,7 +860,7 @@ def iterVariablePrims(stage, root=None, lastRunData=None):
         initialized data structure for prim information.
     '''
     lastRunData = lastRunData or {}  # type: Dict[str, Dict[str, str]]
-    sessionLayer = stage.GetSessionLayer()
+    editTargetLayer = stage.GetEditTarget().GetLayer()
 
     if not root:
         root = stage.GetPseudoRoot()
@@ -870,11 +868,10 @@ def iterVariablePrims(stage, root=None, lastRunData=None):
     # Could pass UsdPrimIsModel predicate as an optimization if we are
     # confident that this will only be acting upon assets
     for prim in Usd.PrimRange(root):
-
         if not prim.HasVariantSets():
             continue
         # before checking asset name, we author a variant selection for prims
-        # that have variants but are missing a selection so that it we at
+        # that have variants but are missing a selection so that we at
         # least get a version of what exists under each variant
         varSets = prim.GetVariantSets()
         for varSetName in varSets.GetNames():
@@ -882,7 +879,12 @@ def iterVariablePrims(stage, root=None, lastRunData=None):
             if not varSet.GetVariantSelection() and varSet.GetVariantNames():
                 varSet.SetVariantSelection(varSet.GetVariantNames()[0])
 
+        # FIXME: Luma specific code. Do we include VariantHelpers in usdlib?
+        # note: could implement as a prim filter callback to be more generic
         assetName = usdlib.utils.getAssetName(prim)
+        # exception for layout version to not have assetName.
+        if prim.GetPath() == '/world':
+            assetName = '<layout>'
         if assetName is None:
             continue
 
@@ -890,10 +892,9 @@ def iterVariablePrims(stage, root=None, lastRunData=None):
         # prim we're managing to have a PrimSpec in the session layer so we
         # can easily manage the "pinned" state of a variant selection.
         primPath = prim.GetPath()
-        sessionPrimSpec = sessionLayer.GetPrimAtPath(primPath)
+        sessionPrimSpec = editTargetLayer.GetPrimAtPath(primPath)
         if sessionPrimSpec is None:
-            sessionPrimSpec = Sdf.CreatePrimInLayer(sessionLayer,
-                                                    primPath)
+            sessionPrimSpec = Sdf.CreatePrimInLayer(editTargetLayer, primPath)
 
         item = VariablePrimHelper(
             prim,
