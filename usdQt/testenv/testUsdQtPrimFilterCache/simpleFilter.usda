@@ -1,0 +1,33 @@
+#usda 1.0
+
+def "World"(){
+    def "Reject" (){
+    }
+    
+    def "Accept" (){
+    }
+    
+    def "AcceptParent" (){
+        def "RejectChild" (){
+        }
+        
+        def "AcceptChild" (){
+        }
+    }
+    
+    def "IntermediateParent" (){
+        def "RejectChild" (){
+        }
+        
+        def "IntermediateChild" (){
+            def "AcceptGrandchild" (){
+            }
+            def "RejectGrandchild" (){
+            }
+
+        }
+        
+        def "AcceptChild" (){
+        }
+    }
+}

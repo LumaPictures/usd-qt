@@ -1,0 +1,16 @@
+#usda 1.0
+
+def "World"(){
+    def "Child1" (){
+        def "Grandchild1_1" (){
+        }
+        def "Grandchild1_2" (){
+        }
+    }
+    def "Child2" (){
+        def "GrandChild2_1" (){
+        }
+    }
+    def "Child3" (){
+    }    
+}
