@@ -20,6 +20,7 @@ class ProxyShapeOutliner(usdqt.app.UsdOutliner):
         self.view.primSelectionChanged.connect(self.pushPrimToMaya)
 
         self._blockSelectionCallback = False
+        self.selectionCallbackId = None
 
     def pushPrimToMaya(self, selectedPrims, deselectedPrims):
         '''

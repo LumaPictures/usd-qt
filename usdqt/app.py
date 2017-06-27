@@ -6,12 +6,21 @@ from usdqt.outliner import (OutlinerTreeView, OutlinerViewDelegate,
                             OutlinerStageModel)
 from usdqt.layers import LayerTextViewDialog, SubLayerDialog
 
+from typing import (Any, Dict, Iterable, Iterator, List, Optional,
+                    Tuple, TypeVar, Union)
+
 
 class UsdOutliner(QtWidgets.QDialog):
     # emitted with the new edit layer when the edit target is changed
     editTargetChanged = QtCore.Signal(Sdf.Layer)
 
     def __init__(self, stage, parent=None):
+        '''
+        Parameters
+        ----------
+        stage : Usd.Stage
+        parent : Optional[QtGui.QWidget]
+        '''
         assert isinstance(stage, Usd.Stage), 'A Stage instance is required'
         super(UsdOutliner, self).__init__(parent=parent)
 
@@ -20,14 +29,13 @@ class UsdOutliner(QtWidgets.QDialog):
 
         # Widget and other Qt setup
         self.setModal(False)
-        self.updateTitle()
+        self.UpdateTitle()
 
         self._menuBar = QtWidgets.QMenuBar(self)
-        self.menus = {
-            'file': self._menuBar.addMenu('&File'),
-            'tools': self._menuBar.addMenu('&Tools')
-        }
-        self.populateMenus()
+        self.menus = {}  # type: Dict[str, QtWidgets.QMenu]
+        self.AddMenu('file', '&File')
+        self.AddMenu('tools', '&Tools')
+        self.PopulateMenus()
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
@@ -36,8 +44,8 @@ class UsdOutliner(QtWidgets.QDialog):
         view = OutlinerTreeView(self.dataModel, parent=self)
         delegate = OutlinerViewDelegate(self.stage.GetEditTarget().GetLayer(),
                                         parent=self)
-        self.editTargetChanged.connect(delegate.setActiveLayer)
-        self.editTargetChanged.connect(self.dataModel.activeLayerChanged)
+        self.editTargetChanged.connect(delegate.SetActiveLayer)
+        self.editTargetChanged.connect(self.dataModel.ActiveLayerChanged)
         view.setItemDelegate(delegate)
         layout.addWidget(view)
 
@@ -50,43 +58,84 @@ class UsdOutliner(QtWidgets.QDialog):
     def editTarget(self):
         return self.stage.GetEditTarget().GetLayer()
 
-    def updateTitle(self, identifier=None):
+    def UpdateTitle(self, identifier=None):
+        '''
+        Parameters
+        ----------
+        identifier : Optional[str]
+            If not provided, acquired from the curent edit target
+        '''
         if not identifier:
             identifier = self.editTarget.identifier
         self.setWindowTitle('Outliner - %s' % identifier)
 
-    def updateEditTarget(self, layer):
+    def UpdateEditTarget(self, layer):
+        '''
+        Parameters
+        ----------
+        layer : Sdf.Layer
+        '''
         self.stage.SetEditTarget(layer)
         self.editTargetChanged.emit(layer)
-        self.updateTitle()
+        self.UpdateTitle()
 
-    def getMenu(self, name):
+    def AddMenu(self, name, label=None):
+        '''
+        Parameters
+        ----------
+        name : str
+            name of registered menu
+        label : Optional[str]
+            label to display in the menu bar
+
+        Returns
+        -------
+        QtWidgets.QMenu
+        '''
+        if label is None:
+            label = name
+        menu = self._menuBar.addMenu(label)
+        self.menus[name] = menu
+        return menu
+
+    def GetMenu(self, name):
+        '''
+        Get a named menu from the application's registered menus
+
+        Parameters
+        ----------
+        name : str
+            name of registered menu
+
+        Returns
+        -------
+        Optional[QtWidgets.QMenu]
+        '''
         return self.menus.get(name.lower())
 
-    def populateMenus(self):
-        toolsMenu = self.getMenu('tools')
+    def _ShowEditTargetLayerText(self):
+        # FIXME: only allow one window. per layer could be nice here?
+        d = LayerTextViewDialog(self.stage.GetEditTarget().GetLayer(),
+                                parent=self)
+        d.layerEdited.connect(self.dataModel.ResetStage)
+        d.refresh()
+        d.show()
 
-        def showEditTargetLayerText():
-            # FIXME: only allow one window. per layer could be nice here?
-            d = LayerTextViewDialog(self.stage.GetEditTarget().GetLayer(),
-                                    parent=self)
-            d.layerEdited.connect(self.dataModel.resetStage)
-            d.refresh()
-            d.show()
+    def _ChangeEditTarget(self):
+        # FIXME: only allow one window
+        d = SubLayerDialog(self.stage, parent=self)
+        d.editTargetChanged.connect(self.UpdateEditTarget)
+        d.show()
 
-        def changeEditTarget():
-            # FIXME: only allow one window
-            d = SubLayerDialog(self.stage, parent=self)
-            d.editTargetChanged.connect(self.updateEditTarget)
-            d.show()
-
+    def PopulateMenus(self):
+        toolsMenu = self.GetMenu('tools')
         a = toolsMenu.addAction('Show Current Layer Text')
-        a.triggered.connect(showEditTargetLayerText)
+        a.triggered.connect(self._ShowEditTargetLayerText)
         a = toolsMenu.addAction('Change Edit Target')
-        a.triggered.connect(changeEditTarget)
+        a.triggered.connect(self._ChangeEditTarget)
 
     @classmethod
-    def fromUsdFile(cls, usdFile, parent=None):
+    def FromUsdFile(cls, usdFile, parent=None):
         with Usd.StageCacheContext(Usd.BlockStageCaches):
             stage = Usd.Stage.Open(usdFile, Usd.Stage.LoadNone)
             assert stage
@@ -102,6 +151,6 @@ if __name__ == '__main__':
 
     usdFileArg = sys.argv[1]
 
-    dialog = UsdOutliner.fromUsdFile(usdFileArg)
+    dialog = UsdOutliner.FromUsdFile(usdFileArg)
     dialog.show()
     dialog.exec_()

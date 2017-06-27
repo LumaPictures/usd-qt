@@ -5,6 +5,7 @@ This should eventually move into the AL_usdmaya plugin.
 '''
 import pymel.core as pm
 
+
 def getProxyShape(proxyShape=None):
     '''Return a proxyShape to use for a ui given the current maya context'''
     if proxyShape is None:

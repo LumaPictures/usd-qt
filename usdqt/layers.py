@@ -28,24 +28,24 @@ class LayerTextViewDialog(QtWidgets.QDialog):
         layout = QtWidgets.QVBoxLayout(self)
         self.textArea = QtWidgets.QPlainTextEdit(self)
         self.editableCheckBox = QtWidgets.QCheckBox('Unlock for Editing')
-        self.editableCheckBox.stateChanged.connect(self.setEditable)
+        self.editableCheckBox.stateChanged.connect(self.SetEditable)
         layout.addWidget(self.editableCheckBox)
         layout.addWidget(self.textArea)
 
         buttonLayout = QtWidgets.QHBoxLayout()
         refreshButton = QtWidgets.QPushButton('Reload', parent=self)
-        refreshButton.clicked.connect(self.refresh)
+        refreshButton.clicked.connect(self.Refresh)
         buttonLayout.addWidget(refreshButton)
         self.saveButton = QtWidgets.QPushButton('Apply', parent=self)
-        self.saveButton.clicked.connect(self.save)
+        self.saveButton.clicked.connect(self.Save)
         buttonLayout.addWidget(self.saveButton)
         layout.addLayout(buttonLayout)
 
         self.editableCheckBox.setChecked(False)
-        self.setEditable(False)
+        self.SetEditable(False)
         self.resize(800, 600)
 
-    def setEditable(self, checkState):
+    def SetEditable(self, checkState):
         if checkState == QtCore.Qt.Checked:
             self.textArea.setUndoRedoEnabled(True)
             self.textArea.setReadOnly(False)
@@ -55,10 +55,10 @@ class LayerTextViewDialog(QtWidgets.QDialog):
             self.textArea.setReadOnly(True)
             self.saveButton.setEnabled(False)
 
-    def refresh(self):
+    def Refresh(self):
         self.textArea.setPlainText(self.layer.ExportToString())
 
-    def save(self):
+    def Save(self):
         try:
             self.layer.ImportFromString(self.textArea.toPlainText())
         except Tf.ErrorException as err:
@@ -70,7 +70,7 @@ class LayerTextViewDialog(QtWidgets.QDialog):
         else:
             self.layerEdited.emit(self.layer)
             # refresh so that formatting will get standardized
-            self.refresh()
+            self.Refresh()
 
 
 class LayerItem(TreeItem):
@@ -104,6 +104,7 @@ class SubLayerModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
 
         self.populateUnder(stage.GetRootLayer())
 
+    # Qt methods ---------------------------------------------------------------
     def columnCount(self, parentIndex):
         return 3
 
@@ -145,7 +146,6 @@ class SubLayerModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
                 return font
 
     # Custom Methods -----------------------------------------------------------
-
     def populateUnder(self, layer, parent=None):
         '''
         Parameters
@@ -190,12 +190,17 @@ class SubLayerDialog(QtWidgets.QDialog):
         self.view.setColumnWidth(1, 300)
         self.view.setColumnWidth(2, 100)
         self.view.setExpandsOnDoubleClick(False)
-        self.view.doubleClicked.connect(self.selectLayer)
+        self.view.doubleClicked.connect(self.SelectLayer)
         self.view.expandAll()
 
         self.resize(700, 200)
 
-    def selectLayer(self, selectedIndex=None):
+    def SelectLayer(self, selectedIndex=None):
+        '''
+        Parameters
+        ----------
+        selectedIndex : Optional[QtCore.QModelIndex]
+        '''
         if not selectedIndex:
             selectedIndexes = self.view.selectedIndexes()
             if not selectedIndexes:
@@ -213,8 +218,8 @@ class SubLayerDialog(QtWidgets.QDialog):
                 "Unsaved Changes",
                 "You have unsaved layer edits which you cant access from "
                 "another layer. Continue?",
-                buttons=QtWidgets.QMessageBox.Cancel | \
-                        QtWidgets.QMessageBox.Yes)
+                buttons=(QtWidgets.QMessageBox.Cancel |
+                         QtWidgets.QMessageBox.Yes))
             if box.exec_() != QtWidgets.QMessageBox.Yes:
                 return
             # FIXME: Should we blow away changes or allow them to

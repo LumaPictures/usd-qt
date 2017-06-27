@@ -400,7 +400,8 @@ class VariantContext(object):
 
         self.stage = self.prim.GetStage()
         self.sessionLayer = self.stage.GetSessionLayer()
-        self.spec = self.stage.GetEditTarget().GetLayer().GetPrimAtPath(prim.GetPath())
+        self.spec = self.stage.GetEditTarget().GetLayer().GetPrimAtPath(
+            prim.GetPath())
         if not self.spec:
             self.spec = Sdf.CreatePrimInLayer(
                 self.stage.GetEditTarget().GetLayer(),
@@ -408,7 +409,8 @@ class VariantContext(object):
 
     def __enter__(self):
         for variantSetName, variantName in self.variantTuples:
-            variantSet = self.prim.GetVariantSets().AppendVariantSet(variantSetName)
+            variantSet = self.prim.GetVariantSets().AppendVariantSet(
+                variantSetName)
             variantSet.AppendVariant(variantName)
 
             original = variantSet.GetVariantSelection()
@@ -419,7 +421,7 @@ class VariantContext(object):
             with EditTargetContext(self.stage, self.sessionLayer):
                 status = variantSet.SetVariantSelection(variantName)
                 assert status is True, 'variant selection failed'
-                assert variantSet.GetVariantSelection() ==  variantName
+                assert variantSet.GetVariantSelection() == variantName
 
             if self.setAsDefaults:
                 self.spec.variantSelections.update({variantSetName: variantName})

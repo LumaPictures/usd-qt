@@ -60,6 +60,11 @@ class AssetTreeView(QtWidgets.QTreeView):
     Basic ``QTreeView`` subclass for displaying asset data.
     '''
     def __init__(self, parent=None):
+        '''
+        Parameters
+        ----------
+        parent : Optional[QtGui.QWidget]
+        '''
         super(AssetTreeView, self).__init__(parent=parent)
 
         # QAbstractItemView(?) options
@@ -141,8 +146,8 @@ class LazyPrimItemTree(LazyItemTree[UsdPrimItem]):
         List[UsdPrimItem]
         '''
         return sorted(
-                (UsdPrimItem(c) for c in self.iterFilteredChildPrims(startPrim)),
-                key=operator.attrgetter('name'))
+            (UsdPrimItem(c) for c in self.iterFilteredChildPrims(startPrim)),
+            key=operator.attrgetter('name'))
 
     def appendPrim(self, prim, parentItem=None):
         if self.primFilter is None or self.primFilter(prim):
@@ -172,6 +177,7 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         super(OutlinerStageModel, self).__init__(itemTree=itemTree,
                                                  parent=parent)
 
+    # Qt methods ---------------------------------------------------------------
     def columnCount(self, parentIndex):
         return 2
 
@@ -208,7 +214,7 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         '''
         return self._stage
 
-    def getPrimSpecAtEditTarget(self, prim):
+    def GetPrimSpecAtEditTarget(self, prim):
         '''
         Return a PrimSpec for the given prim in the layer containing the stage's
         current edit target. This may be None if the layer does not contain
@@ -229,7 +235,7 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
     # - Do we want to put the business logic for stage changes on the model, the
     #   view, or the app? This approach is sort of designed for one of the two
     #   latter options.
-    def beginPrimHierarchyChange(self, modelIndex, item=None):
+    def BeginPrimHierarchyChange(self, modelIndex, item=None):
         '''
         Parameters
         ----------
@@ -241,7 +247,7 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         self.beginRemoveRows(modelIndex, 0,
                              max(self.itemTree.childCount(parent=item) - 1, 0))
 
-    def endPrimHierarchyChange(self, item):
+    def EndPrimHierarchyChange(self, item):
         '''
         Parameters
         ----------
@@ -250,7 +256,7 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         self.itemTree.forgetChildren(item)
         self.endRemoveRows()
 
-    def togglePrimActive(self, modelIndex, prim, item=None):
+    def TogglePrimActive(self, modelIndex, prim, item=None):
         '''
         Parameters
         ----------
@@ -261,11 +267,11 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         if item is None:
             item = modelIndex.internalPointer()  # type: UsdPrimItem
         newState = not prim.IsActive()
-        self.beginPrimHierarchyChange(modelIndex, item=item)
+        self.BeginPrimHierarchyChange(modelIndex, item=item)
         prim.SetActive(newState)
-        self.endPrimHierarchyChange(item)
+        self.EndPrimHierarchyChange(item)
 
-    def addNewPrim(self, modelIndex, parentPrim, primName, primType='Xform',
+    def AddNewPrim(self, modelIndex, parentPrim, primName, primType='Xform',
                    item=None):
         '''
         Parameters
@@ -293,7 +299,7 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
                                  childCount + len(newItems) - 1)
             self.endInsertRows()
 
-    def primVariantChanged(self, modelIndex, setName, value, item=None):
+    def PrimVariantChanged(self, modelIndex, setName, value, item=None):
         '''
         Parameters
         ----------
@@ -302,11 +308,11 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         value : str
         item : Optional[UsdPrimItem]
         '''
-        self.beginPrimHierarchyChange(modelIndex, item=item)
+        self.BeginPrimHierarchyChange(modelIndex, item=item)
         item.prim.GetVariantSet(setName).SetVariantSelection(value)
-        self.endPrimHierarchyChange(item)
+        self.EndPrimHierarchyChange(item)
 
-    def removePrimFromCurrentLayer(self, modelIndex, prim, item=None):
+    def RemovePrimFromCurrentLayer(self, modelIndex, prim, item=None):
         '''
         Parameters
         ----------
@@ -326,7 +332,7 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         return result
 
     # FIXME: luma-specific
-    def addNewReference(self, modelIndex, parentPrim, refPath,
+    def AddNewReference(self, modelIndex, parentPrim, refPath,
                         primName, item=None):
         '''
         Parameters
@@ -369,7 +375,7 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
                                      childCount + len(newItems) - 1)
                 self.endInsertRows()
 
-    def activeLayerChanged(self, layer):
+    def ActiveLayerChanged(self, layer):
         '''
         Parameters
         ----------
@@ -378,7 +384,7 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         # emit a signal that will make the delegates redraw their items.
         self.dataChanged.emit(NULL_INDEX, NULL_INDEX)
 
-    def resetStage(self, layer):
+    def ResetStage(self, layer):
         '''
         Parameters
         ----------
@@ -406,20 +412,20 @@ class OutlinerTreeView(AssetTreeView):
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
         # keep a ref for model because of refCount bug in pyside
         selectionModel = self.selectionModel()
-        selectionModel.selectionChanged.connect(self._selectionChanged)
+        selectionModel.selectionChanged.connect(self._SelectionChanged)
 
     # Qt methods ---------------------------------------------------------------
     def contextMenuEvent(self, event):
-        index, item, prim = self._getSelectedIndexItemAndPrim()
+        index, item, prim = self._GetSelectedIndexItemAndPrim()
         if prim is None:
             return
 
-        menu = self.buildContextMenu(index, item, prim)
+        menu = self.BuildContextMenu(index, item, prim)
         menu.exec_(event.globalPos())
         event.accept()
 
     # Custom methods -----------------------------------------------------------
-    def _getSelectedIndexItemAndPrim(self):
+    def _GetSelectedIndexItemAndPrim(self):
         '''
         Returns
         -------
@@ -436,7 +442,7 @@ class OutlinerTreeView(AssetTreeView):
             return (index, item, None)
         return (index, item, prim)
 
-    def _selectionChanged(self, selected, deselected):
+    def _SelectionChanged(self, selected, deselected):
         '''Connected to selectionChanged '''
         def toPrims(qSelection):
             indexes = qSelection.indexes()
@@ -446,18 +452,17 @@ class OutlinerTreeView(AssetTreeView):
 
         self.primSelectionChanged.emit(toPrims(selected), toPrims(deselected))
 
-
-    def togglePrimActive(self):
-        index, item, prim = self._getSelectedIndexItemAndPrim()
+    def TogglePrimActive(self):
+        index, item, prim = self._GetSelectedIndexItemAndPrim()
         if prim is not None:
-            self._dataModel.togglePrimActive(index, prim, item=item)
+            self._dataModel.TogglePrimActive(index, prim, item=item)
 
-    def addNewPrim(self, spec=None):
-        index, item, prim = self._getSelectedIndexItemAndPrim()
+    def AddNewPrim(self, spec=None):
+        index, item, prim = self._GetSelectedIndexItemAndPrim()
         if prim is None:
             return
         # TODO: Right now, this doesn't override the primType passed to the
-        # model's addNewPrim method, so this only produces Xforms. May need to
+        # model's AddNewPrim method, so this only produces Xforms. May need to
         # support the ability to specify types for new prims eventually.
         name, _ = QtWidgets.QInputDialog.getText(self, 'Enter Prim Name',
                                                  'Name for the new transform:')
@@ -469,22 +474,22 @@ class OutlinerTreeView(AssetTreeView):
                                           'A prim already exists at '
                                           '{0}'.format(newPath))
             return
-        self._dataModel.addNewPrim(index, prim, name, item=item)
+        self._dataModel.AddNewPrim(index, prim, name, item=item)
 
-    def removePrim(self):
-        index, item, prim = self._getSelectedIndexItemAndPrim()
+    def RemovePrim(self):
+        index, item, prim = self._GetSelectedIndexItemAndPrim()
         if prim is None:
             return
-        if QtWidgets.QMessageBox.question(
-                self,
-                'Confirm Prim Removal',
-                'Remove prim (and any children) at {0}?'.format(prim.GetPath()),
-                buttons=(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel),
-                defaultButton=QtWidgets.QMessageBox.Ok) == QtWidgets.QMessageBox.Ok:
-            self._dataModel.removePrimFromCurrentLayer(index, prim, item=item)
+        answer = QtWidgets.QMessageBox.question(
+            self, 'Confirm Prim Removal',
+            'Remove prim (and any children) at {0}?'.format(prim.GetPath()),
+            buttons=(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel),
+            defaultButton=QtWidgets.QMessageBox.Ok)
+        if answer == QtWidgets.QMessageBox.Ok:
+            self._dataModel.RemovePrimFromCurrentLayer(index, prim, item=item)
 
     # FIXME: luma-specific
-    def _getNewReferencePaths(self):
+    def _GetNewReferencePaths(self):
         '''Opens a dialog to get a prim name and path from the user
         (Luma specific).
 
@@ -546,16 +551,16 @@ class OutlinerTreeView(AssetTreeView):
                     yield primName, registryPath
 
     # FIXME: add ability to add references to existing prims
-    def addReference(self):
-        index, item, prim = self._getSelectedIndexItemAndPrim()
+    def AddReference(self):
+        index, item, prim = self._GetSelectedIndexItemAndPrim()
         if prim is None:
             return
 
-        for primName, referencePath in self._getNewReferencePaths():
-            self._dataModel.addNewReference(index, prim, referencePath,
+        for primName, referencePath in self._GetNewReferencePaths():
+            self._dataModel.AddNewReference(index, prim, referencePath,
                                             primName)
 
-    def buildContextMenu(self, modelIndex, primItem, prim):
+    def BuildContextMenu(self, modelIndex, primItem, prim):
         '''
         Build and return the top-level context menu for the view.
         
@@ -571,11 +576,11 @@ class OutlinerTreeView(AssetTreeView):
         '''
         menu = QtWidgets.QMenu(self)
         a = menu.addAction('Deactivate' if prim.IsActive() else 'Activate')
-        a.triggered.connect(self.togglePrimActive)
+        a.triggered.connect(self.TogglePrimActive)
         a = menu.addAction('Add Transform...')
-        a.triggered.connect(self.addNewPrim)
+        a.triggered.connect(self.AddNewPrim)
         a = menu.addAction('Add Reference...')
-        a.triggered.connect(self.addReference)
+        a.triggered.connect(self.AddReference)
 
         if prim.HasVariantSets():
             variantMenu = menu.addMenu('Variants')
@@ -592,11 +597,11 @@ class OutlinerTreeView(AssetTreeView):
                     # passes the action's `checked` value.
                     a.triggered.connect(
                         lambda n=setName, v=setValue: \
-                            self._dataModel.primVariantChanged(modelIndex, n, v,
+                            self._dataModel.PrimVariantChanged(modelIndex, n, v,
                                                                item=primItem))
 
         menu.addSeparator()
-        spec = self._dataModel.getPrimSpecAtEditTarget(prim)
+        spec = self._dataModel.GetPrimSpecAtEditTarget(prim)
         removeLabel = 'Remove Prim'
         removeEnabled = False
         if spec:
@@ -606,7 +611,7 @@ class OutlinerTreeView(AssetTreeView):
                 removeLabel = 'Remove Prim Edits'
                 removeEnabled = True
         a = menu.addAction(removeLabel)
-        a.triggered.connect(self.removePrim)
+        a.triggered.connect(self.RemovePrim)
         a.setEnabled(removeEnabled)
         return menu
 
@@ -625,14 +630,7 @@ class OutlinerViewDelegate(QtWidgets.QStyledItemDelegate):
         super(OutlinerViewDelegate, self).__init__(parent=parent)
         self._activeLayer = activeLayer
 
-    def setActiveLayer(self, layer):
-        '''
-        Parameters
-        ----------
-        layer : Sdf.Layer
-        '''
-        self._activeLayer = layer
-
+    # Qt methods ---------------------------------------------------------------
     def paint(self, painter, options, modelIndex):
         if modelIndex.isValid():
             item = modelIndex.internalPointer()
@@ -654,3 +652,12 @@ class OutlinerViewDelegate(QtWidgets.QStyledItemDelegate):
 
         return QtWidgets.QStyledItemDelegate.paint(self, painter, options,
                                                    modelIndex)
+
+    # Custom methods -----------------------------------------------------------
+    def SetActiveLayer(self, layer):
+        '''
+        Parameters
+        ----------
+        layer : Sdf.Layer
+        '''
+        self._activeLayer = layer
