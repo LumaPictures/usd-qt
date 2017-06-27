@@ -29,7 +29,8 @@ import unittest
 import os.path
 
 from pxr import Tf, Sdf, Usd
-from pxr.UsdQt._bindings import _PrimIdTable
+from usdQt._bindings import _PrimIdTable
+
 
 class TestSimplePrimIdTable(unittest.TestCase):
 
