@@ -11,7 +11,7 @@ from treemodel.qt.base import AbstractTreeModelMixin
 from usdqt.common import NULL_INDEX, DARK_ORANGE
 
 from typing import (Any, Dict, Iterable, Iterator, List, Optional,
-                    Tuple, TypeVar, Union)
+                    NamedTuple, Tuple, TypeVar, Union)
 
 
 class GroupItem(TreeItem):
@@ -352,13 +352,13 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         print 'Adding new reference:', refPath
 
         # FIXME: Stopgap solution, remove when we have variant editor.
-        from luma_usd import dbfiles
         try:
+            from luma_usd import dbfiles
             # if we can parse the path, add a reference under an element
             # variant so that we have element control downstream.
             _, parseDict = dbfiles.parse(refPath)
             variantTuples = [('elem', parseDict['elem'])]
-        except (dbfiles.UsdDBParsingError, KeyError):
+        except (dbfiles.UsdDBParsingError, KeyError, ImportError):
             variantTuples = []
         # END Stopgap
 
@@ -395,72 +395,123 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         self.endResetModel()
 
 
-class OutlinerTreeView(AssetTreeView):
-    # emitted when a prim has been selected in the view
-    primSelectionChanged = QtCore.Signal(list, list)
+Selection = NamedTuple('Selection', [
+    ('index', Optional[QtCore.QModelIndex]),
+    ('item', Optional[UsdPrimItem]),
+    ('prim', Optional[Usd.Prim]),
+])
 
-    def __init__(self, dataModel, parent=None):
-        '''
-        Parameters
-        ----------
-        dataModel : OutlinerStageModel
-        parent : Optional[QtGui.QWidget]
-        '''
-        super(OutlinerTreeView, self).__init__(parent=parent)
-        self.setModel(dataModel)
-        self._dataModel = dataModel
-        self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-        # keep a ref for model because of refCount bug in pyside
-        selectionModel = self.selectionModel()
-        selectionModel.selectionChanged.connect(self._SelectionChanged)
 
-    # Qt methods ---------------------------------------------------------------
-    def contextMenuEvent(self, event):
-        index, item, prim = self._GetSelectedIndexItemAndPrim()
-        if prim is None:
+def passSelection(f):
+    '''
+    decorator to get the current selection from the outliner and pass it
+    into the decorated function.
+
+    Parameters
+    ----------
+    f : Callable
+
+    Returns
+    -------
+    Callable
+    '''
+    def _wrapped(self, *args):
+        selection = self._GetSelection()
+        if selection.prim is None:
             return
+        return f(self, selection, *args)
 
-        menu = self.BuildContextMenu(index, item, prim)
-        menu.exec_(event.globalPos())
-        event.accept()
+    return _wrapped
 
-    # Custom methods -----------------------------------------------------------
-    def _GetSelectedIndexItemAndPrim(self):
+
+class ContextMenuBuilder(object):
+    '''
+    Class to customize the building of right-click context menus for selected
+    prims.
+    '''
+    def __init__(self, view):
+        self.view = view
+
+    @property
+    def model(self):
+        return self.view._dataModel
+
+    def _GetSelection(self):
         '''
         Returns
         -------
-        Tuple[Optional[QtCore.QModelIndex], Optional[UsdPrimItem], Optional[Usd.Prim]]
+        ContextMenuEvent
         '''
-        indexes = self.selectionModel().selectedRows()
+        indexes = self.view.selectionModel().selectedRows()
         if not indexes:
-            return (None, None, None)
+            return Selection(None, None, None)
 
         index = indexes[0]
         item = index.internalPointer()  # type: UsdPrimItem
-        prim = item.prim
-        if not prim:
-            return (index, item, None)
-        return (index, item, prim)
+        return Selection(index, item, item.prim or None)
 
-    def _SelectionChanged(self, selected, deselected):
-        '''Connected to selectionChanged '''
-        def toPrims(qSelection):
-            indexes = qSelection.indexes()
-            prims = [index.internalPointer().prim for index in indexes
-                     if index.column() == 0]
-            return prims
+    def Build(self, menu, selection):
+        '''
+        Build and return the top-level context menu for the view.
 
-        self.primSelectionChanged.emit(toPrims(selected), toPrims(deselected))
+        Parameters
+        ----------
+        menu : QtWidgets.QMenu
+        selection : Selection
 
-    def TogglePrimActive(self):
-        index, item, prim = self._GetSelectedIndexItemAndPrim()
-        if prim is not None:
-            self._dataModel.TogglePrimActive(index, prim, item=item)
+        Returns
+        -------
+        Optional[QtWidgets.QMenu]
+        '''
+        a = menu.addAction('Deactivate' if selection.prim.IsActive()
+                           else 'Activate')
+        a.triggered.connect(self.TogglePrimActive)
+        a = menu.addAction('Add Transform...')
+        a.triggered.connect(self.AddNewPrim)
+        a = menu.addAction('Add Reference...')
+        a.triggered.connect(self.AddReference)
 
-    def AddNewPrim(self, spec=None):
-        index, item, prim = self._GetSelectedIndexItemAndPrim()
-        if prim is None:
-            return
+        if selection.prim.HasVariantSets():
+            variantMenu = menu.addMenu('Variants')
+            for setName, currentValue in usdlib.variants.getPrimVariants(
+                    selection.prim):
+                setMenu = variantMenu.addMenu(setName)
+                variantSet = selection.prim.GetVariantSet(setName)
+                for setValue in variantSet.GetVariantNames():
+                    a = setMenu.addAction(setValue)
+                    if setValue == currentValue:
+                        a.setCheckable(True)
+                        a.setChecked(True)
+                        continue
+                    # Note: This is currently only valid for PySide. PyQt always
+                    # passes the action's `checked` value.
+                    a.triggered.connect(
+                        lambda n=setName, v=setValue: \
+                            self.model.PrimVariantChanged(selection.index, n, v,
+                                                          item=selection.item))
+
+        menu.addSeparator()
+        spec = self.model.GetPrimSpecAtEditTarget(selection.prim)
+        removeLabel = 'Remove Prim'
+        removeEnabled = False
+        if spec:
+            if spec.specifier == Sdf.SpecifierDef:
+                removeEnabled = True
+            elif spec.specifier == Sdf.SpecifierOver:
+                removeLabel = 'Remove Prim Edits'
+                removeEnabled = True
+        a = menu.addAction(removeLabel)
+        a.triggered.connect(self.RemovePrim)
+        a.setEnabled(removeEnabled)
+        return menu
+
+    @passSelection
+    def TogglePrimActive(self, selection):
+        self.model.TogglePrimActive(selection.index, selection.prim,
+                                    item=selection.item)
+
+    @passSelection
+    def AddNewPrim(self, selection):
         # TODO: Right now, this doesn't override the primType passed to the
         # model's AddNewPrim method, so this only produces Xforms. May need to
         # support the ability to specify types for new prims eventually.
@@ -468,30 +519,31 @@ class OutlinerTreeView(AssetTreeView):
                                                  'Name for the new transform:')
         if not name:
             return
-        newPath = prim.GetPath().AppendChild(name)
-        if self._dataModel.stage.GetPrimAtPath(newPath):
+        newPath = selection.prim.GetPath().AppendChild(name)
+        if self.model.stage.GetPrimAtPath(newPath):
             QtWidgets.QMessageBox.warning(self, 'Duplicate Prim Path',
                                           'A prim already exists at '
                                           '{0}'.format(newPath))
             return
-        self._dataModel.AddNewPrim(index, prim, name, item=item)
+        self.model.AddNewPrim(selection.index, selection.prim, name,
+                              item=selection.item)
 
-    def RemovePrim(self):
-        index, item, prim = self._GetSelectedIndexItemAndPrim()
-        if prim is None:
-            return
+    @passSelection
+    def RemovePrim(self, selection):
         answer = QtWidgets.QMessageBox.question(
             self, 'Confirm Prim Removal',
-            'Remove prim (and any children) at {0}?'.format(prim.GetPath()),
+            'Remove prim (and any children) at {0}?'.format(
+                selection.prim.GetPath()),
             buttons=(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel),
             defaultButton=QtWidgets.QMessageBox.Ok)
         if answer == QtWidgets.QMessageBox.Ok:
-            self._dataModel.RemovePrimFromCurrentLayer(index, prim, item=item)
+            self.model.RemovePrimFromCurrentLayer(selection.index,
+                                                  selection.prim,
+                                                  item=selection.item)
 
     # FIXME: luma-specific
     def _GetNewReferencePaths(self):
         '''Opens a dialog to get a prim name and path from the user
-        (Luma specific).
 
         Returns
         -------
@@ -508,10 +560,11 @@ class OutlinerTreeView(AssetTreeView):
         startPath = None
         project = None
         try:
-            usdPathsToTry = [self._dataModel.stage.GetRootLayer().identifier]
-            # stage might be an in-memory, so root layer might be an anonymous...
+            usdPathsToTry = [self.model.stage.GetRootLayer().identifier]
+            # stage might be an in-memory, so root layer might be an
+            # anonymous...
             # so try subLayersPaths too
-            usdPathsToTry.extend(self._dataModel.stage.GetRootLayer().subLayerPaths)
+            usdPathsToTry.extend(self.model.stage.GetRootLayer().subLayerPaths)
             for usdPath in usdPathsToTry:
                 try:
                     parsedSqlPath = luma_usd.dbfiles.parse(usdPath)
@@ -522,7 +575,8 @@ class OutlinerTreeView(AssetTreeView):
                         pass
                 else:
                     if 'project' in parsedSqlPath[1]:
-                        project = luma.project.Project(parsedSqlPath[1]['project'])
+                        project = luma.project.Project(
+                            parsedSqlPath[1]['project'])
                 if project is not None:
                     startPath = project.modelDir
                     break
@@ -551,69 +605,58 @@ class OutlinerTreeView(AssetTreeView):
                     yield primName, registryPath
 
     # FIXME: add ability to add references to existing prims
-    def AddReference(self):
-        index, item, prim = self._GetSelectedIndexItemAndPrim()
-        if prim is None:
-            return
-
+    @passSelection
+    def AddReference(self, selection):
         for primName, referencePath in self._GetNewReferencePaths():
-            self._dataModel.AddNewReference(index, prim, referencePath,
-                                            primName)
+            self.model.AddNewReference(selection.index, selection.prim,
+                                       referencePath, primName)
 
-    def BuildContextMenu(self, modelIndex, primItem, prim):
+
+class OutlinerTreeView(AssetTreeView):
+    # emitted when a prim has been selected in the view
+    primSelectionChanged = QtCore.Signal(list, list)
+
+    def __init__(self, dataModel, menuBuilder=None, parent=None):
         '''
-        Build and return the top-level context menu for the view.
-        
         Parameters
         ----------
-        modelIndex: QtCore.QModelIndex
-        primItem : UsdPrimItem
-        prim : Usd.Prim
-        
-        Returns
-        -------
-        QtWidgets.QMenu
+        dataModel : OutlinerStageModel
+        menuBuilder : Optional[Type[ContextMenuBuilder]]
+        parent : Optional[QtGui.QWidget]
         '''
+        super(OutlinerTreeView, self).__init__(parent=parent)
+        self.setModel(dataModel)
+        self._dataModel = dataModel
+        if menuBuilder is None:
+            menuBuilder = ContextMenuBuilder
+        self._menuBuilder = menuBuilder(self)
+        self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
+        # keep a ref for model because of refCount bug in pyside
+        selectionModel = self.selectionModel()
+        selectionModel.selectionChanged.connect(self._SelectionChanged)
+
+    # Qt methods ---------------------------------------------------------------
+    def contextMenuEvent(self, event):
+        selection = self._menuBuilder._GetSelection()
+        if selection.prim is None:
+            return
         menu = QtWidgets.QMenu(self)
-        a = menu.addAction('Deactivate' if prim.IsActive() else 'Activate')
-        a.triggered.connect(self.TogglePrimActive)
-        a = menu.addAction('Add Transform...')
-        a.triggered.connect(self.AddNewPrim)
-        a = menu.addAction('Add Reference...')
-        a.triggered.connect(self.AddReference)
+        menu = self._menuBuilder.Build(menu, selection)
+        if menu is None:
+            return
+        menu.exec_(event.globalPos())
+        event.accept()
 
-        if prim.HasVariantSets():
-            variantMenu = menu.addMenu('Variants')
-            for setName, currentValue in usdlib.variants.getPrimVariants(prim):
-                setMenu = variantMenu.addMenu(setName)
-                variantSet = prim.GetVariantSet(setName)
-                for setValue in variantSet.GetVariantNames():
-                    a = setMenu.addAction(setValue)
-                    if setValue == currentValue:
-                        a.setCheckable(True)
-                        a.setChecked(True)
-                        continue
-                    # Note: This is currently only valid for PySide. PyQt always
-                    # passes the action's `checked` value.
-                    a.triggered.connect(
-                        lambda n=setName, v=setValue: \
-                            self._dataModel.PrimVariantChanged(modelIndex, n, v,
-                                                               item=primItem))
+    # Custom methods -----------------------------------------------------------
+    def _SelectionChanged(self, selected, deselected):
+        '''Connected to selectionChanged '''
+        def toPrims(qSelection):
+            indexes = qSelection.indexes()
+            prims = [index.internalPointer().prim for index in indexes
+                     if index.column() == 0]
+            return prims
 
-        menu.addSeparator()
-        spec = self._dataModel.GetPrimSpecAtEditTarget(prim)
-        removeLabel = 'Remove Prim'
-        removeEnabled = False
-        if spec:
-            if spec.specifier == Sdf.SpecifierDef:
-                removeEnabled = True
-            elif spec.specifier == Sdf.SpecifierOver:
-                removeLabel = 'Remove Prim Edits'
-                removeEnabled = True
-        a = menu.addAction(removeLabel)
-        a.triggered.connect(self.RemovePrim)
-        a.setEnabled(removeEnabled)
-        return menu
+        self.primSelectionChanged.emit(toPrims(selected), toPrims(deselected))
 
 
 class OutlinerViewDelegate(QtWidgets.QStyledItemDelegate):

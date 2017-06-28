@@ -3,7 +3,7 @@ from __future__ import absolute_import
 from pxr import Sdf, Usd
 from Qt import QtCore, QtGui, QtWidgets
 from usdqt.outliner import (OutlinerTreeView, OutlinerViewDelegate,
-                            OutlinerStageModel)
+                            OutlinerStageModel, ContextMenuBuilder)
 from usdqt.layers import LayerTextViewDialog, SubLayerDialog
 
 from typing import (Any, Dict, Iterable, Iterator, List, Optional,
@@ -14,25 +14,26 @@ class UsdOutliner(QtWidgets.QDialog):
     # emitted with the new edit layer when the edit target is changed
     editTargetChanged = QtCore.Signal(Sdf.Layer)
 
-    def __init__(self, stage, parent=None):
+    def __init__(self, stage, menuBuilder=None, parent=None):
         '''
         Parameters
         ----------
         stage : Usd.Stage
+        menuBuilder : Optional[Type[ContextMenuBuilder]]
         parent : Optional[QtGui.QWidget]
         '''
         assert isinstance(stage, Usd.Stage), 'A Stage instance is required'
         super(UsdOutliner, self).__init__(parent=parent)
 
         self.stage = stage
-        self.dataModel = OutlinerStageModel(self.stage, parent=self)
+        self.dataModel = self._GetModel()
 
         # Widget and other Qt setup
         self.setModal(False)
         self.UpdateTitle()
 
         self._menuBar = QtWidgets.QMenuBar(self)
-        self.menus = {}  # type: Dict[str, QtWidgets.QMenu]
+        self._menus = {}  # type: Dict[str, QtWidgets.QMenu]
         self.AddMenu('file', '&File')
         self.AddMenu('tools', '&Tools')
         self.PopulateMenus()
@@ -41,7 +42,7 @@ class UsdOutliner(QtWidgets.QDialog):
         layout.setContentsMargins(4, 4, 4, 4)
         layout.setSpacing(2)
         layout.addWidget(self._menuBar)
-        view = OutlinerTreeView(self.dataModel, parent=self)
+        view = self._GetView(self.dataModel, menuBuilder)
         delegate = OutlinerViewDelegate(self.stage.GetEditTarget().GetLayer(),
                                         parent=self)
         self.editTargetChanged.connect(delegate.SetActiveLayer)
@@ -57,6 +58,31 @@ class UsdOutliner(QtWidgets.QDialog):
     @property
     def editTarget(self):
         return self.stage.GetEditTarget().GetLayer()
+
+    def _GetModel(self):
+        '''
+        Get the model for the outliner
+
+        Returns
+        -------
+        QtCore.QAbstractItemModel
+        '''
+        return OutlinerStageModel(self.stage, parent=self)
+
+    def _GetView(self, model, menuBuilder):
+        '''
+        Get the view for the outliner
+
+        Parameters
+        ----------
+        model : QtCore.QAbstractItemModel
+        menuBuilder : Optional[Type[ContextMenuBuilder]]
+
+        Returns
+        -------
+        QtWidgets.QTreeView
+        '''
+        return OutlinerTreeView(model, menuBuilder=menuBuilder, parent=self)
 
     def UpdateTitle(self, identifier=None):
         '''
@@ -95,7 +121,7 @@ class UsdOutliner(QtWidgets.QDialog):
         if label is None:
             label = name
         menu = self._menuBar.addMenu(label)
-        self.menus[name] = menu
+        self._menus[name] = menu
         return menu
 
     def GetMenu(self, name):
@@ -111,7 +137,7 @@ class UsdOutliner(QtWidgets.QDialog):
         -------
         Optional[QtWidgets.QMenu]
         '''
-        return self.menus.get(name.lower())
+        return self._menus.get(name.lower())
 
     def _ShowEditTargetLayerText(self):
         # FIXME: only allow one window. per layer could be nice here?
