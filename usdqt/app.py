@@ -144,7 +144,7 @@ class UsdOutliner(QtWidgets.QDialog):
         d = LayerTextViewDialog(self.stage.GetEditTarget().GetLayer(),
                                 parent=self)
         d.layerEdited.connect(self.dataModel.ResetStage)
-        d.refresh()
+        d.Refresh()
         d.show()
 
     def _ChangeEditTarget(self):

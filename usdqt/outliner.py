@@ -566,13 +566,13 @@ class ContextMenuBuilder(object):
         # TODO: Right now, this doesn't override the primType passed to the
         # model's AddNewPrim method, so this only produces Xforms. May need to
         # support the ability to specify types for new prims eventually.
-        name, _ = QtWidgets.QInputDialog.getText(self, 'Enter Prim Name',
+        name, _ = QtWidgets.QInputDialog.getText(self.view, 'Enter Prim Name',
                                                  'Name for the new transform:')
         if not name:
             return
         newPath = selection.prim.GetPath().AppendChild(name)
         if self.model.stage.GetPrimAtPath(newPath):
-            QtWidgets.QMessageBox.warning(self, 'Duplicate Prim Path',
+            QtWidgets.QMessageBox.warning(self.view, 'Duplicate Prim Path',
                                           'A prim already exists at '
                                           '{0}'.format(newPath))
             return
@@ -582,7 +582,7 @@ class ContextMenuBuilder(object):
     @passSingleSelection
     def RemovePrim(self, selection):
         answer = QtWidgets.QMessageBox.question(
-            self, 'Confirm Prim Removal',
+            self.view, 'Confirm Prim Removal',
             'Remove prim (and any children) at {0}?'.format(
                 selection.prim.GetPath()),
             buttons=(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel),

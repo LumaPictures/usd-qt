@@ -225,4 +225,6 @@ class SubLayerDialog(QtWidgets.QDialog):
             # FIXME: Should we blow away changes or allow them to
             # persist on the old edit target?
         self.editTargetChanged.emit(selectedLayer)
-        self.dataModel.dataChanged.emit(NULL_INDEX, NULL_INDEX)
+        # Explicitly get two arg version of signal for Qt4/Qt5
+        self.dataModel.dataChanged[QtCore.QModelIndex, QtCore.QModelIndex].emit(
+            NULL_INDEX, NULL_INDEX)
