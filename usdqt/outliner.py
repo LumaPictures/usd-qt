@@ -384,7 +384,7 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         # emit a signal that will make the delegates redraw their items.
         self.dataChanged.emit(NULL_INDEX, NULL_INDEX)
 
-    def ResetStage(self, layer):
+    def ResetStage(self, layer=None):
         '''
         Parameters
         ----------
