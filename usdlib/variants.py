@@ -66,6 +66,20 @@ def getPrimVariants(prim):
         if setName not in seen:
             results.append(PrimVariant(setName, setValue))
             seen.add(setName)
+
+    # If a variant is not selected, it won't be included in the prim index. So
+    # we need a way to get those variants. ComputeExpandedPrimIndex() seems
+    # unstable and slow so far. Using the main api methods we can easily get
+    # variant names. The problem is they are not ordered (by hierarchy)... but
+    # we only add them if they are not found in the index which means they have
+    # no selection. Variants with no selection hide subsequent variants so unless
+    # there are multi-root variant trees (which would require a refactor to
+    # handle appropriately), adding them here will be correct.
+    for setName in prim.GetVariantSets().GetNames():
+        if setName not in seen:
+            setValue = prim.GetVariantSet(setName).GetVariantSelection()
+            results.append(PrimVariant(setName, setValue))
+
     return results
 
 

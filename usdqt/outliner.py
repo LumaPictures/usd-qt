@@ -13,6 +13,8 @@ from usdqt.common import NULL_INDEX, DARK_ORANGE
 from typing import (Any, Dict, Iterable, Iterator, List, Optional,
                     NamedTuple, Tuple, TypeVar, Union)
 
+NO_VARIANT_SELECTION = '<No Variant Selected>'
+
 
 class GroupItem(TreeItem):
     '''
@@ -83,11 +85,12 @@ class AssetTreeView(QtWidgets.QTreeView):
 
 class LazyPrimItemTree(LazyItemTree[UsdPrimItem]):
 
-    def __init__(self, rootPrim, primFilter=None):
+    def __init__(self, rootPrim, primFilter=None, primPredicate=None):
         assert isinstance(rootPrim, Usd.Prim)
         if primFilter is not None:
             assert callable(primFilter)
         self.primFilter = primFilter
+        self.primPredicate = primPredicate or Usd.PrimDefaultPredicate
 
         super(LazyPrimItemTree, self).__init__(rootItem=UsdPrimItem(rootPrim))
 
@@ -124,11 +127,11 @@ class LazyPrimItemTree(LazyItemTree[UsdPrimItem]):
         '''
         primFilter = self.primFilter
         if primFilter is None:
-            for child in startPrim.GetAllChildren():
+            for child in startPrim.GetFilteredChildren(self.primPredicate):
                 yield child
             return
 
-        it = iter(Usd.PrimRange.AllPrims(startPrim))
+        it = iter(Usd.PrimRange(startPrim, self.primPredicate).AllPrims(startPrim))
         it.next()
         for child in it:
             if primFilter(child):
@@ -172,7 +175,11 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
 
         self._stage = stage
         self._stageRoot = stage.GetPseudoRoot()
-        itemTree = LazyPrimItemTree(self._stageRoot)
+        # display defined prims but also include inactive/unloaded prims so
+        # they can be activated.
+        self._primPredicate = Usd.PrimIsDefined
+        itemTree = LazyPrimItemTree(self._stageRoot,
+                                    primPredicate=self._primPredicate)
 
         super(OutlinerStageModel, self).__init__(itemTree=itemTree,
                                                  parent=parent)
@@ -309,7 +316,10 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         item : Optional[UsdPrimItem]
         '''
         self.BeginPrimHierarchyChange(modelIndex, item=item)
-        item.prim.GetVariantSet(setName).SetVariantSelection(value)
+        if value == NO_VARIANT_SELECTION:
+            item.prim.GetVariantSet(setName).ClearVariantSelection()
+        else:
+            item.prim.GetVariantSet(setName).SetVariantSelection(value)
         self.EndPrimHierarchyChange(item)
 
     def RemovePrimFromCurrentLayer(self, modelIndex, prim, item=None):
@@ -391,7 +401,7 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         layer : Sdf.Layer
         '''
         self.beginResetModel()
-        self.itemTree = LazyPrimItemTree(self._stageRoot)
+        self.itemTree = LazyPrimItemTree(self._stageRoot, primPredicate=self._primPredicate)
         self.endResetModel()
 
 
@@ -519,12 +529,15 @@ class ContextMenuBuilder(object):
                         selection.prim):
                     setMenu = variantMenu.addMenu(setName)
                     variantSet = selection.prim.GetVariantSet(setName)
-                    for setValue in variantSet.GetVariantNames():
+                    for setValue in [NO_VARIANT_SELECTION] + \
+                            variantSet.GetVariantNames():
                         a = setMenu.addAction(setValue)
-                        if setValue == currentValue:
-                            a.setCheckable(True)
+                        a.setCheckable(True)
+                        if setValue == currentValue or \
+                                (setValue == NO_VARIANT_SELECTION
+                                 and currentValue == ''):
                             a.setChecked(True)
-                            continue
+
                         # Note: This is currently only valid for PySide. PyQt
                         # always passes the action's `checked` value.
                         a.triggered.connect(
