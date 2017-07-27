@@ -28,6 +28,10 @@ class UsdOutliner(QtWidgets.QDialog):
         self.stage = stage
         self.dataModel = self._GetModel()
 
+        # instances of child dialogs
+        self.layerTextDialogs = {}
+        self.editTargetDlg = None
+
         # Widget and other Qt setup
         self.setModal(False)
         self.UpdateTitle()
@@ -101,6 +105,23 @@ class UsdOutliner(QtWidgets.QDialog):
         ----------
         layer : Sdf.Layer
         '''
+        currentLayer = self.stage.GetEditTarget().GetLayer()
+        if layer == currentLayer or not layer.permissionToEdit:
+            return
+
+        if currentLayer.dirty:
+            box = QtWidgets.QMessageBox(
+                QtWidgets.QMessageBox.Warning,
+                "Unsaved Changes",
+                "You have unsaved layer edits which you cant access from "
+                "another layer. Continue?",
+                buttons=(QtWidgets.QMessageBox.Cancel |
+                         QtWidgets.QMessageBox.Yes))
+            if box.exec_() != QtWidgets.QMessageBox.Yes:
+                return
+            # FIXME: Should we blow away changes or allow them to
+            # persist on the old edit target?
+
         self.stage.SetEditTarget(layer)
         self.editTargetChanged.emit(layer)
         self.UpdateTitle()
@@ -139,19 +160,37 @@ class UsdOutliner(QtWidgets.QDialog):
         '''
         return self._menus.get(name.lower())
 
-    def _ShowEditTargetLayerText(self):
-        # FIXME: only allow one window. per layer could be nice here?
-        d = LayerTextViewDialog(self.stage.GetEditTarget().GetLayer(),
-                                parent=self)
-        d.layerEdited.connect(self.dataModel.ResetStage)
-        d.Refresh()
-        d.show()
+    def _ShowEditTargetLayerText(self, layer=None):
+        # only allow one window per layer
+        # may need to hook this bookkeeping up to hideEvent
+        self.layerTextDialogs = \
+            dict(((layer, dlg)
+                  for layer, dlg in self.layerTextDialogs.iteritems()
+                  if dlg.isVisible()))
+        if layer is None:
+            layer = self.stage.GetEditTarget().GetLayer()
+        try:
+            dlg = self.layerTextDialogs[layer]
+        except KeyError:
+            dlg = LayerTextViewDialog(layer, parent=self)
+            dlg.layerEdited.connect(self.dataModel.ResetStage)
+            self.layerTextDialogs[layer] = dlg
+        dlg.Refresh()
+        dlg.show()
+        dlg.raise_()
+        dlg.activateWindow()
 
     def _ChangeEditTarget(self):
-        # FIXME: only allow one window
-        d = SubLayerDialog(self.stage, parent=self)
-        d.editTargetChanged.connect(self.UpdateEditTarget)
-        d.show()
+        # only allow one window
+        if not self.editTargetDlg:
+            dlg = SubLayerDialog(self.stage, parent=self)
+            dlg.view.editTargetChanged.connect(self.UpdateEditTarget)
+            dlg.view.showLayerContents.connect(self._ShowEditTargetLayerText)
+            dlg.view.openLayer.connect(self._OpenLayerInOutliner)
+            self.editTargetDlg = dlg
+        self.editTargetDlg.show()
+        self.editTargetDlg.raise_()
+        self.editTargetDlg.activateWindow()
 
     def PopulateMenus(self):
         toolsMenu = self.GetMenu('tools')
@@ -167,6 +206,13 @@ class UsdOutliner(QtWidgets.QDialog):
             assert stage
             stage.SetEditTarget(stage.GetSessionLayer())
         return cls(stage, parent=parent)
+
+    def _OpenLayerInOutliner(self, layer):
+        dlg = self.FromUsdFile(layer.identifier)
+        dlg.show()
+        dlg.raise_()
+        dlg.activateWindow()
+        dlg.exec_()
 
 
 if __name__ == '__main__':

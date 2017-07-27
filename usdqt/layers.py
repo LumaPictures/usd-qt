@@ -4,10 +4,14 @@ from pxr import Sdf, Usd, Tf
 from Qt import QtCore, QtGui, QtWidgets
 from treemodel.itemtree import TreeItem, ItemTree
 from treemodel.qt.base import AbstractTreeModelMixin
-from usdqt.common import NULL_INDEX
+from usdqt.common import NULL_INDEX, CopyToClipboard
 
 from typing import (Any, Dict, Iterable, Iterator, List, Optional,
-                    Tuple, TypeVar, Union)
+                    NamedTuple, Tuple, TypeVar, Union)
+
+
+def CopyLayerPath(layer):
+    CopyToClipboard(layer.identifier)
 
 
 class LayerTextViewDialog(QtWidgets.QDialog):
@@ -100,9 +104,9 @@ class SubLayerModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         super(SubLayerModel, self).__init__(parent=parent)
         sessionLayer = self._stage.GetSessionLayer()
         if sessionLayer:
-            self.populateUnder(sessionLayer)
+            self.PopulateUnder(sessionLayer)
 
-        self.populateUnder(stage.GetRootLayer())
+        self.PopulateUnder(stage.GetRootLayer())
 
     # Qt methods ---------------------------------------------------------------
     def columnCount(self, parentIndex):
@@ -146,7 +150,7 @@ class SubLayerModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
                 return font
 
     # Custom Methods -----------------------------------------------------------
-    def populateUnder(self, layer, parent=None):
+    def PopulateUnder(self, layer, parent=None):
         '''
         Parameters
         ----------
@@ -158,12 +162,92 @@ class SubLayerModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
 
         for subLayerPath in layer.subLayerPaths:
             subLayer = Sdf.Layer.FindOrOpen(subLayerPath)
-            self.populateUnder(subLayer, parent=layerItem)
+            self.PopulateUnder(subLayer, parent=layerItem)
+
+
+LayerSelection = NamedTuple('LayerSelection', [
+    ('index', Optional[QtCore.QModelIndex]),
+    ('item', Optional[LayerItem]),
+    ('layer', Optional[Sdf.Layer]),
+])
+
+
+class LayerContextMenuBuilder(object):
+
+    def __init__(self, view):
+        self.view = view
+
+    def GetSelection(self):
+        indexes = self.view.selectionModel().selectedRows()
+        selection = []
+        for index in indexes:
+            item = index.internalPointer()
+            selection.append(LayerSelection(index, item, item.layer))
+        return selection
+
+    def Build(self, menu, selection):
+        # view has single selection
+        layer = selection[0].layer
+
+        a = menu.addAction('Display Layer Text')
+        a.triggered.connect(lambda: self.view.showLayerContents.emit(layer))
+
+        a = menu.addAction('Copy Layer Path')
+        a.triggered.connect(lambda: CopyLayerPath(layer))
+
+        a = menu.addAction('Open Layer in a new Outliner')
+        a.triggered.connect(lambda: self.view.openLayer.emit(layer))
+        return menu
+
+
+class SubLayerTreeView(QtWidgets.QTreeView):
+    # emitted when menu option is selected to show layer contents
+    showLayerContents = QtCore.Signal(Sdf.Layer)
+    # emitted with the new edit layer when the edit target is changed
+    editTargetChanged = QtCore.Signal(Sdf.Layer)
+    # emitted when menu option is selected to show layer contents
+    openLayer = QtCore.Signal(Sdf.Layer)
+
+    def __init__(self, parent=None, menuBuilder=None):
+        if menuBuilder is None:
+            menuBuilder = LayerContextMenuBuilder
+        self._menuBuilder = menuBuilder(self)
+        super(SubLayerTreeView, self).__init__(parent=parent)
+        self.doubleClicked.connect(self.SelectLayer)
+
+    # Qt methods ---------------------------------------------------------------
+    def contextMenuEvent(self, event):
+        selection = self._menuBuilder.GetSelection()
+        if not selection:
+            return
+        menu = QtWidgets.QMenu(self)
+        menu = self._menuBuilder.Build(menu, selection)
+        if menu is None:
+            return
+        menu.exec_(event.globalPos())
+        event.accept()
+
+    # Custom methods -----------------------------------------------------------
+    def SelectLayer(self, selectedIndex=None):
+        '''
+        Parameters
+        ----------
+        selectedIndex : Optional[QtCore.QModelIndex]
+        '''
+        if not selectedIndex:
+            selectedIndexes = self.view.selectedIndexes()
+            if not selectedIndexes:
+                return
+            selectedIndex = selectedIndexes[0]
+
+        selectedLayer = selectedIndex.internalPointer().layer
+        self.editTargetChanged.emit(selectedLayer)
+        # Explicitly get two arg version of signal for Qt4/Qt5
+        self.model().dataChanged[QtCore.QModelIndex, QtCore.QModelIndex].emit(
+            NULL_INDEX, NULL_INDEX)
 
 
 class SubLayerDialog(QtWidgets.QDialog):
-    # emitted with the new edit layer when the edit target is changed
-    editTargetChanged = QtCore.Signal(Sdf.Layer)
 
     def __init__(self, stage, parent=None):
         '''
@@ -183,48 +267,13 @@ class SubLayerDialog(QtWidgets.QDialog):
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
         layout.setSpacing(2)
-        self.view = QtWidgets.QTreeView(parent=self)
+        self.view = SubLayerTreeView(parent=self)
         self.view.setModel(self.dataModel)
         layout.addWidget(self.view)
         self.view.setColumnWidth(0, 160)
         self.view.setColumnWidth(1, 300)
         self.view.setColumnWidth(2, 100)
         self.view.setExpandsOnDoubleClick(False)
-        self.view.doubleClicked.connect(self.SelectLayer)
         self.view.expandAll()
 
         self.resize(700, 200)
-
-    def SelectLayer(self, selectedIndex=None):
-        '''
-        Parameters
-        ----------
-        selectedIndex : Optional[QtCore.QModelIndex]
-        '''
-        if not selectedIndex:
-            selectedIndexes = self.view.selectedIndexes()
-            if not selectedIndexes:
-                return
-            selectedIndex = selectedIndexes[0]
-
-        selectedLayer = selectedIndex.internalPointer().layer
-        currentLayer = self.stage.GetEditTarget().GetLayer()
-        if selectedLayer == currentLayer or not selectedLayer.permissionToEdit:
-            return
-
-        if currentLayer.dirty:
-            box = QtWidgets.QMessageBox(
-                QtWidgets.QMessageBox.Warning,
-                "Unsaved Changes",
-                "You have unsaved layer edits which you cant access from "
-                "another layer. Continue?",
-                buttons=(QtWidgets.QMessageBox.Cancel |
-                         QtWidgets.QMessageBox.Yes))
-            if box.exec_() != QtWidgets.QMessageBox.Yes:
-                return
-            # FIXME: Should we blow away changes or allow them to
-            # persist on the old edit target?
-        self.editTargetChanged.emit(selectedLayer)
-        # Explicitly get two arg version of signal for Qt4/Qt5
-        self.dataModel.dataChanged[QtCore.QModelIndex, QtCore.QModelIndex].emit(
-            NULL_INDEX, NULL_INDEX)

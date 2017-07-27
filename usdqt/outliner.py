@@ -362,8 +362,8 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         print 'Adding new reference:', refPath
 
         # FIXME: Stopgap solution, remove when we have variant editor.
+        from luma_usd import dbfiles
         try:
-            from luma_usd import dbfiles
             # if we can parse the path, add a reference under an element
             # variant so that we have element control downstream.
             _, parseDict = dbfiles.parse(refPath)
@@ -401,7 +401,8 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         layer : Sdf.Layer
         '''
         self.beginResetModel()
-        self.itemTree = LazyPrimItemTree(self._stageRoot, primPredicate=self._primPredicate)
+        self.itemTree = LazyPrimItemTree(self._stageRoot,
+                                         primPredicate=self._primPredicate)
         self.endResetModel()
 
 
@@ -420,7 +421,7 @@ class ContextMenuCallback(object):
         self.supportsMultiSelection = supportsMultiSelection
 
     def __call__(self, *args, **kwargs):
-        selection = [s for s in self.builder._GetSelection() if s.prim]
+        selection = [s for s in self.builder.GetSelection() if s.prim]
         if selection:
             if self.supportsMultiSelection:
                 return self.func(self.builder, selection, *args, **kwargs)
@@ -477,7 +478,7 @@ class ContextMenuBuilder(object):
     def model(self):
         return self.view._dataModel
 
-    def _GetSelection(self):
+    def GetSelection(self):
         '''
         Returns
         -------
@@ -541,7 +542,7 @@ class ContextMenuBuilder(object):
                         # Note: This is currently only valid for PySide. PyQt
                         # always passes the action's `checked` value.
                         a.triggered.connect(
-                            lambda n=setName, v=setValue: \
+                            lambda n=setName, v=setValue:
                                 self.model.PrimVariantChanged(
                                     selection.index, n, v, item=selection.item))
 
@@ -701,7 +702,7 @@ class OutlinerTreeView(AssetTreeView):
 
     # Qt methods ---------------------------------------------------------------
     def contextMenuEvent(self, event):
-        selection = [s for s in self._menuBuilder._GetSelection() if s.prim]
+        selection = [s for s in self._menuBuilder.GetSelection() if s.prim]
         if not selection:
             return
         menu = QtWidgets.QMenu(self)
