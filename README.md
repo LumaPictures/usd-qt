@@ -47,5 +47,5 @@ You'll also obviously need to make sure that you've built USD and placed the `px
 To test it out:
 
 ```
-python usdqt/app.py /path/to/file.usd
+python usdQt/app.py /path/to/file.usd
 ```

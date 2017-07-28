@@ -12,7 +12,7 @@ with open(path.join(here, 'requirements.txt'), encoding='utf-8') as f:
     requirements = f.read().split('\n')
 
 setup(
-    name='usdqt',
+    name='usdQt',
     version='0.0.1',
     description='USD Qt Components',
     long_description=long_description,
