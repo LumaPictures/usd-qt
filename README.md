@@ -1,15 +1,15 @@
 
 # usdQt
 
-Reusable UI widgets for viewing and authoring USD files.
+## Reusable UI widgets for viewing and authoring USD files
 
 The components in usdview are good reference, but they’re purpose built for the usdview application and are implemented in a way that makes them difficult to extract.  We need widgets that provide similar functionality that we can use ad-hoc throughout our pipeline. 
 
-Project Goals:
+### Project Goals
 - make it easy to build standalione usdview-like applications, or integrate with client plugins (maya, katana, etc)
 - long term, build a complete replacement of usdview
 
-Design Requirements:
+### Design Requirements
 - separate models and views
 - standardize signals/slots between widgets
 - support PyQt4/PyQt5/PySide/PySide2
@@ -32,8 +32,8 @@ Design Requirements:
 ### Planned
 - **variant set editor**: display and create variants and variant sets
 - **stage signaler**: convert stage notifications into Qt signals
-- prim property editor
-- hydra viewport
+- **prim property editor**: view and edit properties/attributes of a prim
+- **hydra viewport**: display changes to the stage in realtime
 
 ## Installing
 
