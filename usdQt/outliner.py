@@ -8,7 +8,7 @@ import usdlib.variants
 from Qt import QtCore, QtGui, QtWidgets
 from treemodel.itemtree import LazyItemTree, TreeItem
 from treemodel.qt.base import AbstractTreeModelMixin
-from usdqt.common import NULL_INDEX, DARK_ORANGE
+from usdQt.common import NULL_INDEX, DARK_ORANGE
 
 from typing import (Any, Dict, Iterable, Iterator, List, Optional,
                     NamedTuple, Tuple, TypeVar, Union)

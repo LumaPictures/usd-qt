@@ -4,7 +4,7 @@ from pxr import Sdf, Usd, Tf
 from Qt import QtCore, QtGui, QtWidgets
 from treemodel.itemtree import TreeItem, ItemTree
 from treemodel.qt.base import AbstractTreeModelMixin
-from usdqt.common import NULL_INDEX, CopyToClipboard
+from usdQt.common import NULL_INDEX, CopyToClipboard
 
 from typing import (Any, Dict, Iterable, Iterator, List, Optional,
                     NamedTuple, Tuple, TypeVar, Union)

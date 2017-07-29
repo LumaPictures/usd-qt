@@ -2,9 +2,9 @@ from __future__ import absolute_import
 
 from pxr import Sdf, Usd
 from Qt import QtCore, QtGui, QtWidgets
-from usdqt.outliner import (OutlinerTreeView, OutlinerViewDelegate,
+from usdQt.outliner import (OutlinerTreeView, OutlinerViewDelegate,
                             OutlinerStageModel, ContextMenuBuilder)
-from usdqt.layers import LayerTextViewDialog, SubLayerDialog
+from usdQt.layers import LayerTextViewDialog, SubLayerDialog
 
 from typing import (Any, Dict, Iterable, Iterator, List, Optional,
                     Tuple, TypeVar, Union)
