@@ -1,4 +1,4 @@
-from Qt import QtCore, QtGui
+from Qt import QtCore, QtGui, QtWidgets
 
 NULL_INDEX = QtCore.QModelIndex()
 
@@ -11,7 +11,13 @@ PALE_ORANGE = QtGui.QColor(224, 150, 66, 200)
 DARK_BLUE = QtGui.QColor(14, 82, 130, 128)
 
 
-def blendColors(color1, color2, mix=.5):
+def BlendColors(color1, color2, mix=.5):
     return QtGui.QColor(*[one * mix + two * (1 - mix)
                           for one, two in
                           zip(color1.getRgb(), color2.getRgb())])
+
+
+def CopyToClipboard(text):
+    cb = QtWidgets.QApplication.clipboard()
+    cb.setText(text, QtGui.QClipboard.Selection)
+    cb.setText(text, QtGui.QClipboard.Clipboard)

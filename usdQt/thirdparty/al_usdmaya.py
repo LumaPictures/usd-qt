@@ -2,17 +2,19 @@ import pymel.core as pm
 from pxr import Sdf
 
 from treemodel.itemtree import ItemLookupError
-import usdqt.app
+import usdQt.app
 
 from luma_qt.Qt import QtCore
 
 
-class ProxyShapeOutliner(usdqt.app.UsdOutliner):
+class ProxyShapeOutliner(usdQt.app.UsdOutliner):
     '''Generic outliner attached to a single AL maya ProxyShape node'''
     OUTLINER_WINDOW_NAME = 'MayaUsdOutlinerWin'
 
-    def __init__(self, stage, proxyShape, parent=None):
-        super(ProxyShapeOutliner, self).__init__(stage, parent=parent)
+    def __init__(self, stage, proxyShape, menuBuilder=None,
+                 parent=None):
+        super(ProxyShapeOutliner, self).__init__(stage, menuBuilder=menuBuilder,
+                                                 parent=parent)
         self.setObjectName(self.OUTLINER_WINDOW_NAME)
         self._proxyShape = proxyShape
 
@@ -112,4 +114,4 @@ class ProxyShapeOutliner(usdqt.app.UsdOutliner):
             pm.api.MMessage.removeCallback(self.selectionCallbackId)
             self.selectionCallbackId = None
         # not using super to make this call reload proof for now
-        usdqt.app.UsdOutliner.hideEvent(self, event)
+        usdQt.app.UsdOutliner.hideEvent(self, event)
