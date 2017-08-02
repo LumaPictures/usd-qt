@@ -6,7 +6,7 @@
 The components in usdview are good reference, but they’re purpose built for the usdview application and are implemented in a way that makes them difficult to extract.  We need widgets that provide similar functionality that we can use ad-hoc throughout our pipeline. 
 
 ### Project Goals
-- make it easy to build standalione usdview-like applications, or integrate with client plugins (maya, katana, etc)
+- make it easy to create standalione usdview-like applications, or integrate with client plugins (maya, katana, etc)
 - long term, build a complete replacement of usdview
 
 ### Design Requirements
@@ -14,15 +14,16 @@ The components in usdview are good reference, but they’re purpose built for th
 - standardize signals/slots between widgets
 - support PyQt4/PyQt5/PySide/PySide2
 
+### Project Status
 
-**This is a first look to get feedback. This repo may go away!**
+Usable, but under construction:  We're in the process of melding existing efforts made at Luma and Pixar, so expect major refactoring to take place.
 
 ## Components
 
 ### Current
 - **prim outliner**: view prim hierarchy
   - similar to the outliner in usdview, but built on an MVC design
-  - also includes editing capabilities:
+  - includes editing capabilities:
     - switch variants
     - add references
     - add Xforms
