@@ -30,28 +30,66 @@ class ProxyShapeOutliner(usdQt.app.UsdOutliner):
         transforms (which deletes them if they are not needed) for deselected 
         prims in the outliner.
         '''
+        if self._blockSelectionCallback:
+            return
         self._blockSelectionCallback = True
-        for prim in selectedPrims:
-            # this command also selects the transform it creates
-            pm.AL_usdmaya_ProxyShapeSelectPrimPath(
-                self._proxyShape,
-                primPath=prim.GetPath())
 
-        toDeselect = []
-        for prim in deselectedPrims:
+        def getDagPath(prim):
             # AL_usdmaya stores a mapping from prim to dag path in session layer
             dagPath = prim.GetCustomDataByKey("MayaPath")
             if dagPath and pm.objExists(dagPath):
-                toDeselect.append(dagPath)
+                return dagPath
 
-        if toDeselect:
-            pm.select(toDeselect, deselect=True)
+        toSelect = []
+        toDeselect = []
+        toSelectPrimPaths = []
+        toDeselectPrimPaths = []
+        for prim in selectedPrims:
+            toSelectPrimPaths.append(str(prim.GetPath()))
+            dag = getDagPath(prim)
+            if dag:
+                toSelect.append(dag)
+
+        if toSelectPrimPaths:
+            print 'pm.AL_usdmaya_ProxyShapeSelect(%s, primPath=%s, ' \
+                  'append=True)' % (self._proxyShape, toSelectPrimPaths)
+            pm.AL_usdmaya_ProxyShapeSelect(
+                self._proxyShape,
+                primPath=toSelectPrimPaths,
+                append=True
+            )
+
+        for prim in deselectedPrims:
+            toDeselectPrimPaths.append(str(prim.GetPath()))
+            dag = getDagPath(prim)
+            if dag:
+                toDeselect.append(dag)
+
+        if toDeselectPrimPaths:
+            print 'pm.AL_usdmaya_ProxyShapeSelect(%s, primPath=%s, ' \
+                  'deselect=True)' % (self._proxyShape, toDeselectPrimPaths)
+            pm.AL_usdmaya_ProxyShapeSelect(
+                self._proxyShape,
+                primPath=str(prim.GetPath()),
+                deselect=True
+            )
+
+        # manually keep these in sync if needed
+        # if toDeselect:
+        #     pm.select(toDeselect, deselect=True)
+        # if toSelect:
+        #     pm.select(toDeselect, add=True)
+
+        # this does not seem to deliver on its promise of keeping things synced.
+        # pm.AL_usdmaya_ProxyShapePostSelect(self._proxyShape)
         self._blockSelectionCallback = False
+        print 'current selection: %s' % pm.selected()
 
     def mayaSelectionChanged(self, *args):
         '''Callback to mirror maya selection changes in the Outliner'''
         if self._blockSelectionCallback:
             return
+        self._blockSelectionCallback = True
 
         parentPath = self._proxyShape.getParent().fullPath()
         selected = pm.ls(type=pm.nt.AL_usdmaya_Transform, selection=1)
@@ -77,6 +115,7 @@ class ProxyShapeOutliner(usdQt.app.UsdOutliner):
         indexes = qSelection.indexes()
         if indexes:
             self.view.scrollTo(indexes[0], self.view.PositionAtTop)
+        self._blockSelectionCallback = False
 
     def createParents(self, path):
         '''Create any missing prim parents down to path'''
