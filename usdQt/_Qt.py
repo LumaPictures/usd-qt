@@ -22,18 +22,36 @@
 # language governing permissions and limitations under the Apache License.
 #
 
+# Use this for site customization of Qt binding versions.  This code targets
+# PySide2, but may be compatable with a variety of other shims/APIs.  Override
+# this file to specify any site specific preferences.
+
 from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+import importlib
 
-from ._bindings import PrimFilterCache, UndoBlock, UndoInverse, UndoRouter, \
-    UndoStackNotice
-from .hierarchyModel import HierarchyStandardDelegate, HierarchyBaseModel, \
-    HierarchyStandardModel, HierarchyStandardFilterModel
-from .layerModel import LayerStandardModel, LayerBaseModel, \
-    LayerStackStyledDelegate
-from .opinionModel import OpinionStandardModel, OpinionBaseModel
-from .stageCacheModel import StageCacheModel
+def _get_proxied_module():
+    import os
 
-from . import widgets
-from . import roles
+    explicit = os.environ.get('PXR_QT_PYTHON_NAME', None)
+
+    if explicit:
+        # if explicitly requested, don't fall back
+        search = [explicit]
+    else:
+        # default search order
+        search = ['PySide2']
+    for mod in search:
+        try:
+            return importlib.import_module(mod)
+        except ImportError:
+            continue
+    # re-raise last ImportError
+    raise
+    
+_qtModule = _get_proxied_module()
+
+QtCore = importlib.import_module('%s.QtCore' % _qtModule.__name__)
+QtGui = importlib.import_module('%s.QtGui' % _qtModule.__name__)
+QtWidgets = importlib.import_module('%s.QtWidgets' % _qtModule.__name__)
+
+del _get_proxied_module, _qtModule, importlib

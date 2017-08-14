@@ -22,11 +22,12 @@
 // language governing permissions and limitations under the Apache License.
 //
 
-#include "pxr/base/tf/pyModule.h"
+#ifndef USDQT_DEBUG_H
+#define USDQT_DEBUG_H
 
-using namespace boost::python;
+#include "pxr/base/tf/debug.h"
 
-TF_WRAP_MODULE {
-    TF_WRAP(HierarchyCache);
-    TF_WRAP(PrimFilterCache);
-}
+TF_DEBUG_CODES(USDQT_DEBUG_HIERARCHYCACHE, USDQT_DEBUG_PRIMFILTERCACHE,
+               USDQT_DEBUG_UNDOSTATEDELEGATE, USDQT_DEBUG_UNDOSTACK);
+
+#endif

@@ -22,11 +22,18 @@
 // language governing permissions and limitations under the Apache License.
 //
 
-#include "pxr/base/tf/pyModule.h"
+#include "debugCodes.h"
 
-using namespace boost::python;
-
-TF_WRAP_MODULE {
-    TF_WRAP(HierarchyCache);
-    TF_WRAP(PrimFilterCache);
+TF_REGISTRY_FUNCTION(TfDebug) {
+    TF_DEBUG_ENVIRONMENT_SYMBOL(
+        USDQT_DEBUG_HIERARCHYCACHE,
+        "Enabling debug information for the hierarchy cache.");
+    TF_DEBUG_ENVIRONMENT_SYMBOL(
+        USDQT_DEBUG_PRIMFILTERCACHE,
+        "Enabling debug information for the prim filter cache.");
+    TF_DEBUG_ENVIRONMENT_SYMBOL(
+        USDQT_DEBUG_UNDOSTATEDELEGATE,
+        "Enabling debug information for the layer state delegate.");
+    TF_DEBUG_ENVIRONMENT_SYMBOL(USDQT_DEBUG_UNDOSTACK,
+                                "Enabling Undo Stack debugging.");
 }

@@ -26,14 +26,32 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from ._bindings import PrimFilterCache, UndoBlock, UndoInverse, UndoRouter, \
-    UndoStackNotice
-from .hierarchyModel import HierarchyStandardDelegate, HierarchyBaseModel, \
-    HierarchyStandardModel, HierarchyStandardFilterModel
-from .layerModel import LayerStandardModel, LayerBaseModel, \
-    LayerStackStyledDelegate
-from .opinionModel import OpinionStandardModel, OpinionBaseModel
-from .stageCacheModel import StageCacheModel
+from ._Qt import QtCore
 
-from . import widgets
-from . import roles
+EditorHintRole = QtCore.Qt.UserRole + 2
+LayerStackDepthRole = QtCore.Qt.UserRole + 3
+HierarchyPrimRole = QtCore.Qt.UserRole + 4
+UsdQtUserRole = QtCore.Qt.UserRole + 16 
+
+class EditorHintBasicValue(object):
+    """Used for values whose editor can be inferred soley from the TfType"""
+    def __init__(self, tfType):
+        self.__type = tfType
+
+    @property
+    def type(self):
+        return self.__type
+
+class EditorHintTextCombo(object):
+    """Used for a string/token editor restricted by a list of allowed values"""
+    def __init__(self, allowedValues):
+        self.__allowedValues = allowedValues
+
+    @property
+    def allowedValues(self):
+        return self.__allowedValues
+
+class EditorHintTab(object):
+    """Used when an item should be drawn as a tab"""
+    def __init__(self):
+        pass
