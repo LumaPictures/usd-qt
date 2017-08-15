@@ -152,5 +152,4 @@ class ProxyShapeOutliner(usdQt.app.UsdOutliner):
         if self.selectionCallbackId:
             pm.api.MMessage.removeCallback(self.selectionCallbackId)
             self.selectionCallbackId = None
-        # not using super to make this call reload proof for now
-        usdQt.app.UsdOutliner.hideEvent(self, event)
+        super(ProxyShapeOutliner, self).hideEvent(event)
