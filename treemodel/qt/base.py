@@ -24,13 +24,12 @@
 
 from __future__ import absolute_import
 
-from pylib.strings import prettify
 from treemodel.itemtree import ItemTree, TreeItem
 
 from typing import (Any, Dict, Generic, Iterable, Iterator, List, Optional,
                     Tuple, Union, TYPE_CHECKING)
 
-from luma_qt.Qt import QtCore, QtGui
+from Qt import QtCore, QtGui
 
 NULL_INDEX = QtCore.QModelIndex()
 
@@ -150,9 +149,16 @@ class Column(object):
     __slots__ = ('_name', 'label', 'width')
 
     def __init__(self, name, label=None, width=100):
+        '''
+        Parameters
+        ----------
+        name : str
+        label : Optional[str]
+        width: int
+        '''
         self._name = name
         if label is None:
-            label = prettify(name)
+            label = name
         self.label = label
         self.width = max(0, width)
 
@@ -166,4 +172,3 @@ class Column(object):
     def name(self):
         # name is read-only
         return self._name
-
