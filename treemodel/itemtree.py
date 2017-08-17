@@ -293,6 +293,8 @@ class ItemTree(Generic[T]):
             self._keyToItem[item.key] = item
             self._parentToChildren[item] = makeChildrenValue(item)
             self._childToParent[item] = parent
+        if self._parentToChildren[parent] is None:
+            self._parentToChildren[parent] = []
         self._parentToChildren[parent].extend(newItems)
 
         return newItems

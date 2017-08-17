@@ -29,6 +29,7 @@ from Qt import QtCore, QtGui, QtWidgets
 from usdQt.outliner import (OutlinerTreeView, OutlinerViewDelegate,
                             OutlinerStageModel, ContextMenuBuilder)
 from usdQt.layers import LayerTextViewDialog, SubLayerDialog
+from usdQt.variantSets import VariantEditorDialog
 
 from typing import (Any, Dict, Iterable, Iterator, List, Optional,
                     Tuple, TypeVar, Union)
@@ -55,6 +56,7 @@ class UsdOutliner(QtWidgets.QDialog):
         # instances of child dialogs
         self.layerTextDialogs = {}
         self.editTargetDlg = None
+        self.variantEditorDlg = None
 
         # Widget and other Qt setup
         self.setModal(False)
@@ -188,10 +190,10 @@ class UsdOutliner(QtWidgets.QDialog):
         # only allow one window per layer
         # may need to hook this bookkeeping up to hideEvent
         self.layerTextDialogs = \
-            dict(((layer, dlg)
-                  for layer, dlg in self.layerTextDialogs.iteritems()
+            dict(((lyr, dlg)
+                  for lyr, dlg in self.layerTextDialogs.iteritems()
                   if dlg.isVisible()))
-        if layer is None:
+        if not isinstance(layer, Sdf.Layer):
             layer = self.stage.GetEditTarget().GetLayer()
         try:
             dlg = self.layerTextDialogs[layer]
@@ -216,12 +218,27 @@ class UsdOutliner(QtWidgets.QDialog):
         self.editTargetDlg.raise_()
         self.editTargetDlg.activateWindow()
 
+    def _ShowVariantEditor(self):
+        # only allow one window
+        if not self.variantEditorDlg:
+            dlg = VariantEditorDialog(self.stage,
+                                      self.view.SelectedPrims(),
+                                      parent=self)
+            self.view.primSelectionChanged.connect(dlg.dataModel.PrimSelectionChanged)
+            self.editTargetChanged.connect(dlg.dataModel.EditTargetChanged)
+            self.variantEditorDlg = dlg
+        self.variantEditorDlg.show()
+        self.variantEditorDlg.raise_()
+        self.variantEditorDlg.activateWindow()
+
     def PopulateMenus(self):
         toolsMenu = self.GetMenu('tools')
         a = toolsMenu.addAction('Show Current Layer Text')
         a.triggered.connect(self._ShowEditTargetLayerText)
         a = toolsMenu.addAction('Change Edit Target')
         a.triggered.connect(self._ChangeEditTarget)
+        a = toolsMenu.addAction('Edit Variants')
+        a.triggered.connect(self._ShowVariantEditor)
 
     @classmethod
     def FromUsdFile(cls, usdFile, parent=None):

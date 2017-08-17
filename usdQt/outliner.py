@@ -448,8 +448,10 @@ class ContextMenuCallback(object):
         selection = [s for s in self.builder.GetSelection() if s.prim]
         if selection:
             if self.supportsMultiSelection:
-                return self.func(self.builder, selection, *args, **kwargs)
-            return self.func(self.builder, selection[0], *args, **kwargs)
+                return self.func(self.builder, selection)
+            return self.func(self.builder, selection[0])
+            #     return self.func(self.builder, selection, *args, **kwargs)
+            # return self.func(self.builder, selection[0], *args, **kwargs)
 
     def __get__(self, builder, objtype):
         self.builder = builder
@@ -746,6 +748,13 @@ class OutlinerTreeView(AssetTreeView):
             return prims
 
         self.primSelectionChanged.emit(toPrims(selected), toPrims(deselected))
+
+    def SelectedPrims(self):
+        indexes = self.selectionModel().selectedRows()
+        # if not indexes:
+        #     return []
+
+        return [index.internalPointer().prim for index in indexes]
 
 
 class OutlinerViewDelegate(QtWidgets.QStyledItemDelegate):
