@@ -1,18 +1,26 @@
+'''
+Variant Set and Variant Editing Widget.
+
+TODO:
+- support more than one variant set at each level of the hierarchy (This is 
+  supported in usd) i.e. two variants that are not mutually exclusive, but can 
+  be selected at the same time because they are in different sets.
+- Expand selected variants initially
+- Possible: Only fetch variant children when requested by expansion for 
+  performance. Unfortunately this may mean we loose ui friendliness of the 
+  "expandable" indicator 
+- Ability to Remove Variants?
+- Allow setting variant selections within nested variants?
+'''
+
 from __future__ import absolute_import
 
 from pxr import Sdf, Usd, Tf
 from luma_qt.Qt import QtCore, QtGui, QtWidgets
-from treemodel.itemtree import TreeItem, ItemTree, LazyItemTree
+from treemodel.itemtree import TreeItem, LazyItemTree
 from treemodel.qt.base import AbstractTreeModelMixin
 from usdQt.common import NULL_INDEX, ContextMenuBuilder, passSingleSelection
 import usdlib.variants as varlib
-
-
-class PrimItem(TreeItem):
-    def __init__(self, prim):
-        super(PrimItem, self).__init__(key=prim.GetPath())
-        self.prim = prim
-        self.path = prim.GetPath()
 
 
 class VariantItem(TreeItem):
@@ -52,33 +60,43 @@ class VariantItem(TreeItem):
         '''
         return self.parentVariants + [self.variant]
 
+    @property
+    def name(self):
+        '''
+        Returns
+        -------
+        str
+        '''
+        return '{}={}'.format(*self.variant)
+
 
 class LazyVariantTree(LazyItemTree):
+
+    def __init__(self, prim):
+        self.prim = prim
+        super(LazyVariantTree, self).__init__()
 
     # May want to replace this with an even lazier tree that only fetches
     # children that are explicitly requested by expansion or variant selection.
     # This depends on the cost of switching variants vs. usability.
     def _fetchItemChildren(self, parent):
+        if not self.prim:
+            return None
+
         parentVariants = []
-        if isinstance(parent, PrimItem):
-            prim = parent.prim
-        elif isinstance(parent, VariantItem):
-            prim = parent.prim
+        if isinstance(parent, VariantItem):
             if not parent.variant.variantName:
                 # clear selections will have no child variants
                 return []
             parentVariants = parent.parentVariants + [parent.variant]
-        else:
-            # root's children (prims) must be populated manually
-            return []
 
         # set variants temporarily so that underlying variants can be inspected.
-        with varlib.SessionVariantContext(prim, parentVariants):
-            for path, primVariant in varlib.getPrimVariants(prim,
+        with varlib.SessionVariantContext(self.prim, parentVariants):
+            for path, primVariant in varlib.getPrimVariants(self.prim,
                                                             includePath=True):
                 if primVariant in parentVariants:
                     continue
-                variantSet = prim.GetVariantSet(primVariant.setName)
+                variantSet = self.prim.GetVariantSet(primVariant.setName)
                 variantItem = VariantItem(variantSet,
                                           path,
                                           parentVariants,
@@ -115,12 +133,12 @@ class VariantModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         Parameters
         ----------
         prims : List[Usd.Prim]
+            Current  prim selection
         parent : Optional[QtGui.QWidget]
         '''
         self._stage = stage
         self._prims = prims
-        super(VariantModel, self).__init__(itemTree=LazyVariantTree(),
-                                           parent=parent)
+        super(VariantModel, self).__init__(parent=parent)
         self.Reset()
 
     def columnCount(self, parentIndex):
@@ -147,12 +165,8 @@ class VariantModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         if role == QtCore.Qt.DisplayRole:
             column = modelIndex.column()
             item = modelIndex.internalPointer()
-            if isinstance(item, PrimItem):
-                if column == 0:
-                    return str(item.path)
-                return ''
             if column == 0:
-                return '{}={}'.format(*item.variant)
+                return item.name
             elif column == 1:
                 return str(item.path)
             elif column == 2:
@@ -177,26 +191,27 @@ class VariantModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
 
     # Custom Methods -----------------------------------------------------------
 
-    def _PopulateVariants(self, prims):
-        '''
-        Parameters
-        ----------
-        prims : List[Usd.Prim]
-        '''
-        if not prims:
-            return
+    @property
+    def prim(self):
+        if len(self._prims) == 1:
+            return self._prims[0]
+        return None
 
-        for prim in prims:
-            primItem = PrimItem(prim)
-            self.itemTree.addItems(primItem, parent=None)
-        self.dataChanged.emit(NULL_INDEX, NULL_INDEX)
+    @property
+    def title(self):
+        numPrims = len(self._prims)
+        if numPrims == 1:
+            return self._prims[0].GetPath()
+        elif numPrims == 0:
+            return '<no selection>'
+        else:
+            return '<multiple prims selected>'
 
     def Reset(self):
         self.beginResetModel()
-        self.itemTree = LazyVariantTree()
         # only single selection is supported
         if len(self._prims) == 1:
-            self._PopulateVariants(self._prims)
+            self.itemTree = LazyVariantTree(self._prims[0])
         self.endResetModel()
 
     def PrimSelectionChanged(self, selected, deselected):
@@ -207,6 +222,8 @@ class VariantModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         self.Reset()
 
     def EditTargetChanged(self, layer):
+        # if the edit target changes we refresh the variants because they
+        # display whether they are defined on the edit target
         self.dataChanged.emit(NULL_INDEX, NULL_INDEX)
 
     def Layer(self):
@@ -218,15 +235,7 @@ class VariantContextMenuBuilder(ContextMenuBuilder):
     Class to customize the building of right-click context menus for selected
     variants.
     '''
-
-    # def GetSelection(self):
-    #     '''
-    #     Returns
-    #     -------
-    #     List[Selection]
-    #     '''
-    #     return [r for r in self.GetSelectedRowItems()
-    #             if isinstance(r, VariantItem)]
+    showMenuOnNoSelection = True
 
     def Build(self, menu, selections):
         '''
@@ -243,13 +252,16 @@ class VariantContextMenuBuilder(ContextMenuBuilder):
         '''
         if len(selections) == 1:
             selection = selections[0]
-            if isinstance(selection, VariantItem):
-                a = menu.addAction('Add %s Variant' % selection.variant.setName)
-                a.triggered.connect(self.AddVariant)
-            a = menu.addAction('Add Variant Set')
-            a.triggered.connect(self.AddVariantSet)
-            a = menu.addAction('Add Reference')
+            a = menu.addAction('Add "%s" Variant' % selection.variant.setName)
+            a.triggered.connect(self.AddVariant)
+            a = menu.addAction('Add Nested Variant Set Under "%s"'
+                               % selection.name)
+            a.triggered.connect(self.AddNestedVariantSet)
+            a = menu.addAction('Add Reference Under "%s"' % selection.name)
             a.triggered.connect(self.AddReference)
+        elif len(selections) == 0:
+            a = menu.addAction('Add Top Level Variant Set')
+            a.triggered.connect(self.AddVariantSet)
 
             # TODO: may not be api for these actions, you can always remove the
             # prim spec and rebuild.
@@ -261,7 +273,6 @@ class VariantContextMenuBuilder(ContextMenuBuilder):
             #         a = menu.addAction('Remove Variant Set')
             #         a.triggered.connect(self.RemoveVariantSet)
         return menu
-
 
     @passSingleSelection
     def AddVariant(self, selectedItem):
@@ -275,21 +286,29 @@ class VariantContextMenuBuilder(ContextMenuBuilder):
         selectedItem.variantSet.AppendVariant(name)
         self.view.model().Reset()  # TODO: Reload only necessary part
 
-    @passSingleSelection
-    def AddVariantSet(self, selectedItem):
+    def _GetVariantSetName(self):
         name, _ = QtWidgets.QInputDialog.getText(
             self.view,
             'Enter New Variant Set Name',
             'Name for the new variant set:')
+        return name
+
+    @passSingleSelection
+    def AddNestedVariantSet(self, selectedItem):
+        name = self._GetVariantSetName()
         if not name:
             return
-        if isinstance(selectedItem, PrimItem):
-            selectedItem.prim.GetVariantSets().AppendVariantSet(name)
-        else:
-            with varlib.SessionVariantContext(selectedItem.prim,
-                                              selectedItem.variants):
-                with selectedItem.variantSet.GetVariantEditContext():
-                    selectedItem.prim.GetVariantSets().AppendVariantSet(name)
+        with varlib.SessionVariantContext(selectedItem.prim,
+                                          selectedItem.variants):
+            with selectedItem.variantSet.GetVariantEditContext():
+                selectedItem.prim.GetVariantSets().AppendVariantSet(name)
+        self.view.model().Reset()  # TODO: Reload only necessary part
+
+    def AddVariantSet(self):
+        name = self._GetVariantSetName()
+        if not name:
+            return
+        self.view.model().prim.GetVariantSets().AppendVariantSet(name)
         self.view.model().Reset()  # TODO: Reload only necessary part
 
     @passSingleSelection
@@ -357,6 +376,7 @@ class VariantEditorDialog(QtWidgets.QDialog):
         self.view.setColumnWidth(2, 100)
         self.view.setExpandsOnDoubleClick(False)
         self.view.doubleClicked.connect(self.SelectVariant)
+        self.dataModel.modelReset.connect(self.Refresh)
         # expand selected variants which wont have a cost.
         # self.view.expandAll()
 
@@ -379,3 +399,6 @@ class VariantEditorDialog(QtWidgets.QDialog):
         item.variantSet.SetVariantSelection(item.variant.variantName)
 
         self.dataModel.dataChanged.emit(NULL_INDEX, NULL_INDEX)
+
+    def Refresh(self):
+        self.setWindowTitle('Variant Editor: %s' % self.dataModel.title)

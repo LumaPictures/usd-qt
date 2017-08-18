@@ -105,6 +105,8 @@ class ContextMenuBuilder(object):
     Base class to customize the building of right-click context menus for 
     selected view items.
     '''
+    showMenuOnNoSelection = False
+
     def __init__(self, view):
         self.view = view
 
@@ -115,7 +117,7 @@ class ContextMenuBuilder(object):
         Views should call this from their contextMenuEvent.
         '''
         selection = self.GetSelection()
-        if not selection:
+        if not selection and not self.showMenuOnNoSelection:
             return
         menu = QtWidgets.QMenu(self.view)
         menu = self.Build(menu, selection)
