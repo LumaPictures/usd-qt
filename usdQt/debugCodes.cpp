@@ -1,5 +1,5 @@
 //
-// Copyright 2016 Pixar
+// Copyright 2017 Pixar
 //
 // Licensed under the Apache License, Version 2.0 (the "Apache License")
 // with the following modification; you may not use this file except in
@@ -24,6 +24,8 @@
 
 #include "debugCodes.h"
 
+PXR_NAMESPACE_OPEN_SCOPE
+
 TF_REGISTRY_FUNCTION(TfDebug) {
     TF_DEBUG_ENVIRONMENT_SYMBOL(
         USDQT_DEBUG_HIERARCHYCACHE,
@@ -37,3 +39,5 @@ TF_REGISTRY_FUNCTION(TfDebug) {
     TF_DEBUG_ENVIRONMENT_SYMBOL(USDQT_DEBUG_UNDOSTACK,
                                 "Enabling Undo Stack debugging.");
 }
+
+PXR_NAMESPACE_CLOSE_SCOPE

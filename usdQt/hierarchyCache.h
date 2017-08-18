@@ -29,6 +29,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "pxr/pxr.h"
 #include "pxr/base/tf/refPtr.h"
 #include "pxr/base/tf/weakPtr.h"
 #include "pxr/usd/sdf/path.h"
@@ -36,6 +37,8 @@
 #include "pxr/usd/usd/prim.h"
 #include "pxr/usd/usd/primFlags.h"
 #include "pxr/usd/usd/stage.h"
+
+PXR_NAMESPACE_OPEN_SCOPE
 
 /// \class UsdQt_HierarchyCache
 ///
@@ -128,5 +131,7 @@ public:
     // void PrintSubtreeIndex(const SdfPath& path);
     void DebugFullIndex();
 };
+
+PXR_NAMESPACE_CLOSE_SCOPE
 
 #endif

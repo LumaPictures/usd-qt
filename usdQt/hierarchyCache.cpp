@@ -28,6 +28,8 @@
 #include "debugCodes.h"
 #include "hierarchyCache.h"
 
+PXR_NAMESPACE_OPEN_SCOPE
+
 typedef TfWeakPtr<UsdQt_HierarchyCache::Proxy> ProxyPtr;
 typedef TfRefPtr<UsdQt_HierarchyCache::Proxy> ProxyRefPtr;
 
@@ -240,3 +242,5 @@ void UsdQt_HierarchyCache::DebugFullIndex() {
                   << std::endl;
     }
 }
+
+PXR_NAMESPACE_CLOSE_SCOPE

@@ -27,7 +27,7 @@ from __future__ import print_function
 
 import os
 
-from ._Qt import QtGui
+from ._Qt import QtCore, QtWidgets, QtGui
 
 from pxr import Sdf
 

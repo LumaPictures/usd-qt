@@ -30,6 +30,8 @@
 #include "pxr/base/work/loops.h"
 #include "tbb/parallel_reduce.h"
 
+PXR_NAMESPACE_OPEN_SCOPE
+
 TF_REGISTRY_FUNCTION(TfEnum) {
     TF_ADD_ENUM_NAME(UsdQtPrimFilterCache::Accept);
     TF_ADD_ENUM_NAME(UsdQtPrimFilterCache::Intermediate);
@@ -55,24 +57,6 @@ UsdQtPrimFilterCache::State UsdQtPrimFilterCache::GetState(
     return UsdQtPrimFilterCache::Untraversed;
 }
 
-/// XXX: This can be removed
-std::string _EnumToString(const UsdQtPrimFilterCache::State& state) {
-
-    // replace with tfenum display name
-    if (state == UsdQtPrimFilterCache::Accept) {
-        return "Accept";
-    } else if (state == UsdQtPrimFilterCache::Intermediate) {
-        return "Intermediate";
-    } else if (state == UsdQtPrimFilterCache::Reject) {
-        return "Reject";
-    } else if (state == UsdQtPrimFilterCache::Untraversed) {
-        return "Untraversed";
-    } else {
-        // ERROR
-        return "???";
-    }
-}
-
 UsdQtPrimFilterCache::State UsdQtPrimFilterCache::_RunFilter(
     UsdPrim prim, const std::function<State(const UsdPrim&)>& filter,
     Usd_PrimFlagsPredicate predicate) {
@@ -82,7 +66,7 @@ UsdQtPrimFilterCache::State UsdQtPrimFilterCache::_RunFilter(
     State state = filter(prim);
 
     TF_DEBUG(USDQT_DEBUG_PRIMFILTERCACHE).Msg("State after filter: %s '%s'\n",
-                                              _EnumToString(state).c_str(),
+                                              TfEnum::GetName(state).c_str(),
                                               prim.GetPath().GetText());
 
     if (state != UsdQtPrimFilterCache::Reject) {
@@ -168,3 +152,5 @@ UsdQtPrimFilterCache::State UsdQtPrimFilterPathContains::operator()(
         return UsdQtPrimFilterCache::Intermediate;
     return UsdQtPrimFilterCache::Reject;
 }
+
+PXR_NAMESPACE_CLOSE_SCOPE

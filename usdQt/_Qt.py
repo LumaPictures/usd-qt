@@ -27,31 +27,13 @@
 # this file to specify any site specific preferences.
 
 from __future__ import absolute_import
-import importlib
 
 def _get_proxied_module():
     import os
+    import importlib
+    mod = os.environ.get('PXR_QT_PYTHON_BINDING', 'PySide2')
+    return importlib.import_module(mod)
 
-    explicit = os.environ.get('PXR_QT_PYTHON_NAME', None)
+globals().update(_get_proxied_module().__dict__)
 
-    if explicit:
-        # if explicitly requested, don't fall back
-        search = [explicit]
-    else:
-        # default search order
-        search = ['PySide2']
-    for mod in search:
-        try:
-            return importlib.import_module(mod)
-        except ImportError:
-            continue
-    # re-raise last ImportError
-    raise
-    
-_qtModule = _get_proxied_module()
-
-QtCore = importlib.import_module('%s.QtCore' % _qtModule.__name__)
-QtGui = importlib.import_module('%s.QtGui' % _qtModule.__name__)
-QtWidgets = importlib.import_module('%s.QtWidgets' % _qtModule.__name__)
-
-del _get_proxied_module, _qtModule, importlib
+del _get_proxied_module

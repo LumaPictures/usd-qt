@@ -28,7 +28,7 @@ from __future__ import print_function
 
 from collections import defaultdict
 
-from ._Qt import QtCore, QtGui, QtWidgets
+from ._Qt import QtCore, QtWidgets, QtGui
 from pxr import Sdf, Tf, Usd
 
 from ._bindings import PrimFilterCache, _HierarchyCache
@@ -151,7 +151,7 @@ class HierarchyBaseModel(QtCore.QAbstractItemModel):
                     indexPath = indexPrim.GetPath()
 
                     for resyncedPath in resyncedPaths:
-                        commonPath = resyncedPath.GetCommonPrefix(path)
+                        commonPath = resyncedPath.GetCommonPrefix(resyncedPath)
                         # if the paths are siblings or if the
                         # index path is a child of resynced path, you need to update
                         # any persistent indices
@@ -190,7 +190,7 @@ class HierarchyBaseModel(QtCore.QAbstractItemModel):
         if modelIndex.isValid():
             proxy = modelIndex.internalPointer()
             proxy = compatability.ResolveValue(proxy)
-            if type(proxy) == _HierarchyCache.Proxy and not proxy.expired:
+            if type(proxy) is _HierarchyCache.Proxy and not proxy.expired:
                 return proxy.GetPrim()
         return None
 
@@ -330,6 +330,8 @@ class HierarchyStandardModel(HierarchyBaseModel):
                 toolTipString = "Undefined %s"
             elif specifier == Sdf.SpecifierClass:
                 toolTipString = "Abstract %s"
+            else:
+                raise Exception("Unhandled specifier for tooltip.")
 
             if not primType:
                 toolTipString = toolTipString % "Prim"
@@ -435,9 +437,6 @@ if __name__ == '__main__':
     import sys
     from ._Qt import QtWidgets
     app = QtWidgets.QApplication(sys.argv)
-    #style = open("usdviewstyle.qss", 'r')
-    # app.setStyleSheet(style.read())
-
     stage = Usd.Stage.Open(
         'testenv/testUsdQtHierarchyModel/simpleHierarchy.usda')
     model = HierarchyStandardModel(stage)

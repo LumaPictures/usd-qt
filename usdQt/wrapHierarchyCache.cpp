@@ -25,11 +25,14 @@
 #include <boost/python.hpp>
 #include <boost/python/class.hpp>
 
+#include "pxr/pxr.h"
 #include "pxr/base/tf/pyPtrHelpers.h"
 
 #include "hierarchyCache.h"
 
 using namespace boost::python;
+
+PXR_NAMESPACE_USING_DIRECTIVE
 
 void wrapHierarchyCache() {
     {

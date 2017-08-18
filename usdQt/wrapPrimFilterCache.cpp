@@ -24,20 +24,15 @@
 
 #include <boost/python.hpp>
 #include <boost/python/class.hpp>
-#include <boost/python/def.hpp>
-#include <boost/python/enum.hpp>
-#include <boost/python/make_constructor.hpp>
 
+#include "pxr/pxr.h"
 #include "pxr/base/tf/pyEnum.h"
-#include "pxr/base/tf/pyResultConversions.h"
-#include "pxr/base/tf/makePyConstructor.h"
-#include "pxr/base/tf/pyContainerConversions.h"
-#include "pxr/base/tf/pyPtrHelpers.h"
-#include "pxr/base/tf/pyUtils.h"
 
 #include "primFilterCache.h"
 
 using namespace boost::python;
+
+PXR_NAMESPACE_USING_DIRECTIVE
 
 void wrapPrimFilterCache() {
     {

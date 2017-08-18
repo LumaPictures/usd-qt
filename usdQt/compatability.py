@@ -73,6 +73,12 @@ def ResolveValue(value):
     if type(value).__name__ == 'QString':
         value = str(value)
     return value
+    
+def ResolveString(value, stringType):
+    """Allows optional unpacking of values into the preferred native 
+    Qt string representation"""
+    return stringType(value)
+    
 
 def EmitDataChanged(model, topLeft, bottomRight):
     """ The data changed API has changed between Qt4 and Qt5 """
