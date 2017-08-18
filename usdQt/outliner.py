@@ -26,16 +26,17 @@ from __future__ import absolute_import
 
 import operator
 
+from Qt import QtCore, QtGui, QtWidgets
 from pxr import Sdf, Usd
+from typing import (Iterator, List, Optional,
+                    NamedTuple)
+
 import usdlib.utils
 import usdlib.variants
-from Qt import QtCore, QtGui, QtWidgets
 from treemodel.itemtree import LazyItemTree, TreeItem
 from treemodel.qt.base import AbstractTreeModelMixin
-from usdQt.common import NULL_INDEX, DARK_ORANGE
-
-from typing import (Any, Dict, Iterable, Iterator, List, Optional,
-                    NamedTuple, Tuple, TypeVar, Union)
+from usdQt.common import NULL_INDEX, DARK_ORANGE, passSingleSelection, \
+    passMultipleSelection, ContextMenuBuilder
 
 NO_VARIANT_SELECTION = '<No Variant Selected>'
 
@@ -360,8 +361,12 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         parentIndex = self.parent(modelIndex)
         rowIndex = self.itemTree.rowIndex(item)
         self.beginRemoveRows(parentIndex, rowIndex, rowIndex)
-        self.itemTree.removeItems(item)
-        result = self._stage.RemovePrim(prim.GetPath())
+        path = prim.GetPath()
+        result = self._stage.RemovePrim(path)
+        # check if entire prim is gone or if its just the prim edits that are
+        # gone
+        if not self._stage.GetPrimAtPath(path):
+            self.itemTree.removeItems(item)
         self.endRemoveRows()
         return result
 
@@ -436,63 +441,7 @@ Selection = NamedTuple('Selection', [
     ('prim', Optional[Usd.Prim]),
 ])
 
-
-class ContextMenuCallback(object):
-    '''descriptor for passing on builder selection to builder methods'''
-
-    def __init__(self, func, supportsMultiSelection=False):
-        self.func = func
-        self.supportsMultiSelection = supportsMultiSelection
-
-    def __call__(self, *args, **kwargs):
-        selection = [s for s in self.builder.GetSelection() if s.prim]
-        if selection:
-            if self.supportsMultiSelection:
-                return self.func(self.builder, selection)
-            return self.func(self.builder, selection[0])
-            #     return self.func(self.builder, selection, *args, **kwargs)
-            # return self.func(self.builder, selection[0], *args, **kwargs)
-
-    def __get__(self, builder, objtype):
-        self.builder = builder
-        return self
-
-
-def passSingleSelection(f):
-    '''
-    decorator to get the first selection item from the outliner and pass it
-    into the decorated function.
-
-    Parameters
-    ----------
-    f : Callable
-        This method should operate on a single Selection object.
-
-    Returns
-    -------
-    Callable
-    '''
-    return ContextMenuCallback(f, supportsMultiSelection=False)
-
-
-def passMultipleSelection(f):
-    '''
-    decorator to get the current selection from the outliner and pass it
-    into the decorated function.
-
-    Parameters
-    ----------
-    f : Callable
-        This method should operate on a list of Selection objects.
-
-    Returns
-    -------
-    Callable
-    '''
-    return ContextMenuCallback(f, supportsMultiSelection=True)
-
-
-class ContextMenuBuilder(object):
+class OutlinerContextMenuBuilder(ContextMenuBuilder):
     '''
     Class to customize the building of right-click context menus for selected
     prims.
@@ -511,12 +460,9 @@ class ContextMenuBuilder(object):
         List[Selection]
         '''
         indexes = self.view.selectionModel().selectedRows()
-        if not indexes:
-            return Selection(None, None, None)
-
         items = [index.internalPointer() for index in indexes]  # type: List[UsdPrimItem]
-        # FIXME: Do we need to support selection for primItem.prim = None?
-        return [Selection(index, item, item.prim or None) for item in items]
+        return [Selection(index, item, item.prim)
+                for item in items if item.prim]
 
     def Build(self, menu, selections):
         '''
@@ -642,9 +588,7 @@ class ContextMenuBuilder(object):
             mapping prim names to reference paths
         '''
         import luma_qt.lumaFileBrowser
-        import luma_usd.registry
         import luma_usd.dbfiles
-        import luma.project
         import luma.filepath
 
         # Try to find the project...
@@ -719,7 +663,7 @@ class OutlinerTreeView(AssetTreeView):
         self.setModel(dataModel)
         self._dataModel = dataModel
         if menuBuilder is None:
-            menuBuilder = ContextMenuBuilder
+            menuBuilder = OutlinerContextMenuBuilder
         self._menuBuilder = menuBuilder(self)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
         # keep a ref for model because of refCount bug in pyside
@@ -728,15 +672,7 @@ class OutlinerTreeView(AssetTreeView):
 
     # Qt methods ---------------------------------------------------------------
     def contextMenuEvent(self, event):
-        selection = [s for s in self._menuBuilder.GetSelection() if s.prim]
-        if not selection:
-            return
-        menu = QtWidgets.QMenu(self)
-        menu = self._menuBuilder.Build(menu, selection)
-        if menu is None:
-            return
-        menu.exec_(event.globalPos())
-        event.accept()
+        self._menuBuilder.DoIt(event)
 
     # Custom methods -----------------------------------------------------------
     def _SelectionChanged(self, selected, deselected):
@@ -751,9 +687,6 @@ class OutlinerTreeView(AssetTreeView):
 
     def SelectedPrims(self):
         indexes = self.selectionModel().selectedRows()
-        # if not indexes:
-        #     return []
-
         return [index.internalPointer().prim for index in indexes]
 
 

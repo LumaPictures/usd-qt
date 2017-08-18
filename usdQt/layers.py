@@ -28,7 +28,7 @@ from pxr import Sdf, Usd, Tf
 from Qt import QtCore, QtGui, QtWidgets
 from treemodel.itemtree import TreeItem, ItemTree
 from treemodel.qt.base import AbstractTreeModelMixin
-from usdQt.common import NULL_INDEX, CopyToClipboard
+from usdQt.common import NULL_INDEX, CopyToClipboard, ContextMenuBuilder
 
 from typing import (Any, Dict, Iterable, Iterator, List, Optional,
                     NamedTuple, Tuple, TypeVar, Union)
@@ -196,10 +196,7 @@ LayerSelection = NamedTuple('LayerSelection', [
 ])
 
 
-class LayerContextMenuBuilder(object):
-
-    def __init__(self, view):
-        self.view = view
+class LayerContextMenuBuilder(ContextMenuBuilder):
 
     def GetSelection(self):
         indexes = self.view.selectionModel().selectedRows()
@@ -241,15 +238,7 @@ class SubLayerTreeView(QtWidgets.QTreeView):
 
     # Qt methods ---------------------------------------------------------------
     def contextMenuEvent(self, event):
-        selection = self._menuBuilder.GetSelection()
-        if not selection:
-            return
-        menu = QtWidgets.QMenu(self)
-        menu = self._menuBuilder.Build(menu, selection)
-        if menu is None:
-            return
-        menu.exec_(event.globalPos())
-        event.accept()
+        self._menuBuilder.DoIt(event)
 
     # Custom methods -----------------------------------------------------------
     def SelectLayer(self, selectedIndex=None):

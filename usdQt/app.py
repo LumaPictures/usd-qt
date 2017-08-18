@@ -27,7 +27,7 @@ from __future__ import absolute_import
 from pxr import Sdf, Usd
 from Qt import QtCore, QtGui, QtWidgets
 from usdQt.outliner import (OutlinerTreeView, OutlinerViewDelegate,
-                            OutlinerStageModel, ContextMenuBuilder)
+                            OutlinerStageModel, OutlinerContextMenuBuilder)
 from usdQt.layers import LayerTextViewDialog, SubLayerDialog
 from usdQt.variantSets import VariantEditorDialog
 
