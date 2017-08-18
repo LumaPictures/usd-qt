@@ -55,6 +55,8 @@ def getProxyShapeStage(proxyShape):
     shapeFilePath = shapeFilePath.strip()
     stageCache = AL.usdmaya.StageCache.Get()
     for stage in stageCache.GetAllStages():
+        if not stage.GetRootLayer():
+            continue
         if stage.GetRootLayer().identifier == shapeFilePath:
             return stage
     raise ValueError('Could not find stage with root layer matching path '
