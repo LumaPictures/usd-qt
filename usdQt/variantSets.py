@@ -19,7 +19,8 @@ from pxr import Sdf, Usd, Tf
 from luma_qt.Qt import QtCore, QtGui, QtWidgets
 from treemodel.itemtree import TreeItem, LazyItemTree
 from treemodel.qt.base import AbstractTreeModelMixin
-from usdQt.common import NULL_INDEX, ContextMenuBuilder, passSingleSelection
+from usdQt.common import NULL_INDEX, ContextMenuBuilder, ContextMenuMixin,\
+    passSingleSelection
 import usdlib.variants as varlib
 
 
@@ -337,15 +338,14 @@ class VariantContextMenuBuilder(ContextMenuBuilder):
             item.prim.GetReferences().SetReferences([Sdf.Reference(name)])
 
 
-class VariantTreeView(QtWidgets.QTreeView):
+class VariantTreeView(ContextMenuMixin, QtWidgets.QTreeView):
 
-    def __init__(self, parent=None):
-        super(VariantTreeView, self).__init__(parent=parent)
-        self._menuBuilder = VariantContextMenuBuilder(self)
-
-    # Qt methods ---------------------------------------------------------------
-    def contextMenuEvent(self, event):
-        self._menuBuilder.DoIt(event)
+    def __init__(self, parent=None, contextMenuBuilder=None):
+        if contextMenuBuilder is None:
+            contextMenuBuilder = VariantContextMenuBuilder
+        super(VariantTreeView, self).__init__(
+            parent=parent,
+            contextMenuBuilder=contextMenuBuilder)
 
 
 class VariantEditorDialog(QtWidgets.QDialog):

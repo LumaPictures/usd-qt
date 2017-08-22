@@ -36,7 +36,7 @@ import usdlib.variants
 from treemodel.itemtree import LazyItemTree, TreeItem
 from treemodel.qt.base import AbstractTreeModelMixin
 from usdQt.common import NULL_INDEX, DARK_ORANGE, passSingleSelection, \
-    passMultipleSelection, ContextMenuBuilder
+    passMultipleSelection, ContextMenuBuilder, ContextMenuMixin
 
 NO_VARIANT_SELECTION = '<No Variant Selected>'
 
@@ -441,17 +441,15 @@ Selection = NamedTuple('Selection', [
     ('prim', Optional[Usd.Prim]),
 ])
 
+
 class OutlinerContextMenuBuilder(ContextMenuBuilder):
     '''
     Class to customize the building of right-click context menus for selected
     prims.
     '''
-    def __init__(self, view):
-        self.view = view
-
     @property
     def model(self):
-        return self.view._dataModel
+        return self.view.model()
 
     def GetSelection(self):
         '''
@@ -647,36 +645,34 @@ class OutlinerContextMenuBuilder(ContextMenuBuilder):
                                        referencePath, primName)
 
 
-class OutlinerTreeView(AssetTreeView):
+class OutlinerTreeView(ContextMenuMixin, AssetTreeView):
     # emitted when a prim has been selected in the view
     primSelectionChanged = QtCore.Signal(list, list)
 
-    def __init__(self, dataModel, menuBuilder=None, parent=None):
+    def __init__(self, dataModel, contextMenuBuilder=None, parent=None):
         '''
         Parameters
         ----------
         dataModel : OutlinerStageModel
-        menuBuilder : Optional[Type[ContextMenuBuilder]]
+        contextMenuBuilder : Optional[Type[ContextMenuBuilder]]
         parent : Optional[QtGui.QWidget]
         '''
-        super(OutlinerTreeView, self).__init__(parent=parent)
-        self.setModel(dataModel)
-        self._dataModel = dataModel
-        if menuBuilder is None:
-            menuBuilder = OutlinerContextMenuBuilder
-        self._menuBuilder = menuBuilder(self)
+        if contextMenuBuilder is None:
+            contextMenuBuilder = OutlinerContextMenuBuilder
+        super(OutlinerTreeView, self).__init__(
+            parent=parent,
+            contextMenuBuilder=contextMenuBuilder)
+        # AssetTree view defaults to customContextMenu
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
+        self.setModel(dataModel)
+        self._menuBuilder = contextMenuBuilder(self)
         # keep a ref for model because of refCount bug in pyside
         selectionModel = self.selectionModel()
         selectionModel.selectionChanged.connect(self._SelectionChanged)
 
-    # Qt methods ---------------------------------------------------------------
-    def contextMenuEvent(self, event):
-        self._menuBuilder.DoIt(event)
-
     # Custom methods -----------------------------------------------------------
     def _SelectionChanged(self, selected, deselected):
-        '''Connected to selectionChanged '''
+        '''Connected to selectionChanged'''
         def toPrims(qSelection):
             indexes = qSelection.indexes()
             prims = [index.internalPointer().prim for index in indexes

@@ -100,7 +100,7 @@ def passMultipleSelection(f):
     return ContextMenuCallback(f, supportsMultiSelection=True)
 
 
-class ContextMenuBuilder(object):
+class ContextMenuBuilder(QtCore.QObject):
     '''
     Base class to customize the building of right-click context menus for 
     selected view items.
@@ -108,6 +108,7 @@ class ContextMenuBuilder(object):
     showMenuOnNoSelection = False
 
     def __init__(self, view):
+        super(ContextMenuBuilder, self).__init__()
         self.view = view
 
     def DoIt(self, event):
@@ -159,3 +160,84 @@ class ContextMenuBuilder(object):
         Optional[QtWidgets.QMenu]
         '''
         raise NotImplementedError
+
+
+class ContextMenuMixin(object):
+    '''Mix this class in with a view to bind a menu top a view'''
+
+    def __init__(self, parent=None, contextMenuBuilder=None):
+        if not contextMenuBuilder:
+            raise ValueError('must provide a menu builder to this class')
+        self._menuBuilder = contextMenuBuilder(self)
+        super(ContextMenuMixin, self).__init__(parent=parent)
+
+    # Qt methods ---------------------------------------------------------------
+    def contextMenuEvent(self, event):
+        self._menuBuilder.DoIt(event)
+
+    # Custom methods -----------------------------------------------------------
+    def GetSignal(self, name):
+        # search the view and then the menu for a signal
+        for obj in (self, self._menuBuilder):
+            signal = getattr(obj, name, None)
+            if signal and isinstance(signal, QtCore.Signal):
+                return signal
+        raise ValueError('Signal not found: {} in {} or {}'.format(
+            name, self.__class__, self._menuBuilder.__class__))
+
+    @property
+    def menuBuilder(self):
+        return self._menuBuilder
+
+
+class MenuBarBuilder(object):
+    '''Attach a menu bar to a dialog'''
+
+    def __init__(self, dlg):
+        self.dlg = dlg
+        self._menuBar = QtWidgets.QMenuBar(dlg)
+        self._menus = {}  # type: Dict[str, QtWidgets.QMenu]
+        self.AddMenus()
+        self.PopulateMenus()
+
+    def AddMenu(self, name, label=None):
+        '''
+        Parameters
+        ----------
+        name : str
+            name of registered menu
+        label : Optional[str]
+            label to display in the menu bar
+
+        Returns
+        -------
+        QtWidgets.QMenu
+        '''
+        if label is None:
+            label = name
+        menu = self._menuBar.addMenu(label)
+        self._menus[name] = menu
+        return menu
+
+    def GetMenu(self, name):
+        '''
+        Get a named menu from the application's registered menus
+
+        Parameters
+        ----------
+        name : str
+            name of registered menu
+
+        Returns
+        -------
+        Optional[QtWidgets.QMenu]
+        '''
+        return self._menus.get(name.lower())
+
+    def AddMenus(self):
+        '''Create any menus needed on the bar'''
+        pass
+
+    def PopulateMenus(self):
+        '''Populate Menus in the menu bar'''
+        pass
