@@ -401,10 +401,22 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
             variantTuples = []
         # END Stopgap
 
+        editTargetStage = None
+        editLayer = self.stage.GetEditTarget().GetLayer()
+        if not self.stage.HasLocalLayer(editLayer):
+            # We use a temporary stage here to get around the local layer
+            # restriction for variant edit contexts.
+            editTargetStage = Usd.Stage.Open(editLayer)
+            refPrim = editTargetStage.GetPrimAtPath(refPrimPath)
+
         with usdlib.variants.VariantContext(refPrim, variantTuples,
                                             setAsDefaults=True):
             success = refPrim.GetReferences().SetReferences(
                 [Sdf.Reference(refPath)])
+
+        if editTargetStage:
+            refPrim = self.stage.GetPrimAtPath(refPrimPath)
+            editTargetStage.Close()
 
         if success:
             childCount = self.itemTree.childCount(parent=item)
@@ -588,6 +600,7 @@ class OutlinerContextMenuBuilder(ContextMenuBuilder):
         import luma_qt.lumaFileBrowser
         import luma_usd.dbfiles
         import luma.filepath
+        import luma_usd.registry
 
         # Try to find the project...
         startPath = None
