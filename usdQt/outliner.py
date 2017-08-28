@@ -426,6 +426,10 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         primName : str
         variantTuples : Optional[List[Tuple]]
         item : Optional[UsdPrimItem]
+        
+        Returns
+        -------
+        Optional[Usd.Prim]
         '''
         if item is None:
             item = modelIndex.internalPointer()  # type: UsdPrimItem
@@ -446,6 +450,7 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
                 self.beginInsertRows(modelIndex, childCount,
                                      childCount + len(newItems) - 1)
                 self.endInsertRows()
+            return newPrim
 
     def ActiveLayerChanged(self, layer):
         '''
