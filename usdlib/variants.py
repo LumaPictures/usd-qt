@@ -484,7 +484,8 @@ class VariantContext(object):
         for variantSetName, variantName in self.variantTuples:
             variantSet = self.prim.GetVariantSets().AppendVariantSet(
                 variantSetName)
-            variantSet.AppendVariant(variantName)
+            if variantName not in variantSet.GetNames():
+                variantSet.AppendVariant(variantName)
 
             original = variantSet.GetVariantSelection()
             self.originalSelections.append((variantSet, original))
