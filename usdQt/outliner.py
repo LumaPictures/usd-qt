@@ -36,7 +36,8 @@ import usdlib.variants
 from treemodel.itemtree import LazyItemTree, TreeItem
 from treemodel.qt.base import AbstractTreeModelMixin
 from usdQt.common import NULL_INDEX, DARK_ORANGE, passSingleSelection, \
-    passMultipleSelection, ContextMenuBuilder, ContextMenuMixin
+    passMultipleSelection, ContextMenuBuilder, ContextMenuMixin, \
+    UsdQtUtilities
 
 NO_VARIANT_SELECTION = '<No Variant Selected>'
 
@@ -609,19 +610,14 @@ class OutlinerContextMenuBuilder(ContextMenuBuilder):
                                                   item=selection.item)
 
     def _GetNewReferencePath(self):
-        name, _ = QtWidgets.QInputDialog.getText(
-            self.view,
-            'Add Reference',
-            'Enter Usd Layer Identifier:')
-        if name:
-            return name
+        return UsdQtUtilities.exec_('getReferencePath',
+                                    stage=self.model.stage)
 
-    # FIXME: add ability to add references to existing prims
     @passSingleSelection
     def AddReference(self, selection):
         '''Add a reference directly to an existing prim'''
-        referencePath = self._GetNewReferencePath()
-        self.model.AddNewReference(selection.index, selection.prim, referencePath)
+        refPath = self._GetNewReferencePath()
+        self.model.AddNewReference(selection.index, selection.prim, refPath)
 
 
 class OutlinerTreeView(ContextMenuMixin, AssetTreeView):

@@ -20,7 +20,7 @@ from Qt import QtCore, QtGui, QtWidgets
 from treemodel.itemtree import TreeItem, LazyItemTree
 from treemodel.qt.base import AbstractTreeModelMixin
 from usdQt.common import NULL_INDEX, ContextMenuBuilder, ContextMenuMixin,\
-    passSingleSelection
+    passSingleSelection, UsdQtUtilities
 import usdlib.variants as varlib
 
 
@@ -237,6 +237,7 @@ class VariantContextMenuBuilder(ContextMenuBuilder):
     variants.
     '''
     showMenuOnNoSelection = True
+    referenceAdded = QtCore.Signal()
 
     def Build(self, menu, selections):
         '''
@@ -326,16 +327,15 @@ class VariantContextMenuBuilder(ContextMenuBuilder):
 
     @passSingleSelection
     def AddReference(self, item):
-        name, _ = QtWidgets.QInputDialog.getText(
-            self.view,
-            'Add Reference',
-            'Enter Usd Layer Identifier:')
-        if not name:
+        path = UsdQtUtilities.exec_('getReferencePath',
+                                    self.view,
+                                    stage=item.prim.GetStage())
+        if not path:
             return
         with varlib.VariantContext(item.prim,
                                    item.variants,
                                    setAsDefaults=False):
-            item.prim.GetReferences().SetReferences([Sdf.Reference(name)])
+            item.prim.GetReferences().SetReferences([Sdf.Reference(path)])
 
 
 class VariantTreeView(ContextMenuMixin, QtWidgets.QTreeView):

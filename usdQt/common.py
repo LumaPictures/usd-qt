@@ -35,6 +35,12 @@ PALE_ORANGE = QtGui.QColor(224, 150, 66, 200)
 DARK_BLUE = QtGui.QColor(14, 82, 130, 128)
 
 
+class FallbackException(Exception):
+    '''Raised if a customized function fails and wants to fallback to the 
+    default implementation.'''
+    pass
+
+
 def BlendColors(color1, color2, mix=.5):
     return QtGui.QColor(*[one * mix + two * (1 - mix)
                           for one, two in
@@ -241,3 +247,35 @@ class MenuBarBuilder(object):
     def PopulateMenus(self):
         '''Populate Menus in the menu bar'''
         pass
+
+
+class UsdQtUtilities(object):
+    '''Customizable utilities for building a usdqt app.
+    
+    To overwrite the default implementation, just define a function and then
+    call:
+    UsdQtUtilities.register('someName', func)
+    '''
+    _registered = {}
+
+    @classmethod
+    def register(cls, name, func):
+        cls._registered.setdefault(name, []).insert(0, func)
+
+    @classmethod
+    def exec_(cls, name, *args, **kwargs):
+        for func in cls._registered[name]:
+            try:
+                return func(*args, **kwargs)
+            except FallbackException:
+                continue
+
+
+def GetReferencePath(parent, stage=None):
+    name, _ = QtWidgets.QInputDialog.getText(
+        parent,
+        'Add Reference',
+        'Enter Usd Layer Identifier:')
+    return name
+
+UsdQtUtilities.register('getReferencePath', GetReferencePath)
