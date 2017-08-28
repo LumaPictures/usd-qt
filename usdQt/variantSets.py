@@ -16,7 +16,7 @@ TODO:
 from __future__ import absolute_import
 
 from pxr import Sdf, Usd, Tf
-from luma_qt.Qt import QtCore, QtGui, QtWidgets
+from Qt import QtCore, QtGui, QtWidgets
 from treemodel.itemtree import TreeItem, LazyItemTree
 from treemodel.qt.base import AbstractTreeModelMixin
 from usdQt.common import NULL_INDEX, ContextMenuBuilder, ContextMenuMixin,\

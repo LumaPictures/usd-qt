@@ -4,7 +4,7 @@ from pxr import Sdf
 from treemodel.itemtree import ItemLookupError
 import usdQt.app
 
-from luma_qt.Qt import QtCore
+from Qt import QtCore
 
 
 class ProxyShapeOutliner(usdQt.app.UsdOutliner):

@@ -370,57 +370,77 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         self.endRemoveRows()
         return result
 
-    # FIXME: luma-specific
-    def AddNewReference(self, modelIndex, parentPrim, refPath,
-                        primName, item=None):
-        '''
-        Parameters
-        ----------
-        modelIndex : QtCore.QModelIndex
-        parentPrim : Usd.Prim
-        refPath : str
-        primName : str
-        item : Optional[UsdPrimItem]
-        '''
-        if item is None:
-            item = modelIndex.internalPointer()  # type: UsdPrimItem
+    def _SetReference(self, refPrim, refPath, variantTuples=None):
+        '''Set the references on a prim to be a list of one specific path.'''
 
-        refPrimPath = parentPrim.GetPath().AppendChild(primName)
-        refPrim = self._stage.DefinePrim(refPrimPath)
-        assert refPrim, 'Failed to create new prim at %s' % str(refPrimPath)
-        print 'Adding new reference:', refPath
-
-        # FIXME: Stopgap solution, remove when we have variant editor.
-        from luma_usd import dbfiles
-        try:
-            # if we can parse the path, add a reference under an element
-            # variant so that we have element control downstream.
-            _, parseDict = dbfiles.parse(refPath)
-            variantTuples = [('elem', parseDict['elem'])]
-        except (dbfiles.UsdDBParsingError, KeyError, ImportError):
-            variantTuples = []
-        # END Stopgap
-
-        editTargetStage = None
         editLayer = self.stage.GetEditTarget().GetLayer()
         if not self.stage.HasLocalLayer(editLayer):
             # We use a temporary stage here to get around the local layer
             # restriction for variant edit contexts.
             editTargetStage = Usd.Stage.Open(editLayer)
-            refPrim = editTargetStage.GetPrimAtPath(refPrimPath)
+            # this assumes prim path is the same in edit target
+            refPrim = editTargetStage.GetPrimAtPath(refPrim.GetPath())
 
         with usdlib.variants.VariantContext(refPrim, variantTuples,
                                             setAsDefaults=True):
             success = refPrim.GetReferences().SetReferences(
                 [Sdf.Reference(refPath)])
 
-        if editTargetStage:
-            refPrim = self.stage.GetPrimAtPath(refPrimPath)
-            editTargetStage.Close()
+        return success
+
+    def AddNewReference(self, modelIndex, prim, refPath,
+                        variantTuples=None, item=None):
+        '''
+        Add a reference to an existing prim.
+        
+        Parameters
+        ----------
+        modelIndex : QtCore.QModelIndex
+        prim : Usd.Prim
+        refPath : str
+        variantTuples : Optional[List[Tuple]]
+        item : Optional[UsdPrimItem]
+        '''
+        if item is None:
+            item = modelIndex.internalPointer()  # type: UsdPrimItem
+
+        success = self._SetReference(prim,
+                                     refPath,
+                                     variantTuples=variantTuples)
+
+        if success:
+            # adding a reference may change structure of prims children
+            self.itemTree.forgetChildren(item)
+
+    def AddNewPrimAndReference(self, modelIndex, parentPrim, refPath, primName,
+                               variantTuples=None, item=None):
+        '''
+        Add a new prim and set it to reference another usd file.
+        
+        Parameters
+        ----------
+        modelIndex : QtCore.QModelIndex
+        parentPrim : Usd.Prim
+        refPath : str
+        primName : str
+        variantTuples : Optional[List[Tuple]]
+        item : Optional[UsdPrimItem]
+        '''
+        if item is None:
+            item = modelIndex.internalPointer()  # type: UsdPrimItem
+
+        refPrimPath = parentPrim.GetPath().AppendChild(primName)
+        newPrim = self._stage.DefinePrim(refPrimPath)
+        assert newPrim, 'Failed to create new prim at %s' % str(refPrimPath)
+        print 'Adding new reference:', refPath
+
+        success = self._SetReference(newPrim,
+                                     refPath,
+                                     variantTuples=variantTuples)
 
         if success:
             childCount = self.itemTree.childCount(parent=item)
-            newItems = self.itemTree.appendPrim(refPrim, item)
+            newItems = self.itemTree.appendPrim(newPrim, item)
             if newItems:
                 self.beginInsertRows(modelIndex, childCount,
                                      childCount + len(newItems) - 1)
@@ -588,74 +608,20 @@ class OutlinerContextMenuBuilder(ContextMenuBuilder):
                                                   selection.prim,
                                                   item=selection.item)
 
-    # FIXME: luma-specific
-    def _GetNewReferencePaths(self):
-        '''Opens a dialog to get a prim name and path from the user
-
-        Returns
-        -------
-        Iterator[Tuple[str, str]]
-            mapping prim names to reference paths
-        '''
-        import luma_qt.lumaFileBrowser
-        import luma_usd.dbfiles
-        import luma.filepath
-        import luma_usd.registry
-
-        # Try to find the project...
-        startPath = None
-        project = None
-        try:
-            usdPathsToTry = [self.model.stage.GetRootLayer().identifier]
-            # stage might be an in-memory, so root layer might be an
-            # anonymous...
-            # so try subLayersPaths too
-            usdPathsToTry.extend(self.model.stage.GetRootLayer().subLayerPaths)
-            for usdPath in usdPathsToTry:
-                try:
-                    parsedSqlPath = luma_usd.dbfiles.parse(usdPath)
-                except luma_usd.dbfiles.UsdDBParsingError:
-                    try:
-                        project = luma.filepath.Path(usdPath).projectClass()
-                    except luma.filepath.NamingConventionError:
-                        pass
-                else:
-                    if 'project' in parsedSqlPath[1]:
-                        project = luma.project.Project(
-                            parsedSqlPath[1]['project'])
-                if project is not None:
-                    startPath = project.modelDir
-                    break
-        except Exception:
-            import traceback
-            print "Error extracting project modelDir:"
-            traceback.print_exc()
-
-        result = luma_qt.lumaFileBrowser.lumaBrowser(
-            package='maya',
-            mode=luma_qt.lumaFileBrowser.UsdAssetBrowser.mode,
-            initialPath=startPath
-        )
-        if not result:
-            return
-
-        for item in result:
-            addSuffix = item['copies'] > 1
-            for i in xrange(item['copies']):
-                path = item['path']
-                primName = item['primName']
-                if addSuffix:
-                    primName += str(i + 1).zfill(2)
-                registryPath = luma_usd.registry.getRegistryFromPath(path)
-                if registryPath:
-                    yield primName, registryPath
+    def _GetNewReferencePath(self):
+        name, _ = QtWidgets.QInputDialog.getText(
+            self.view,
+            'Add Reference',
+            'Enter Usd Layer Identifier:')
+        if name:
+            return name
 
     # FIXME: add ability to add references to existing prims
     @passSingleSelection
     def AddReference(self, selection):
-        for primName, referencePath in self._GetNewReferencePaths():
-            self.model.AddNewReference(selection.index, selection.prim,
-                                       referencePath, primName)
+        '''Add a reference directly to an existing prim'''
+        referencePath = self._GetNewReferencePath()
+        self.model.AddNewReference(selection.index, selection.prim, referencePath)
 
 
 class OutlinerTreeView(ContextMenuMixin, AssetTreeView):
