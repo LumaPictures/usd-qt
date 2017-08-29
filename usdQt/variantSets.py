@@ -98,28 +98,22 @@ class LazyVariantTree(LazyItemTree):
                 if primVariant in parentVariants:
                     continue
                 variantSet = self.prim.GetVariantSet(primVariant.setName)
-                variantItem = VariantItem(variantSet,
-                                          path,
-                                          parentVariants,
-                                          primVariant)
-                variantItems = [variantItem]
-                # add non-selected items
+
+                variantItems = []
                 names = variantSet.GetVariantNames()
-                if primVariant.variantName:
-                    names.remove(primVariant.variantName)
-                    names.append('')
+                names.append('')
 
                 parentPath = path.GetParentPath()
-                for altVariant in names:
-                    altPath = parentPath.AppendVariantSelection(
+                for variantName in names:
+                    variantPath = parentPath.AppendVariantSelection(
                         primVariant.setName,
-                        altVariant)
-                    altVariant = varlib.PrimVariant(primVariant.setName,
-                                                    altVariant)
+                        variantName)
+                    variantName = varlib.PrimVariant(primVariant.setName,
+                                                    variantName)
                     altVariantItem = VariantItem(variantSet,
-                                                 altPath,
+                                                 variantPath,
                                                  parentVariants,
-                                                 altVariant)
+                                                 variantName)
                     variantItems.append(altVariantItem)
                 # break loop because next iteration is the children's children
                 return variantItems
@@ -254,13 +248,16 @@ class VariantContextMenuBuilder(ContextMenuBuilder):
         '''
         if len(selections) == 1:
             selection = selections[0]
+            hasVariantSelection = bool(selection.variant.variantName)
             a = menu.addAction('Add "%s" Variant' % selection.variant.setName)
             a.triggered.connect(self.AddVariant)
             a = menu.addAction('Add Nested Variant Set Under "%s"'
                                % selection.name)
             a.triggered.connect(self.AddNestedVariantSet)
+            a.setEnabled(hasVariantSelection)
             a = menu.addAction('Add Reference Under "%s"' % selection.name)
             a.triggered.connect(self.AddReference)
+            a.setEnabled(hasVariantSelection)
         elif len(selections) == 0:
             a = menu.addAction('Add Top Level Variant Set')
             a.triggered.connect(self.AddVariantSet)
@@ -285,7 +282,11 @@ class VariantContextMenuBuilder(ContextMenuBuilder):
             % selectedItem.variant.setName)
         if not name:
             return
-        selectedItem.variantSet.AppendVariant(name)
+        # want to add new variant inside of parents variant context.
+        with varlib.VariantContext(selectedItem.prim,
+                                   selectedItem.parentVariants,
+                                   setAsDefaults=True):
+            selectedItem.variantSet.AppendVariant(name)
         self.view.model().Reset()  # TODO: Reload only necessary part
 
     def _GetVariantSetName(self):
@@ -300,10 +301,11 @@ class VariantContextMenuBuilder(ContextMenuBuilder):
         name = self._GetVariantSetName()
         if not name:
             return
-        with varlib.SessionVariantContext(selectedItem.prim,
-                                          selectedItem.variants):
-            with selectedItem.variantSet.GetVariantEditContext():
-                selectedItem.prim.GetVariantSets().AppendVariantSet(name)
+        # want to add new variant set inside of parents variant context.
+        with varlib.VariantContext(selectedItem.prim,
+                                   selectedItem.variants,
+                                   setAsDefaults=False):
+            selectedItem.prim.GetVariantSets().AppendVariantSet(name)
         self.view.model().Reset()  # TODO: Reload only necessary part
 
     def AddVariantSet(self):
@@ -363,7 +365,6 @@ class VariantEditorDialog(QtWidgets.QDialog):
 
         # Widget and other Qt setup
         self.setModal(False)
-        self.setWindowTitle('Variant Editor')
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
@@ -381,6 +382,7 @@ class VariantEditorDialog(QtWidgets.QDialog):
         # self.view.expandAll()
 
         self.resize(700, 500)
+        self.Refresh()
 
     def SelectVariant(self, selectedIndex=None):
         if not selectedIndex:
@@ -401,4 +403,9 @@ class VariantEditorDialog(QtWidgets.QDialog):
         self.dataModel.dataChanged.emit(NULL_INDEX, NULL_INDEX)
 
     def Refresh(self):
-        self.setWindowTitle('Variant Editor: %s' % self.dataModel.title)
+        editLayer = self.stage.GetEditTarget().GetLayer()
+        if self.stage.HasLocalLayer(editLayer):
+            self.setWindowTitle('Variant Editor: %s' % self.dataModel.title)
+        else:
+            # warn that adding references and nested variants will fail.
+            self.setWindowTitle('Warning: Not editing local layer!')
