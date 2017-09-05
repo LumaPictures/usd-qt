@@ -23,9 +23,11 @@ class ProxyShapeOutliner(usdQt.app.UsdOutliner):
 
         self.view.setIndentation(10)
         self.view.primSelectionChanged.connect(self.pushPrimToMaya)
+        self.view.model().primChanged.connect(self.primChanged)
 
         self._blockSelectionCallback = False
         self.selectionCallbackId = None
+        self._refreshScheduled = False
 
     def pushPrimToMaya(self, selectedPrims, deselectedPrims):
         '''
@@ -119,6 +121,17 @@ class ProxyShapeOutliner(usdQt.app.UsdOutliner):
         if indexes:
             self.view.scrollTo(indexes[0], self.view.PositionAtTop)
         self._blockSelectionCallback = False
+
+    def primChanged(self, prim):
+        '''Slot that receives a signal that a refresh is required to update'''
+        if self._refreshScheduled:
+            return
+
+        def refreshViewport():
+            self._refreshScheduled = False
+            pm.refresh()
+
+        pm.evalDeferred(refreshViewport)
 
     def createParents(self, path):
         '''Create any missing prim parents down to path'''

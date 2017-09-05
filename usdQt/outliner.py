@@ -190,6 +190,8 @@ class LazyPrimItemTree(LazyItemTree[UsdPrimItem]):
 class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
     '''
     '''
+    primChanged = QtCore.Signal(Usd.Prim)
+
     def __init__(self, stage, parent=None):
         '''
         Parameters
@@ -302,6 +304,7 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         newState = not prim.IsActive()
         self.BeginPrimHierarchyChange(modelIndex, item=item)
         prim.SetActive(newState)
+        self.primChanged.emit(prim)
         self.EndPrimHierarchyChange(item)
 
     def AddNewPrim(self, modelIndex, parentPrim, primName, primType='Xform',
@@ -342,10 +345,14 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         item : Optional[UsdPrimItem]
         '''
         self.BeginPrimHierarchyChange(modelIndex, item=item)
+        varSet = item.prim.GetVariantSet(setName)
+        current = varSet.GetVariantSelection()
         if value == NO_VARIANT_SELECTION:
-            item.prim.GetVariantSet(setName).ClearVariantSelection()
+            varSet.ClearVariantSelection()
         else:
-            item.prim.GetVariantSet(setName).SetVariantSelection(value)
+            varSet.SetVariantSelection(value)
+        if current != varSet.GetVariantSelection():
+            self.primChanged.emit(item.prim)
         self.EndPrimHierarchyChange(item)
 
     def RemovePrimFromCurrentLayer(self, modelIndex, prim, item=None):
@@ -412,6 +419,7 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         if success:
             # adding a reference may change structure of prims children
             self.itemTree.forgetChildren(item)
+            self.primChanged.emit(prim)
 
     def AddNewPrimAndReference(self, modelIndex, parentPrim, refPath, primName,
                                variantTuples=None, item=None):
@@ -572,6 +580,8 @@ class OutlinerContextMenuBuilder(ContextMenuBuilder):
     @passMultipleSelection
     def ActivatePrim(self, multiSelection):
         for selection in multiSelection:
+            if not selection.prim.IsValid():
+                continue
             if not selection.prim.IsActive():
                 self.model.TogglePrimActive(selection.index, selection.prim,
                                             item=selection.item)
@@ -579,6 +589,9 @@ class OutlinerContextMenuBuilder(ContextMenuBuilder):
     @passMultipleSelection
     def DeactivatePrim(self, multiSelection):
         for selection in multiSelection:
+            # if a parent is deactivated, this can leave invalid children
+            if not selection.prim.IsValid():
+                continue
             if selection.prim.IsActive():
                 self.model.TogglePrimActive(selection.index, selection.prim,
                                             item=selection.item)
