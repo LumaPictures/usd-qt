@@ -22,10 +22,13 @@ cppModule = Extension('usdQt._usdQt',
                       ('MFB_PACKAGE_NAME', 'usdQt'),
                       ('MFB_ALT_PACKAGE_NAME', 'usdQt'),
                       ('MFB_PACKAGE_MODULE', 'UsdQt'),
-                      ('BOOST_PYTHON_NO_PY_SIGNATURES', None)],
+                      ('BOOST_PYTHON_NO_PY_SIGNATURES', None),
+                      ('PXR_PYTHON_SUPPORT_ENABLED', None)],
      libraries = ['boost_python-mt', 'tbb', 'usd', 'sdf', 'tf'],
      sources = extensionSources,
      extra_compile_args=['-std=c++11'])
+     
+packages = find_packages(exclude=['tests'])
 
 setup(
     name='UsdQt',
@@ -34,7 +37,7 @@ setup(
     long_description=long_description,
     url='https://github.com/LumaPictures/usdqt-components',
     license='Modified Apache 2.0 License',
-    packages=find_packages(exclude=['tests']),
+    packages=packages,
     package_dir={'UsdQt':'usdQt'},
     install_requires=requirements,
     ext_modules=[cppModule]
