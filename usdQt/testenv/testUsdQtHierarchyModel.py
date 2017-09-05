@@ -29,7 +29,11 @@ import unittest2 as unittest
 import os, os.path
 
 from pxr import Usd, UsdQt
-from pxr.UsdQt._Qt import QtCore
+from pxr.UsdQt._Qt import QtCore, QtWidgets
+
+def setUpModule():
+    global app
+    app = QtWidgets.QApplication([])
 
 class TestSimpleHierarchyDefault(unittest.TestCase):
     predicate = Usd.PrimDefaultPredicate
@@ -38,6 +42,7 @@ class TestSimpleHierarchyDefault(unittest.TestCase):
         stageFilePath = "testenv/testUsdQtHierarchyModel/simpleHierarchy.usda"
         stageFilePath = stageFilePath if os.path.isfile(stageFilePath) else stageFilePath.split('/')[-1]
         self.stage = Usd.Stage.Open(stageFilePath)
+        self.stage.Reload()
         self.model = UsdQt.HierarchyStandardModel(
             self.stage)
 
@@ -108,7 +113,7 @@ class TestSimpleHierarchyDefault(unittest.TestCase):
         variantSet = self.primWithVariants.GetVariantSet('testVariant')
         variantSet.SetVariantSelection("NonExistantVariant")
         self.VerifyHierarchyMatchesStage(self.world, self.worldIndex)
-
+        
     def VerifyHierarchyMatchesStage(self, prim, index, verbose=False):
         if verbose:
             print("Verifying %s" % str(prim), index.internalId())
@@ -125,6 +130,34 @@ class TestSimpleHierarchyDefault(unittest.TestCase):
         for row, child in enumerate(children):
             self.VerifyHierarchyMatchesStage(
                 child, self.model.index(row, 0, index), verbose=verbose)
+
+    def test_SelectionLayoutChanged(self):
+        treeView = QtWidgets.QTreeView()
+        treeView.setModel(self.model)
+        treeView.expandAll()
+        variantSet = self.primWithVariants.GetVariantSet('testVariant')
+        variantSet.SetVariantSelection('Variant1')
+        deactivateIndex = self.model.index(0, 0, self.worldIndex)
+        self.assertEqual(self.model._GetPrimForIndex(deactivateIndex).GetName(), "PrimToDeactivate")
+	siblingIndex = self.model.index(1, 0, self.worldIndex)
+        childIndex = self.model.index(0, 0, deactivateIndex)
+        variantIndex = self.model.index(2, 0, self.worldIndex)
+        variantChild1 = self.model.index(1, 0, variantIndex)
+        treeView.selectionModel().select(deactivateIndex, QtCore.QItemSelectionModel.Select)
+        treeView.selectionModel().select(childIndex, QtCore.QItemSelectionModel.Select)
+        treeView.selectionModel().select(siblingIndex, QtCore.QItemSelectionModel.Select)
+        treeView.selectionModel().select(variantChild1, QtCore.QItemSelectionModel.Select)
+        selection = treeView.selectedIndexes()
+        self.assertEqual(self.model._GetPrimForIndex(childIndex).GetName(), "Child1")
+        self.primToDeactivate.SetActive(False)
+        variantSet = self.primWithVariants.GetVariantSet('testVariant')
+        variantSet.SetVariantSelection('Variant2')
+        selection = treeView.selectedIndexes()
+        self.assertEqual(len(selection), 3)
+        self.assertEqual(self.model._GetPrimForIndex(selection[0]).GetName(), "PrimToDeactivate")
+        self.assertEqual(self.model._GetPrimForIndex(selection[1]).GetName(), "PrimToActivate")
+        self.assertEqual(self.model._GetPrimForIndex(selection[2]).GetName(), "VariantChild1")
+
 
 
 class TestSimpleHierarchyAllLoaded(TestSimpleHierarchyDefault):

@@ -34,29 +34,6 @@ from pxr import Sdf, Tf, Usd
 from ._bindings import PrimFilterCache, _HierarchyCache
 from . import compatability, roles, utils
 
-
-class HierarchyStandardDelegate(QtWidgets.QStyledItemDelegate):
-    """Standard delegate to style prim display.
-    * Instanceable prims are italicized 
-    * Instance proxies are italicized and use a light weight
-    * Undefined prims are given a light weight
-
-    Developers can feel free to use this directly or as an example to define 
-    their own custom styles for prim display
-    """
-
-    def paint(self, painter, option, index):
-        prim = index.data(role=roles.HierarchyPrimRole)
-        if prim.IsInstanceable():
-            option.font.setStyle(QtGui.QFont.StyleItalic)
-        if prim.IsInstanceProxy():
-            option.font.setStyle(QtGui.QFont.StyleItalic)
-            option.font.setWeight(QtGui.QFont.Light)
-        if not prim.IsDefined():
-            option.font.setWeight(QtGui.QFont.Light)
-        super(HierarchyStandardDelegate, self).paint(painter, option, index)
-
-
 class HierarchyBaseModel(QtCore.QAbstractItemModel):
     """Base class for adapting a stage's prim hierarchy for Qt ItemViews
 
@@ -83,8 +60,8 @@ class HierarchyBaseModel(QtCore.QAbstractItemModel):
             self.model.layoutChanged.emit()
 
     def __init__(self, stage=None, predicate=Usd.TraverseInstanceProxies(
-                    Usd.PrimIsDefined | ~Usd.PrimIsDefined),
-                 parent=None):
+            Usd.PrimIsDefined | ~Usd.PrimIsDefined),
+            parent=None):
         """Instantiate an QAbstractItemModel adapter for a UsdStage.
 
         It's safe for the 'stage' to be None if the model needs to be instatiated
@@ -94,8 +71,7 @@ class HierarchyBaseModel(QtCore.QAbstractItemModel):
         the stage. A good policy is to be as accepting of prims as possible
         and rely on a QSortFilterProxyModel to interactively reduce the view.  
         Changing the predicate is a potentially expensive operation requiring 
-        rebuilding internal indices and tables, making not ideal for interactive
-        filtering.
+        rebuilding internal caches, making not ideal for interactive filtering.
         """
         super(HierarchyBaseModel, self).__init__(parent)
 
@@ -128,7 +104,7 @@ class HierarchyBaseModel(QtCore.QAbstractItemModel):
         self.endResetModel()
 
     def GetPredicate(self):
-        """Return the predicate used to identify prims that should be exposed to the model
+        """Get the predicate used in stage hierarchy traversal
         """
         return self.__index.GetPredicate()
 
@@ -151,7 +127,7 @@ class HierarchyBaseModel(QtCore.QAbstractItemModel):
                     indexPath = indexPrim.GetPath()
 
                     for resyncedPath in resyncedPaths:
-                        commonPath = resyncedPath.GetCommonPrefix(resyncedPath)
+                        commonPath = resyncedPath.GetCommonPrefix(indexPath)
                         # if the paths are siblings or if the
                         # index path is a child of resynced path, you need to update
                         # any persistent indices
@@ -181,6 +157,13 @@ class HierarchyBaseModel(QtCore.QAbstractItemModel):
                         fromIndices.append(index)
                         toIndices.append(QtCore.QModelIndex())
                 self.changePersistentIndexList(fromIndices, toIndices)
+                
+    def GetIndexForPath(self, path):
+        """Given a path, retrieve the appropriate index"""
+        if self.__index.ContainsPath(path):
+            proxy = self.__index.GetProxy(path)
+            row = self.__index.GetRow(proxy)
+            return self.createIndex(row, 0, proxy)
 
     def _GetPrimForIndex(self, modelIndex):
         """Retrieve the prim for the input modelIndex
@@ -253,6 +236,7 @@ class HierarchyBaseModel(QtCore.QAbstractItemModel):
 
 
 class HierarchyStandardModel(HierarchyBaseModel):
+    """Configurable model for common columns for displaying hierarchies"""
     Name = "Name"
     Type = "Type"
     Kind = "Kind"
@@ -265,7 +249,8 @@ class HierarchyStandardModel(HierarchyBaseModel):
 
     def __init__(self, stage=None, columns=None, parent=None):
         super(HierarchyStandardModel, self).__init__(
-            stage, Usd.TraverseInstanceProxies(Usd.PrimIsDefined | ~Usd.PrimIsDefined), parent)
+            stage, Usd.TraverseInstanceProxies(
+                Usd.PrimIsDefined | ~Usd.PrimIsDefined), parent)
         if not columns:
             # By default show all possible columns.
             self.columns = [HierarchyStandardModel.Name,
@@ -278,7 +263,8 @@ class HierarchyStandardModel(HierarchyBaseModel):
         if role == QtCore.Qt.DisplayRole:
             return self.columns[section]
 
-        return super(HierarchyStandardModel, self).headerData(section, orientation, role)
+        return super(HierarchyStandardModel, self).headerData(
+            section, orientation, role)
 
     def columnCount(self, parent):
         return len(self.columns)
@@ -351,10 +337,7 @@ class HierarchyStandardModel(HierarchyBaseModel):
 
 
 class HierarchyStandardFilterModel(QtCore.QSortFilterProxyModel):
-    '''
-    The standard filter has a basic set of standard filters for filtering
-    usd objects.
-    '''
+    """Set of standard filtering strategies for items in a hierarchy model"""
 
     def __init__(self, showInactive=False,
                  showUndefined=False,
@@ -445,12 +428,6 @@ if __name__ == '__main__':
     tv = QtWidgets.QTreeView()
     tv.setModel(model)
 
-    widget = QtWidgets.QWidget()
-    layout = QtWidgets.QVBoxLayout()
-    layout.addWidget(search)
-    layout.addWidget(tv)
-    widget.setLayout(layout)
-
-    widget.show()
+    tv.show()
 
     sys.exit(app.exec_())

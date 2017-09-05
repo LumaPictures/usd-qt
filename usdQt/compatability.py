@@ -67,17 +67,12 @@ def HeaderViewSetResizeMode(header, mode):
         header.setSectionResizeMode(mode)
 
 def ResolveValue(value):
-    """A unified wrapper for unpacking into PySide2 conventions."""
-    if type(value).__name__ == 'QVariant':
-        value = value.toPyObject()
-    if type(value).__name__ == 'QString':
-        value = str(value)
+    """Internal API to be deprecated with VFX Platform 2017"""
     return value
     
 def ResolveString(value, stringType):
-    """Allows optional unpacking of values into the preferred native 
-    Qt string representation"""
-    return stringType(value)
+    """Internal API to be deprecated with VFX Platform 2017"""
+    return value
     
 
 def EmitDataChanged(model, topLeft, bottomRight):

@@ -28,6 +28,7 @@ def Xform "World" {
     def Xform "PrimWithVariants" (add variantSets = "testVariant"){
         variantSet "testVariant" = {
              "Variant1"{
+                def "VariantChild0"{}
                 def "VariantChild1"{
                     def "VariantGrandchild1"{
                     }

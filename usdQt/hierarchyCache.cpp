@@ -63,6 +63,10 @@ ProxyRefPtr UsdQt_HierarchyCache::GetChild(ProxyPtr prim, size_t index) {
         TF_CODING_ERROR("Attempting to query child for invalid prim.");
         return _invalidPrim;
     }
+    if (index >= prim->_GetChildren().size()){
+        TF_CODING_ERROR("Index '%zu' exceeds number of children '%zu'", index, prim->_GetChildren().size());
+        return _invalidPrim;
+    }
     SdfPath childPath = prim->_GetChildren()[index];
     const auto& ptIterator = _pathToProxy.find(childPath);
     if (ptIterator != _pathToProxy.end()) return ptIterator->second;
