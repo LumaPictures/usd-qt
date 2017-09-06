@@ -56,8 +56,6 @@ private:
 public:
     static UsdQt_MetadataProxyRefPtr New(const std::vector<UsdObject>& objects,
                                          TfToken field);
-                                         
-    const std::vector<UsdObject>& GetObjects(){return _objects;}
 
     /// \brief Return the list of all objects for this proxy.
     const std::vector<UsdObject>& GetObjects() const {return _objects;}
