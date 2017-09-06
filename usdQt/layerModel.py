@@ -44,7 +44,7 @@ class LayerBaseModel(QtCore.QAbstractTableModel):
     If you're interested in filtering out layers, consider using a custom
     subclass of QSortFilterProxyModel.
 
-    WARNING.  There is currently no support for change notification for 
+    WARNING.  There is currently no support for change notification for
     adding and removing sublayers.
     """
 

@@ -34,7 +34,8 @@ class TestUndoRouter(unittest.TestCase):
         self.stage = Usd.Stage.CreateInMemory()
         UsdQt.UndoRouter.TrackLayer(self.stage.GetRootLayer())
         self.localUndoStack = []
-        self.listener = Tf.Notice.RegisterGlobally(UsdQt.UndoStackNotice, self.Notice)
+        self.listener = Tf.Notice.RegisterGlobally(
+            UsdQt.UndoStackNotice, self.Notice)
 
     def Notice(self, notice, sender):
         inverse = UsdQt.UndoInverse()
@@ -42,17 +43,18 @@ class TestUndoRouter(unittest.TestCase):
         self.localUndoStack.append(inverse)
 
     def testExpiredStage(self):
-       with UsdQt.UndoBlock():
-           self.stage.DefinePrim('/World')
-       
-       self.stage.Close()
-       with self.assertRaises(Tf.ErrorException):
-           self.localUndoStack[-1].Invert()
+        with UsdQt.UndoBlock():
+            self.stage.DefinePrim('/World')
+
+        self.stage.Close()
+        with self.assertRaises(Tf.ErrorException):
+            self.localUndoStack[-1].Invert()
 
     def testMidEditBlockInversion(self):
         self.stage.DefinePrim('/World')
         with UsdQt.UndoBlock():
-            with self.assertRaisesRegexp(Tf.ErrorException, 'Inversion during open edit block may result in corrupted undo stack.'):
+            with self.assertRaisesRegexp(Tf.ErrorException, 'Inversion during \
+open edit block may result in corrupted undo stack.'):
                 self.localUndoStack[-1].Invert()
 
     def testNoEditBlock(self):
@@ -90,7 +92,7 @@ class TestUndoRouter(unittest.TestCase):
                 prim.SetActive(True)
                 with UsdQt.UndoBlock():
                     prim.SetActive(False)
-                    
+
         self.assertFalse(prim.IsActive())
         self.assertEqual(len(self.localUndoStack), 2)
 
@@ -102,21 +104,21 @@ class TestUndoRouter(unittest.TestCase):
         self.assertTrue(prim.IsActive())
         self.assertEqual(len(self.localUndoStack), 3)
 
-        self.localUndoStack[-1].Invert() # undo
+        self.localUndoStack[-1].Invert()  # undo
         self.assertFalse(prim.IsActive())
-        self.localUndoStack[-1].Invert() # redo
+        self.localUndoStack[-1].Invert()  # redo
         self.assertTrue(prim.IsActive())
-        self.localUndoStack[-1].Invert() # undo
+        self.localUndoStack[-1].Invert()  # undo
         self.assertFalse(prim.IsActive())
-        self.localUndoStack[-2].Invert() # undo
+        self.localUndoStack[-2].Invert()  # undo
         self.assertTrue(prim.IsActive())
-        self.localUndoStack[-3].Invert() # undo
+        self.localUndoStack[-3].Invert()  # undo
         self.assertFalse(bool(prim))
-        self.localUndoStack[-3].Invert() # redo
+        self.localUndoStack[-3].Invert()  # redo
         prim = self.stage.GetPrimAtPath('/World')
         self.assertTrue(bool(prim))
         self.assertTrue(prim.IsActive())
-        
+
         self.assertEqual(len(self.localUndoStack), 3)
 
     def testEmptyUndoBlock(self):

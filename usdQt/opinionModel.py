@@ -89,7 +89,7 @@ class OpinionBaseModel(QtCore.QAbstractItemModel):
         self.__listeners = None
 
     def ResetPrims(self, prims):
-        """Reset prims invokes a model reset and replaces the current prim 
+        """Reset prims invokes a model reset and replaces the current prim
         proxies at the root of the tree with the list provided.
 
         An empty list or None are valid inputs, which effectively clears the
@@ -541,7 +541,7 @@ class OpinionStandardModel(OpinionBaseModel):
         return False
 
     def ClearData(self, index):
-        proxy = self.GetProxyForIndex()
+        proxy = self.GetProxyForIndex(index)
         if type(proxy) is _AttributeProxy:
             proxy.Clear()
         elif type(proxy) is _RelationshipProxy:
@@ -554,12 +554,12 @@ class OpinionStandardModel(OpinionBaseModel):
             proxy.ClearVariantSelection()
 
     def ClearAtTime(self, index):
-        proxy = self.GetProxyForIndex()
+        proxy = self.GetProxyForIndex(index)
         if type(proxy) is _AttributeProxy:
             proxy.ClearAtTime(self.__timeCode)
 
     def BlockData(self, index):
-        proxy = self.GetProxyForIndex()
+        proxy = self.GetProxyForIndex(index)
         if type(proxy) is _AttributeProxy:
             proxy.BlockValue()
         elif type(proxy) is _RelationshipProxy:

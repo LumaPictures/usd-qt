@@ -35,6 +35,8 @@
 
 using boost::adaptors::slice;
 
+PXR_NAMESPACE_OPEN_SCOPE
+
 TF_REGISTRY_FUNCTION(TfType) {
     TfType::Define<UsdQt::UndoStackNotice, TfType::Bases<TfNotice> >();
 }
@@ -83,3 +85,5 @@ void UsdQtUndoRouter::_Unmute(){
 bool UsdQtUndoRouter::IsMuted(){
     return Get()._muteDepth > 0;
 }
+
+PXR_NAMESPACE_CLOSE_SCOPE

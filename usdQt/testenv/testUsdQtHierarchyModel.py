@@ -26,21 +26,25 @@
 from __future__ import print_function
 
 import unittest2 as unittest
-import os, os.path
+import os
+import os.path
 
 from pxr import Usd, UsdQt
 from pxr.UsdQt._Qt import QtCore, QtWidgets
 
+
 def setUpModule():
     global app
     app = QtWidgets.QApplication([])
+
 
 class TestSimpleHierarchyDefault(unittest.TestCase):
     predicate = Usd.PrimDefaultPredicate
 
     def setUp(self):
         stageFilePath = "testenv/testUsdQtHierarchyModel/simpleHierarchy.usda"
-        stageFilePath = stageFilePath if os.path.isfile(stageFilePath) else stageFilePath.split('/')[-1]
+        stageFilePath = stageFilePath if os.path.isfile(
+            stageFilePath) else stageFilePath.split('/')[-1]
         self.stage = Usd.Stage.Open(stageFilePath)
         self.stage.Reload()
         self.model = UsdQt.HierarchyStandardModel(
@@ -68,16 +72,16 @@ class TestSimpleHierarchyDefault(unittest.TestCase):
             self.worldIndex), self.world)
 
     def test_UnmodifiedStage(self):
-        #self.model.Debug()
+        # self.model.Debug()
         self.VerifyHierarchyMatchesStage(self.world, self.worldIndex)
-    
+
     def test_UnmodifiedFilterModel(self):
         filterModel = UsdQt.HierarchyStandardFilterModel()
         filterModel.setSourceModel(self.model)
         pseudoRootIndex = filterModel.index(0, 0, QtCore.QModelIndex())
         filterIndex = filterModel.index(0, 0, pseudoRootIndex)
         sourceIndex = filterModel.mapToSource(filterIndex)
-      
+
         self.assertEqual(self.world, self.model._GetPrimForIndex(sourceIndex))
 
     def test_DeactivateOnly(self):
@@ -113,7 +117,7 @@ class TestSimpleHierarchyDefault(unittest.TestCase):
         variantSet = self.primWithVariants.GetVariantSet('testVariant')
         variantSet.SetVariantSelection("NonExistantVariant")
         self.VerifyHierarchyMatchesStage(self.world, self.worldIndex)
-        
+
     def VerifyHierarchyMatchesStage(self, prim, index, verbose=False):
         if verbose:
             print("Verifying %s" % str(prim), index.internalId())
@@ -138,8 +142,9 @@ class TestSimpleHierarchyDefault(unittest.TestCase):
         variantSet = self.primWithVariants.GetVariantSet('testVariant')
         variantSet.SetVariantSelection('Variant1')
         deactivateIndex = self.model.index(0, 0, self.worldIndex)
-        self.assertEqual(self.model._GetPrimForIndex(deactivateIndex).GetName(), "PrimToDeactivate")
-	siblingIndex = self.model.index(1, 0, self.worldIndex)
+        self.assertEqual(self.model._GetPrimForIndex(
+            deactivateIndex).GetName(), "PrimToDeactivate")
+        siblingIndex = self.model.index(1, 0, self.worldIndex)
         childIndex = self.model.index(0, 0, deactivateIndex)
         variantIndex = self.model.index(2, 0, self.worldIndex)
         variantChild1 = self.model.index(1, 0, variantIndex)
@@ -148,16 +153,19 @@ class TestSimpleHierarchyDefault(unittest.TestCase):
         treeView.selectionModel().select(siblingIndex, QtCore.QItemSelectionModel.Select)
         treeView.selectionModel().select(variantChild1, QtCore.QItemSelectionModel.Select)
         selection = treeView.selectedIndexes()
-        self.assertEqual(self.model._GetPrimForIndex(childIndex).GetName(), "Child1")
+        self.assertEqual(self.model._GetPrimForIndex(
+            childIndex).GetName(), "Child1")
         self.primToDeactivate.SetActive(False)
         variantSet = self.primWithVariants.GetVariantSet('testVariant')
         variantSet.SetVariantSelection('Variant2')
         selection = treeView.selectedIndexes()
         self.assertEqual(len(selection), 3)
-        self.assertEqual(self.model._GetPrimForIndex(selection[0]).GetName(), "PrimToDeactivate")
-        self.assertEqual(self.model._GetPrimForIndex(selection[1]).GetName(), "PrimToActivate")
-        self.assertEqual(self.model._GetPrimForIndex(selection[2]).GetName(), "VariantChild1")
-
+        self.assertEqual(self.model._GetPrimForIndex(
+            selection[0]).GetName(), "PrimToDeactivate")
+        self.assertEqual(self.model._GetPrimForIndex(
+            selection[1]).GetName(), "PrimToActivate")
+        self.assertEqual(self.model._GetPrimForIndex(
+            selection[2]).GetName(), "VariantChild1")
 
 
 class TestSimpleHierarchyAllLoaded(TestSimpleHierarchyDefault):

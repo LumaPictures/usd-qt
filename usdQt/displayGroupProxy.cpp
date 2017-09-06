@@ -29,8 +29,8 @@ PXR_NAMESPACE_OPEN_SCOPE
 UsdQt_DisplayGroupProxy::UsdQt_DisplayGroupProxy(const TfToken &name)
     : _name(name) {}
 
-UsdQt_DisplayGroupProxyRefPtr UsdQt_DisplayGroupProxy::New(
-    const TfToken &name) {
+UsdQt_DisplayGroupProxyRefPtr
+UsdQt_DisplayGroupProxy::New(const TfToken &name) {
     return TfCreateRefPtr(new UsdQt_DisplayGroupProxy(name));
 }
 

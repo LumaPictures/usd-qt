@@ -106,7 +106,7 @@ class _VariantSetHandler(object):
         return self.variantSet in primSpec.variantSelections
 
     def GetValue(self, primSpec):
-        return primSpec.variantSelections[self.variantSets]
+        return primSpec.variantSelections[self.variantSet]
 
 
 class _LayerItem(object):
@@ -211,7 +211,7 @@ class OpinionStackModel(QtCore.QAbstractItemModel):
         if not index.isValid():
             return QtCore.QModelIndex()
         internalPointer = index.internalPointer()
-        if type(internalPointer) == _LayerItem:
+        if isinstance(internalPointer, _LayerItem):
             return QtCore.QModelIndex()
         else:
             return self.createIndex(internalPointer.parent.row, 0, internalPointer.parent)
@@ -230,9 +230,9 @@ class OpinionStackModel(QtCore.QAbstractItemModel):
         if not parent.isValid():
             return len(self.__primTree)
         internalPointer = parent.internalPointer()
-        if type(internalPointer) == _LayerItem:
+        if isinstance(internalPointer, _LayerItem):
             return len(parent.internalPointer().children)
-        elif type(internalPointer) == _PrimItem:
+        elif isinstance(internalPointer, _PrimItem):
             return 0
 
     def columnCount(self, parent=QtCore.QModelIndex()):
@@ -263,7 +263,7 @@ class OpinionStackModel(QtCore.QAbstractItemModel):
                         return None
                 else:
                     raise Exception("unknown column.")
-            elif type(internalPointer) == _PrimItem:
+            elif isinstance(internalPointer, _PrimItem):
                 primSpec = modelIndex.internalPointer().primSpec
                 if modelIndex.column() == self.SourceColumn:
                     return primSpec.path.pathString
@@ -276,9 +276,9 @@ class OpinionStackModel(QtCore.QAbstractItemModel):
                     raise Exception("unknown column.")
         if role == QtCore.Qt.ToolTipRole:
             internalPointer = modelIndex.internalPointer()
-            if type(internalPointer) == _LayerItem:
+            if isinstance(internalPointer, _LayerItem):
                 return internalPointer.layer.identifier
-            elif type(internalPointer) == _PrimItem:
+            elif isinstance(internalPointer, _PrimItem):
                 return internalPointer.primSpec.path.pathString
         return None
 
@@ -291,10 +291,10 @@ class OpinionStackModel(QtCore.QAbstractItemModel):
 
     def flags(self, index):
         internalPointer = index.internalPointer()
-        if type(internalPointer) == _LayerItem:
+        if isinstance(internalPointer, _LayerItem):
             primSpec = internalPointer.children[internalPointer.strongestPrim].primSpec \
                 if internalPointer.strongestPrim is not None else None
-        elif type(internalPointer) == _PrimItem:
+        elif isinstance(internalPointer, _PrimItem):
             primSpec = internalPointer.primSpec
         else:
             primSpec = None

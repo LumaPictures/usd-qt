@@ -28,6 +28,7 @@ from __future__ import print_function
 
 from ._Qt import QtCore
 
+
 class StageCacheModel(QtCore.QAbstractTableModel):
     '''A stage cache model exposes the stages a cache is holding to Qt.
 
@@ -36,7 +37,7 @@ class StageCacheModel(QtCore.QAbstractTableModel):
     this code often will be paired with a QListItemView to selection a stage
     from a stage cache to edit.
 
-    Currently, this isn't very efficient as it makes repeated queries to 
+    Currently, this isn't very efficient as it makes repeated queries to
     GetAllStages.  There are rarely all that many stages open so this shouldn't
     be problmatic, but we should reevaluate the implementation.
 
@@ -45,6 +46,7 @@ class StageCacheModel(QtCore.QAbstractTableModel):
     by an UsdNotice, we could know when to flush and update our own internal
     cache membership list.
     '''
+
     def __init__(self, stageCache, parent=None):
         super(StageCacheModel, self).__init__(parent=parent)
         self.__stageCache = stageCache
@@ -64,12 +66,11 @@ class StageCacheModel(QtCore.QAbstractTableModel):
                 return self.__stageCache.GetAllStages()[index.row()].GetRootLayer().identifier
             elif index.column() == 1:
                 return self.__stageCache.GetAllStages()[index.row()].GetSessionLayer().identifier
-        #return super(StageCacheModel, self).data(index, role)
+        # return super(StageCacheModel, self).data(index, role)
 
     def GetStageForIndex(self, index):
         '''retrieve the UsdStage associated with the row of index'''
         return self.__stageCache.GetAllStages()[index.row()]
-
 
 
 if __name__ == '__main__':

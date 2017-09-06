@@ -31,7 +31,7 @@ import os.path
 from pxr import Usd, Sdf, UsdQt
 from pxr.UsdQt._Qt import QtCore
 
-stageFilePath = "testenv/testUsdqLayerStackModel/simpleLayerStack.usda"
+stageFilePath = "testenv/testUsdQtLayerModel/simpleLayerStack.usda"
 stageFilePath = stageFilePath if os.path.isfile(
     stageFilePath) else stageFilePath.split('/')[-1]
 
@@ -49,10 +49,12 @@ class TestSimpleLayerModelBase(unittest.TestCase):
         layerStack = self.stage.GetLayerStack(includeSessionLayers=True)
         self.assertEqual(self.model.rowCount(), len(layerStack))
 
-        for i, layer in enumerate(layerStack):
+        self.assertEqual(self.model.data(self.model.createIndex(0, 0)),
+                         'session')
+        for i, layer in enumerate(layerStack[1:]):
             self.assertEqual(
-                os.path.splitext(os.path.split(layer.identifier)[1])[0], 
-                self.model.data(self.model.createIndex(i, 0)))
+                os.path.splitext(os.path.split(layer.identifier)[1])[0],
+                self.model.data(self.model.createIndex(i+1, 0)))
 
         self.stage.Close()
         del self.stage

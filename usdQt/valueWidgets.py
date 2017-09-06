@@ -37,19 +37,18 @@ from . import compatability
 
 class _ValueEditMetaclass(type(QtWidgets.QWidget)):
     """Metaclass used for all subclasses of _ValueEdit
-    Qt user properties are the magic that allows for the editors to 
+    Qt user properties are the magic that allows for the editors to
     leverage a lot of default Qt behavior with respect to item delegates.
     If 'valueType' is not None, then you MUST declare an implementation of
     GetValue and SetValue.
 
-    Ideally, this would be achieved via inheritance or python decorators, 
-    but the user property is defined via metaclass in PySide so we need to 
+    Ideally, this would be achieved via inheritance or python decorators,
+    but the user property is defined via metaclass in PySide so we need to
     approach the problem this way.
     """
     def __new__(meta, name, bases, clsAttributes):
-        autoUserProperty = 'valueType' in clsAttributes and \
-            clsAttributes['valueType'] is not None
-        if autoUserProperty:
+        valueType = clsAttributes.get('valueType', None)
+        if valueType is not None:
             if 'GetValue' in clsAttributes:
                 getter = clsAttributes['GetValue']
             else:
@@ -71,7 +70,7 @@ class _ValueEditMetaclass(type(QtWidgets.QWidget)):
                     raise NotImplementedError(
                         "GetValue must be defined in class or parent.")
             clsAttributes['value'] = QtCore.Property(
-                clsAttributes['valueType'], getter, setter, user=True)
+                valueType, getter, setter, user=True)
         return super(_ValueEditMetaclass, meta).__new__(
             meta, name, bases, clsAttributes)
 
@@ -109,6 +108,7 @@ class _ValueEdit(QtWidgets.QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSizeConstraint(QtWidgets.QLayout.SetNoConstraint)
 
+
 class _LineEdit(_ValueEdit):
     """Parent class for any ValueEdit that contains one or more QLineEdits"""
 
@@ -143,11 +143,11 @@ class _ComboEdit(_ValueEdit):
         self.__changed = False
         self._comboBox = QtWidgets.QComboBox(self)
         self._comboBox.addItems(choices)
-	self._comboBox.activated.connect(self.__OnActivated)
+        self._comboBox.activated.connect(self.__OnActivated)
         self.__layout = QtWidgets.QHBoxLayout()
         self.__layout.addWidget(self._comboBox)
         self._SetupLayoutSpacing(self.__layout)
-	self.setFocusProxy(self._comboBox)
+        self.setFocusProxy(self._comboBox)
         self.setLayout(self.__layout)
 
     def __OnActivated(self, _):
@@ -163,9 +163,10 @@ class _ComboEdit(_ValueEdit):
 
     editFinished = QtCore.Signal()
 
+
 class _NumericEdit(_LineEdit):
     """Base class for single line edit that contains a number.
-    
+
     Values can be limited via an option min and max value .Objects inheriting 
     from _NumericEdit should set the 'valueType' with the python numeric type 
     as well as a QValidator 'validatorType' class variable.
@@ -175,7 +176,7 @@ class _NumericEdit(_LineEdit):
 
     def __init__(self, minValue=None, maxValue=None, parent=None):
         super(_NumericEdit, self).__init__(parent=parent)
-	
+
         self.__lineEdit = QtWidgets.QLineEdit(self)
         self.__validator = self.validatorType(self)
         self.__lineEdit.setValidator(self.__validator)
@@ -189,9 +190,9 @@ class _NumericEdit(_LineEdit):
         self.setLayout(self.__layout)
         self.setFocusProxy(self.__lineEdit)
 
-        self._SetupLineEdit(self.__lineEdit)        
+        self._SetupLineEdit(self.__lineEdit)
 
-	# get the preferred string type of the current Qt context
+        # get the preferred string type of the current Qt context
         self._stringType = type(self.__lineEdit.text())
 
     def GetValue(self):
@@ -202,6 +203,7 @@ class _NumericEdit(_LineEdit):
         if self.__validator.validate(stringValue, 0)[0] != QtGui.QValidator.Acceptable:
             raise ValueError("%s not accepted by validator." % stringValue)
         self.__lineEdit.setText(stringValue)
+
 
 class _VecEdit(_LineEdit):
     """Base class for a line edit per component of a GfVec*
@@ -254,7 +256,8 @@ class _VecEdit(_LineEdit):
         for index in xrange(self.valueType.dimension):
             if value[index] is None:
                 raise ValueError("Value at %i is None", index)
-            string = compatability.ResolveString(str(value[index]), self._stringType)
+            string = compatability.ResolveString(
+                str(value[index]), self._stringType)
             if self.__validator.validate(string, 0)[0] != QtGui.QValidator.Acceptable:
                 raise ValueError(
                     "%s (at index %i) not accepted by validator." % (string, index))
@@ -329,7 +332,8 @@ class _MatrixEdit(_LineEdit):
             for column in xrange(numColumns):
                 if value[row][column] is None:
                     raise ValueError("Value at (%i, %i) is None", row, column)
-                string = compatability.ResolveString(str(value[row][column]), self._stringType)
+                string = compatability.ResolveString(
+                    str(value[row][column]), self._stringType)
                 if self.__validator.validate(string, 0)[0] != QtGui.QValidator.Acceptable:
                     raise ValueError(
                         "%s (at %i, %i) not accepted by validator." % (string, row, column))
@@ -420,6 +424,7 @@ class TextComboEdit(_ComboEdit):
             assert(index >= 0)
         self._comboBox.setCurrentIndex(index)
 
+
 class BoolEdit(_ComboEdit):
     valueType = bool
 
@@ -435,6 +440,7 @@ class BoolEdit(_ComboEdit):
         else:
             self._comboBox.setCurrentIndex(0)
 
+
 class StringEdit(_LineEdit):
     valueType = str
 
@@ -447,7 +453,7 @@ class StringEdit(_LineEdit):
         self.setFocusProxy(self.__lineEdit)
         self.setLayout(self.__layout)
         self._SetupLineEdit(self.__lineEdit)
-        
+
     def GetValue(self):
         return str(self.__lineEdit.text())
 
@@ -475,6 +481,7 @@ class AssetEdit(_LineEdit):
     def SetValue(self, value):
         self.__lineEdit.setText(value.path)
 
+
 class PathEdit(_LineEdit):
     valueType = Sdf.Path
 
@@ -487,7 +494,7 @@ class PathEdit(_LineEdit):
         self.setFocusProxy(self.__lineEdit)
         self.setLayout(self.__layout)
         self._SetupLineEdit(self.__lineEdit)
-        
+
     def GetValue(self):
         return Sdf.Path(str(self.__lineEdit.text()))
 
@@ -541,10 +548,10 @@ if __name__ == '__main__':
     import sys
     app = QtWidgets.QApplication(sys.argv)
 
-    widget = Vec3dEditor()
+    widget = Vec3dEdit()
     widget.show()
 
-    widget = StringEditor()
+    widget = StringEdit()
     widget.show()
 
     sys.exit(app.exec_())

@@ -47,7 +47,7 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
     For consistancy, UsdQt editors should be preferred over the standard
     editors.
 
-    You may subclass ValueDelegate to provide your own extensions and custom 
+    You may subclass ValueDelegate to provide your own extensions and custom
     widgets to the default UsdQt handlers or write a new StyledItemDelegate
     using ValueDelegate as a reference implementation.
     """

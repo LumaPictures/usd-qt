@@ -32,63 +32,78 @@ import unittest
 from pxr import Gf, Sdf, UsdQt
 from pxr.UsdQt._Qt import QtCore, QtWidgets
 
+
 def setUpModule():
     global app
     app = QtWidgets.QApplication([])
 
+
 class TestMetaclass(unittest.TestCase):
+
     def testObject(self):
         class MyEditor(QtWidgets.QWidget):
             __metaclass__ = UsdQt.valueWidgets._ValueEditMetaclass
             valueType = float
+
             def __init__(self):
                 super(MyEditor, self).__init__()
                 self.__value = 5
+
             def GetValue(self):
                 return self.__value
+
             def SetValue(self, value):
                 self.__value = value
                 x = MyEditor()
                 self.assertEqual(x.value, 5)
-		self.assertEqual(x.metaObject().userProperty().name(), 'value')
+                self.assertEqual(x.metaObject().userProperty().name(), 'value')
+
     def testNoValueType(self):
         '''verify that the metaclass doesn't fail if value type isn't set'''
         class MyEditor(QtWidgets.QWidget):
-           __metaclass__ = UsdQt.valueWidgets._ValueEditMetaclass
-           def __init__(self):	
-                super(MyEditor, self).__init__()   
-                x = MyEditor()
-                self.assertEqual(x.metaObject().userProperty().name(), None)   
-    def testValueTypeIsNone(self):
-        class MyEditor(QtWidgets.QWidget):
             __metaclass__ = UsdQt.valueWidgets._ValueEditMetaclass
-            valueType = None
+
             def __init__(self):
                 super(MyEditor, self).__init__()
                 x = MyEditor()
                 self.assertEqual(x.metaObject().userProperty().name(), None)
+
+    def testValueTypeIsNone(self):
+        class MyEditor(QtWidgets.QWidget):
+            __metaclass__ = UsdQt.valueWidgets._ValueEditMetaclass
+            valueType = None
+
+            def __init__(self):
+                super(MyEditor, self).__init__()
+                x = MyEditor()
+                self.assertEqual(x.metaObject().userProperty().name(), None)
+
 
 class _Base:
     '''
     Namespace to prevent test from being executed
     '''
     class TestValueEdit(unittest.TestCase):
+
         def setUp(self):
-	    self.longMessage = True
+            self.longMessage = True
+
         def testUserProperty(self):
             '''verify the Qt user property has been setup.
             using the user property gets a lot of nice behavior for free
             when interacting with Qt ItemModels so its important that
             all our widgets have this setup correctly.
             '''
-	    widget = self.Widget()
-	    self.assertEqual(widget.metaObject().userProperty().name(), 'value')
+            widget = self.Widget()
+            self.assertEqual(widget.metaObject().userProperty().name(), 'value')
+
         def testSuccess(self):
             '''verifying that the widget can set and get a value without loss of equality'''
             widget = self.Widget()
             for value in self.SuccessValues:
                 widget.value = value
                 self.assertEqual(widget.value, value)
+
         def testSuccessCasted(self):
             '''verify that the widget can set values, but there may be some transformation
 
@@ -99,12 +114,14 @@ class _Base:
             for value in self.SuccessCastedValues:
                 widget.value = value
                 self.assertEqual(widget.value, self.SuccessCastedValues[value])
-	def testValueErrors(self):
+
+        def testValueErrors(self):
             '''verify that some values are unsettable [raise ValueError]'''
             widget = self.Widget()
             for value in self.ValueErrorValues:
                 with self.assertRaises(ValueError):
                     widget.value = value
+
         def testTypeErrors(self):
             '''verify that some values are unsettable [raise TypeError]'''
             widget = self.Widget()
@@ -115,88 +132,105 @@ class _Base:
         def testKeySequence(self):
             '''verify a series of keystrokes when the widget has focus'''
             if not 'PXR_USDQT_SKIP_TEST_KEYS' in os.environ:
-                from pixar.UsdQt._Qt import QtTest 
+                from pixar.UsdQt._Qt import QtTest
                 for sequence in self.KeySequences:
                     widget = self.Widget()
                     widget.show()
                     widget.window().activateWindow()
                     widget.setFocus(QtCore.Qt.MouseFocusReason)
                     for keyClick in sequence:
-                        focusWidget = widget.window().focusWidget() 
+                        focusWidget = widget.window().focusWidget()
                     QtTest.QTest.keyClick(focusWidget, keyClick)
                     self.assertEqual(widget.value, self.KeySequences[sequence])
-    
+
+
 class TestStringEdit(_Base.TestValueEdit):
     Widget = UsdQt.valueWidgets.StringEdit
     SuccessValues = ['abcd', '', '-490', 'a', 'the quick brown fox']
-    KeySequences = {('a', 'b', 'c', 'd', QtCore.Qt.Key_Return) : 'abcd', 
-                    ('a', 'b', 'c', 'd',) : 'abcd'}
-    SuccessCastedValues = {None : ''}
+    KeySequences = {('a', 'b', 'c', 'd', QtCore.Qt.Key_Return): 'abcd',
+                    ('a', 'b', 'c', 'd',): 'abcd'}
+    SuccessCastedValues = {None: ''}
     ValueErrorValues = []
-    TypeErrorValues = [['a','b','c'], -490, 10.0]
-    
+    TypeErrorValues = [['a', 'b', 'c'], -490, 10.0]
+
+
 class TestPathEdit(_Base.TestValueEdit):
     Widget = UsdQt.valueWidgets.PathEdit
-    SuccessValues = [Sdf.Path('/World'), Sdf.Path(), Sdf.Path('./Relative'), Sdf.Path('/World.property')]
+    SuccessValues = [Sdf.Path('/World'), Sdf.Path(),
+                     Sdf.Path('./Relative'), Sdf.Path('/World.property')]
     KeySequences = {}
-    SuccessCastedValues = {'/World' : Sdf.Path('/World'), '': Sdf.Path()}
+    SuccessCastedValues = {'/World': Sdf.Path('/World'), '': Sdf.Path()}
     ValueErrorValues = []
     TypeErrorValues = []
+
 
 class TestIntEdit(_Base.TestValueEdit):
     Widget = UsdQt.valueWidgets.IntEdit
     SuccessValues = [1, -10000, 10000, 123456789, long(10000)]
-    KeySequences = {('1', '0', '0', QtCore.Qt.Key_Return) : 100,
-                    ('1', '.', '0', '0',) : 100,
-		    ('1', 'e', 'e', '-', '2',) : 12
-		    }
-    SuccessCastedValues = {"1" : 1}
+    KeySequences = {('1', '0', '0', QtCore.Qt.Key_Return): 100,
+                    ('1', '.', '0', '0',): 100,
+                    ('1', 'e', 'e', '-', '2',): 12
+                    }
+    SuccessCastedValues = {"1": 1}
     ValueErrorValues = ["-1.0", 'one', 1.0, [1], None]
     TypeErrorValues = []
+
 
 class TestFloatEdit(_Base.TestValueEdit):
     Widget = UsdQt.valueWidgets.FloatEdit
     SuccessValues = [1, 1.0, 1e100, -10000, 10000, 123456789, 1.0, long(10000)]
-    KeySequences = {('1', '.', '0', '0', QtCore.Qt.Key_Return) : 1.0,
-                    ('1', 'e', 'e', '-', '2',) : 1e-2}
-    SuccessCastedValues = {"1.0":1, '1e100':1e100, "-100" :-100, "+100":100}
+    KeySequences = {('1', '.', '0', '0', QtCore.Qt.Key_Return): 1.0,
+                    ('1', 'e', 'e', '-', '2',): 1e-2}
+    SuccessCastedValues = {"1.0": 1, '1e100': 1e100, "-100": -100, "+100": 100}
     ValueErrorValues = ['one', [1.0], '1e', '-', '+', None]
     TypeErrorValues = []
 
+
 class TestVec2dEdit(_Base.TestValueEdit):
     Widget = UsdQt.valueWidgets.Vec2dEdit
-    SuccessValues = [Gf.Vec2f(1.0, 2.0), Gf.Vec2d(1.0, 2.0), Gf.Vec2h(1.0, 2.0), (1.0, 2.0), [1.0, 2.0]]
-    SuccessCastedValues = {('1.0', '2.0'):(1.0, 2.0), ('1e10', 1.0):(1e10, 1.0)}
-    KeySequences = {('1', '.', '0', QtCore.Qt.Key_Tab, '2', '.', '0') : (1.0, 2.0),}
-    ValueErrorValues = [(1.0, None), (None, 1.0), ("1.0", "one"), (1.0, 2.0, 3.0), (1.0,), Gf.Vec3f(1.0, 2.0, 3.0), "(1.0, 2.0)"]
+    SuccessValues = [Gf.Vec2f(1.0, 2.0), Gf.Vec2d(
+        1.0, 2.0), Gf.Vec2h(1.0, 2.0), (1.0, 2.0), [1.0, 2.0]]
+    SuccessCastedValues = {('1.0', '2.0'): (1.0, 2.0),
+                           ('1e10', 1.0): (1e10, 1.0)}
+    KeySequences = {('1', '.', '0', QtCore.Qt.Key_Tab,
+                     '2', '.', '0'): (1.0, 2.0), }
+    ValueErrorValues = [(1.0, None), (None, 1.0), ("1.0", "one"),
+                        (1.0, 2.0, 3.0), (1.0,), Gf.Vec3f(1.0, 2.0, 3.0), "(1.0, 2.0)"]
     TypeErrorValues = []
+
 
 class TestMatrix2dEdit(_Base.TestValueEdit):
     Widget = UsdQt.valueWidgets.Matrix2dEdit
-    SuccessValues = [Gf.Matrix2f(1.0, 2.0, 3.0, 4.0), Gf.Matrix2d(1.0, 2.0, 3.0, 4.0)]
-    SuccessCastedValues = {(('1.0', '2.0'), ('3.0', '4.0')):Gf.Matrix2f(1.0, 2.0 ,3.0, 4.0)}
-    KeySequences = {('1', '.', '0', QtCore.Qt.Key_Tab, '2', '.', '0', QtCore.Qt.Key_Tab, '3', '.', '0', QtCore.Qt.Key_Tab, '4', '.', '0') : Gf.Matrix2f(1.0, 2.0, 3.0, 4.0),}
+    SuccessValues = [Gf.Matrix2f(1.0, 2.0, 3.0, 4.0),
+                     Gf.Matrix2d(1.0, 2.0, 3.0, 4.0)]
+    SuccessCastedValues = {(('1.0', '2.0'), ('3.0', '4.0'))                           : Gf.Matrix2f(1.0, 2.0, 3.0, 4.0)}
+    KeySequences = {('1', '.', '0', QtCore.Qt.Key_Tab, '2', '.', '0', QtCore.Qt.Key_Tab,
+                     '3', '.', '0', QtCore.Qt.Key_Tab, '4', '.', '0'): Gf.Matrix2f(1.0, 2.0, 3.0, 4.0), }
     ValueErrorValues = [((1.0, None), (None, 1.0)), Gf.Matrix3f(), "(1.0, 2.0)"]
     TypeErrorValues = []
+
 
 class TestBoolEdit(_Base.TestValueEdit):
     Widget = UsdQt.valueWidgets.BoolEdit
     SuccessValues = [True, False, 1, 0]
-    SuccessCastedValues = {None : False, "0" : True, "1" : True, "one" : True, (0,) : True, (1,) : True}
-    KeySequences = {() : False,
-                    (QtCore.Qt.Key_Down,) : True,
-		    (QtCore.Qt.Key_Down, QtCore.Qt.Key_Up) : False}
+    SuccessCastedValues = {None: False, "0": True,
+                           "1": True, "one": True, (0,): True, (1,): True}
+    KeySequences = {(): False,
+                    (QtCore.Qt.Key_Down,): True,
+                    (QtCore.Qt.Key_Down, QtCore.Qt.Key_Up): False}
     ValueErrorValues = []
     TypeErrorValues = []
 
+
 class TestTextComboBoxEdit(_Base.TestValueEdit):
-    Widget = lambda self: UsdQt.valueWidgets.TextComboEdit(['value1', 'value2', 'value3'])
+    Widget = lambda self: UsdQt.valueWidgets.TextComboEdit(
+        ['value1', 'value2', 'value3'])
     SuccessValues = ['value1', 'value2', 'value3', 'invalidValue']
-    SuccessCastedValues = {None : ''}
-    KeySequences = {() : 'value1',
-                    (QtCore.Qt.Key_Down,) : 'value2',
-                    (QtCore.Qt.Key_Down, QtCore.Qt.Key_Up) : 'value1',
-                    (QtCore.Qt.Key_Down, QtCore.Qt.Key_Down) : 'value3'}
+    SuccessCastedValues = {None: ''}
+    KeySequences = {(): 'value1',
+                    (QtCore.Qt.Key_Down,): 'value2',
+                    (QtCore.Qt.Key_Down, QtCore.Qt.Key_Up): 'value1',
+                    (QtCore.Qt.Key_Down, QtCore.Qt.Key_Down): 'value3'}
     ValueErrorValues = []
     TypeErrorValues = [1.0, 1, ['mylist'], ('bla',)]
 

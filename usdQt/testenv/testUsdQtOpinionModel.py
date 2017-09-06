@@ -26,26 +26,32 @@
 from __future__ import print_function
 
 import unittest2 as unittest
-import os, os.path
+import os
+import os.path
 
 from pxr import Usd, UsdQt
 from pxr.UsdQt._Qt import QtCore, QtWidgets
 
+
 class TestOpinionModel(unittest.TestCase):
+
     def setUp(self):
         stageFilePath = "testenv/testUsdQtOpinionModel/simple.usda"
-        stageFilePath = stageFilePath if os.path.isfile(stageFilePath) else stageFilePath.split('/')[-1]
+        stageFilePath = stageFilePath if os.path.isfile(
+            stageFilePath) else stageFilePath.split('/')[-1]
         self.stage = Usd.Stage.Open(stageFilePath)
 
     def testProperties(self):
         prims = [self.stage.GetPrimAtPath(path) for path in
-          ['/MyPrim1/Child1', '/MyPrim1/Child2', '/MyPrim1/Child3', '/MyPrim1/Child4']]
-        
+                 ['/MyPrim1/Child1', '/MyPrim1/Child2', '/MyPrim1/Child3', '/MyPrim1/Child4']]
+
         model = UsdQt.OpinionStandardModel(prims)
         primIndex = model.index(0, 0, QtCore.QModelIndex())
         proxy = model.GetProxyForIndex(primIndex)
-        self.assertEqual(proxy.GetNames(), ['Child1', 'Child2', 'Child3', 'Child4'])
-        self.assertEqual(model.data(primIndex), 'Child1, Child2, Child3, Child4')
+        self.assertEqual(proxy.GetNames(), [
+                         'Child1', 'Child2', 'Child3', 'Child4'])
+        self.assertEqual(model.data(primIndex),
+                         'Child1, Child2, Child3, Child4')
 
         metadataGroupIndex = model.index(0, 0, primIndex)
         attributeGroupIndex = model.index(1, 0, primIndex)
@@ -54,30 +60,35 @@ class TestOpinionModel(unittest.TestCase):
         self.assertGreater(model.rowCount(metadataGroupIndex), 0)
         self.assertEqual(model.rowCount(attributeGroupIndex), 2)
         self.assertEqual(model.rowCount(relationshipGroupIndex), 1)
-        
+
         self.assertEqual(model.index(0, 0, attributeGroupIndex).data(), "x")
         self.assertEqual(model.index(0, 1, attributeGroupIndex).data(), "")
-        self.assertEqual(model.index(0, 2, attributeGroupIndex).data(QtCore.Qt.DisplayRole), "")
-        self.assertEqual(model.index(0, 2, attributeGroupIndex).data(QtCore.Qt.EditRole), None)
+        self.assertEqual(model.index(0, 2, attributeGroupIndex).data(
+            QtCore.Qt.DisplayRole), "")
+        self.assertEqual(model.index(0, 2, attributeGroupIndex).data(
+            QtCore.Qt.EditRole), None)
 
         self.assertEqual(model.index(1, 0, attributeGroupIndex).data(), "y")
         self.assertEqual(model.index(1, 1, attributeGroupIndex).data(), "int")
-        self.assertEqual(model.index(1, 2, attributeGroupIndex).data(QtCore.Qt.DisplayRole), "2")
-        self.assertEqual(model.index(1, 2, attributeGroupIndex).data(QtCore.Qt.EditRole), 2)
+        self.assertEqual(model.index(1, 2, attributeGroupIndex).data(
+            QtCore.Qt.DisplayRole), "2")
+        self.assertEqual(model.index(
+            1, 2, attributeGroupIndex).data(QtCore.Qt.EditRole), 2)
 
-        self.assertEqual(model.index(0, 0, relationshipGroupIndex).data(), "rel1")
-        
+        self.assertEqual(model.index(
+            0, 0, relationshipGroupIndex).data(), "rel1")
+
     def testMetadata(self):
         prims = [self.stage.GetPrimAtPath(path) for path in
-          ['/MyPrim1', '/MyPrim2']]
+                 ['/MyPrim1', '/MyPrim2']]
         #model = UsdQt.OpinionStandardModel(prims)
 
     def testInvalidSetData(self):
         """Ensure that indices are property cleaned when a bad setData occurs.
-        This can end up triggering a very hard to track down deferred crash 
+        This can end up triggering a very hard to track down deferred crash
         where persistent indices are created and not cleaned up."""
+        pass
 
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
-
