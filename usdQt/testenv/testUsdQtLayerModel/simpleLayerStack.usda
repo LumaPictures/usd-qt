@@ -1,0 +1,7 @@
+#usda 1.0
+
+(
+    subLayers = [@./simpleLayerStack_one.usdc@,
+                 @./simpleLayerStack_two.usda@,
+                 @./simpleLayerStack_three.usda@]
+)

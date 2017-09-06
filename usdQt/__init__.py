@@ -26,11 +26,15 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from ._bindings import PrimFilterCache
+from ._bindings import PrimFilterCache, UndoBlock, UndoInverse, UndoRouter, \
+    UndoStackNotice
 from .hierarchyModel import HierarchyBaseModel, HierarchyStandardModel, \
     HierarchyStandardFilterModel
+from .layerModel import LayerStandardModel, LayerBaseModel, \
+    LayerStackStyledDelegate
 from .opinionModel import OpinionStandardModel, OpinionBaseModel
 from .opinionStackModel import OpinionStackModel, OpinionStackFilter
+from .stageCacheModel import StageCacheModel
 from .valueDelegate import ValueDelegate
 
 from . import valueWidgets

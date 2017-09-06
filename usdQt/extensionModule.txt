@@ -16,5 +16,9 @@ wrapHierarchyCache.cpp
 wrapOpinionProxy.cpp
 wrapPrimFilterCache.cpp
 utils.cpp
+undoBlock.cpp
+undoInverse.cpp
+undoRouter.cpp
+undoStateDelegate.cpp
 module.cpp
 moduleDeps.cpp
