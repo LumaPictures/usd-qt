@@ -28,6 +28,7 @@
 #include <functional>
 #include <unordered_map>
 
+#include "pxr/pxr.h"
 #include "pxr/usd/usd/primFlags.h"
 #include "pxr/usd/usd/prim.h"
 #include "pxr/usd/usd/stage.h"
@@ -35,7 +36,9 @@
 
 #include "tbb/concurrent_unordered_map.h"
 
-#include "debug.h"
+#include "debugCodes.h"
+
+PXR_NAMESPACE_OPEN_SCOPE
 
 /// \class UsdQtPrimFilterCache
 ///
@@ -122,5 +125,7 @@ public:
 
     UsdQtPrimFilterCache::State operator()(const UsdPrim& prim);
 };
+
+PXR_NAMESPACE_CLOSE_SCOPE
 
 #endif

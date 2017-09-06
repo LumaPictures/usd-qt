@@ -26,22 +26,34 @@
 #include <boost/python/class.hpp>
 
 #include "pxr/pxr.h"
-#include "pxr/base/tf/pyEnum.h"
+#include "pxr/base/tf/pyPtrHelpers.h"
 
-#include "primFilterCache.h"
+#include "hierarchyCache.h"
 
 using namespace boost::python;
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-void wrapPrimFilterCache() {
+void wrapHierarchyCache() {
     {
-        typedef UsdQtPrimFilterCache This;
+        typedef UsdQt_HierarchyCache This;
         scope obj =
-            class_<This, boost::noncopyable>("PrimFilterCache", init<>())
-                .def("ApplyPathContainsFilter", &This::ApplyPathContainsFilter)
-                .def("GetState", &This::GetState)
-                .def("PrintDebugString", &This::PrintDebugString);
-        TfPyWrapEnum<This::State>();
+            class_<This, boost::noncopyable>(
+                "_HierarchyCache", init<UsdPrim, Usd_PrimFlagsPredicate>())
+                .def("GetChildCount", &This::GetChildCount)
+                .def("GetChild", &This::GetChild)
+                .def("GetRoot", &This::GetRoot)
+                .def("IsRoot", &This::IsRoot)
+                .def("GetParent", &This::GetParent)
+                .def("GetRow", &This::GetRow)
+                .def("ResyncSubtrees", &This::ResyncSubtrees)
+                .def("ContainsPath", &This::ContainsPath)
+                .def("GetProxy", &This::GetProxy)
+                .def("GetPredicate", &This::GetPredicate)
+                .def("DebugFullIndex", &This::DebugFullIndex);
+        class_<This::Proxy, TfWeakPtr<This::Proxy>, boost::noncopyable>("Proxy",
+                                                                        no_init)
+            .def(TfPyRefAndWeakPtr())
+            .def("GetPrim", &This::Proxy::GetPrim);
     }
 }

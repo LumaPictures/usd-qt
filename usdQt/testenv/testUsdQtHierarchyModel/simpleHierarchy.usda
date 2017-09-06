@@ -1,0 +1,52 @@
+#usda 1.0
+
+def Xform "World" {
+
+    def Xform "PrimToDeactivate"(active=True){
+        def Xform "Child1" {
+            def Xform "Grandchild1"{
+            }
+            def Xform "Grandchild2"{
+            }
+        }
+        def Xform "Child2"{
+        }    
+    }
+    
+    def Xform "PrimToActivate" (active=False){
+        def Xform "Child1" {
+            def Xform "Grandchild1"{
+            }
+            def Xform "Grandchild2"{
+            }
+        }
+        def Xform "Child2"{
+        }
+    }
+    
+    
+    def Xform "PrimWithVariants" (add variantSets = "testVariant"){
+        variantSet "testVariant" = {
+             "Variant1"{
+                def "VariantChild0"{}
+                def "VariantChild1"{
+                    def "VariantGrandchild1"{
+                    }
+                }
+                def "VariantChild2"{
+                }
+             }
+             "Variant2"{
+                def "VariantChild1"{
+                    def "DifferentVariantGrandchild1"{
+                    }
+                }
+                def "VariantChild3"{
+                }
+             }
+        }
+    
+    }
+
+
+}

@@ -21,13 +21,38 @@
 # KIND, either express or implied. See the Apache License for the specific
 # language governing permissions and limitations under the Apache License.
 #
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from ._bindings import PrimFilterCache
-from .hierarchyModel import HierarchyBaseModel, HierarchyStandardModel, \
-    HierarchyStandardFilterModel
+import os
 
-from . import roles
+from ._Qt import QtCore, QtWidgets, QtGui
+
+from pxr import Sdf
+
+ICONSPATH = os.path.dirname(os.path.realpath(__file__))
+
+class IconCache(object):
+    __cache = {}
+
+    @staticmethod
+    def Get(path):
+        if path not in IconCache.__cache:
+            icon = QtGui.QIcon(os.path.join(ICONSPATH, path))
+            IconCache.__cache[path] = icon
+        return IconCache.__cache[path]
+
+
+def SpecifierToString(specifier):
+    if specifier is Sdf.SpecifierDef:
+        return "def"
+    elif specifier is Sdf.SpecifierOver:
+        return "over"
+    elif specifier is Sdf.SpecifierClass:
+        return "class"
+    else:
+        raise Exception("Unknown specifier.")
+
+
+

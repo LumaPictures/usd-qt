@@ -1,0 +1,10 @@
+# This is the list of CPP files used to feed the
+# open source distutils setup.py
+# found at https://github.com/LumaPictures/usd-qt
+debugCodes.cpp
+hierarchyCache.cpp
+primFilterCache.cpp
+wrapHierarchyCache.cpp
+wrapPrimFilterCache.cpp
+module.cpp
+moduleDeps.cpp

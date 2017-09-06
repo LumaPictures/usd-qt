@@ -27,9 +27,6 @@
 using namespace boost::python;
 
 TF_WRAP_MODULE {
-    // TF_WRAP(OpinionTreeIndex);
-    TF_WRAP(PrimIdTable);
+    TF_WRAP(HierarchyCache);
     TF_WRAP(PrimFilterCache);
-    // TF_WRAP(PropertyTableIndex);
-    // TF_WRAP(UndoRouter);
 }

@@ -1,5 +1,5 @@
 //
-// Copyright 2016 Pixar
+// Copyright 2017 Pixar
 //
 // Licensed under the Apache License, Version 2.0 (the "Apache License")
 // with the following modification; you may not use this file except in
@@ -22,18 +22,22 @@
 // language governing permissions and limitations under the Apache License.
 //
 
-#include "debug.h"
+#include "debugCodes.h"
+
+PXR_NAMESPACE_OPEN_SCOPE
 
 TF_REGISTRY_FUNCTION(TfDebug) {
     TF_DEBUG_ENVIRONMENT_SYMBOL(
-        USDQT_DEBUG_PRIMIDTABLE,
-        "Enabling debug information for the prim tree index.");
+        USDQT_DEBUG_HIERARCHYCACHE,
+        "Enabling debug information for the hierarchy cache.");
     TF_DEBUG_ENVIRONMENT_SYMBOL(
         USDQT_DEBUG_PRIMFILTERCACHE,
         "Enabling debug information for the prim filter cache.");
     TF_DEBUG_ENVIRONMENT_SYMBOL(
-        USDQT_DEBUG_UNDOLAYERSTATEDELEGATE,
+        USDQT_DEBUG_UNDOSTATEDELEGATE,
         "Enabling debug information for the layer state delegate.");
     TF_DEBUG_ENVIRONMENT_SYMBOL(USDQT_DEBUG_UNDOSTACK,
                                 "Enabling Undo Stack debugging.");
 }
+
+PXR_NAMESPACE_CLOSE_SCOPE

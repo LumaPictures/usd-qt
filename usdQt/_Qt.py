@@ -22,12 +22,18 @@
 # language governing permissions and limitations under the Apache License.
 #
 
+# Use this for site customization of Qt binding versions.  This code targets
+# PySide2, but may be compatable with a variety of other shims/APIs.  Override
+# this file to specify any site specific preferences.
+
 from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-from ._bindings import PrimFilterCache
-from .hierarchyModel import HierarchyBaseModel, HierarchyStandardModel, \
-    HierarchyStandardFilterModel
+def _get_proxied_module():
+    import os
+    import importlib
+    mod = os.environ.get('PXR_QT_PYTHON_BINDING', 'PySide2')
+    return importlib.import_module(mod)
 
-from . import roles
+globals().update(_get_proxied_module().__dict__)
+
+del _get_proxied_module

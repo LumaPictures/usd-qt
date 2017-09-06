@@ -1,5 +1,5 @@
 //
-// Copyright 2016 Pixar
+// Copyright 2017 Pixar
 //
 // Licensed under the Apache License, Version 2.0 (the "Apache License")
 // with the following modification; you may not use this file except in
@@ -25,9 +25,14 @@
 #ifndef USDQT_DEBUG_H
 #define USDQT_DEBUG_H
 
+#include "pxr/pxr.h"
 #include "pxr/base/tf/debug.h"
 
-TF_DEBUG_CODES(USDQT_DEBUG_PRIMIDTABLE, USDQT_DEBUG_PRIMFILTERCACHE,
-               USDQT_DEBUG_UNDOLAYERSTATEDELEGATE, USDQT_DEBUG_UNDOSTACK);
+PXR_NAMESPACE_OPEN_SCOPE
+
+TF_DEBUG_CODES(USDQT_DEBUG_HIERARCHYCACHE, USDQT_DEBUG_PRIMFILTERCACHE,
+               USDQT_DEBUG_UNDOSTATEDELEGATE, USDQT_DEBUG_UNDOSTACK);
+
+PXR_NAMESPACE_CLOSE_SCOPE
 
 #endif
