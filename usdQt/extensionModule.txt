@@ -12,13 +12,14 @@ primProxy.cpp
 proxyBase.cpp
 relationshipProxy.cpp
 variantSetsProxy.cpp
-wrapHierarchyCache.cpp
-wrapOpinionProxy.cpp
-wrapPrimFilterCache.cpp
 utils.cpp
 undoBlock.cpp
 undoInverse.cpp
 undoRouter.cpp
 undoStateDelegate.cpp
+wrapHierarchyCache.cpp
+wrapOpinionProxy.cpp
+wrapPrimFilterCache.cpp
+wrapUndoRouter.cpp
 module.cpp
 moduleDeps.cpp

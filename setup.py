@@ -35,7 +35,7 @@ setup(
     version='0.0.1',
     description='USD Qt Components',
     long_description=long_description,
-    url='https://github.com/LumaPictures/usdqt-components',
+    url='https://github.com/LumaPictures/usd-qt',
     license='Modified Apache 2.0 License',
     packages=packages,
     package_dir={'UsdQt':'usdQt'},
