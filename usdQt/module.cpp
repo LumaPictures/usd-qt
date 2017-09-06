@@ -28,5 +28,6 @@ using namespace boost::python;
 
 TF_WRAP_MODULE {
     TF_WRAP(HierarchyCache);
+    TF_WRAP(OpinionProxy);
     TF_WRAP(PrimFilterCache);
 }

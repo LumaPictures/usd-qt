@@ -96,7 +96,7 @@ class OpinionBaseModel(QtCore.QAbstractItemModel):
         the model and shuts down any Tf.Notice listeners"""
         if prims:
             prims = [prim for prim in prims if prim.GetPath() != Sdf.Path('/')]
-        if not prims or not all((prim for prim in prims)):
+        if not prims or not all(prims):
             with self.__ResetContext(self):
                 self._Invalidate()
         else:

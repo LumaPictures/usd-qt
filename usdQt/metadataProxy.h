@@ -59,6 +59,9 @@ public:
                                          
     const std::vector<UsdObject>& GetObjects(){return _objects;}
 
+    /// \brief Return the list of all objects for this proxy.
+    const std::vector<UsdObject>& GetObjects() const {return _objects;}
+
     /// \brief Get the name of the metdata field for this proxy.
     TfToken GetName() const;
 

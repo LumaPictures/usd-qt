@@ -253,7 +253,7 @@ class OpinionStackModel(QtCore.QAbstractItemModel):
                 if modelIndex.column() == self.SourceColumn:
                     if layer == self.__prim.GetStage().GetSessionLayer():
                         return "session"
-                    elif layer.identifier.endswith(":registry"):
+                    elif layer == Usd.SchemaRegistry.GetSchematics():
                         return "registry"
                     return os.path.split(os.path.splitext(layer.identifier)[0])[-1]
                 elif modelIndex.column() == self.OpinionColumn:
