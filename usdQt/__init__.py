@@ -29,5 +29,9 @@ from __future__ import print_function
 from ._bindings import PrimFilterCache
 from .hierarchyModel import HierarchyBaseModel, HierarchyStandardModel, \
     HierarchyStandardFilterModel
+from .opinionModel import OpinionStandardModel, OpinionBaseModel
+from .opinionStackModel import OpinionStackModel, OpinionStackFilter
+from .valueDelegate import ValueDelegate
 
+from . import valueWidgets
 from . import roles

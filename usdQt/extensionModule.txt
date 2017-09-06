@@ -1,10 +1,20 @@
 # This is the list of CPP files used to feed the
 # open source distutils setup.py
 # found at https://github.com/LumaPictures/usd-qt
+attributeProxy.cpp
 debugCodes.cpp
+displayGroupProxy.cpp
 hierarchyCache.cpp
+metadataProxy.cpp
+objectProxy.cpp
 primFilterCache.cpp
+primProxy.cpp
+proxyBase.cpp
+relationshipProxy.cpp
+variantSetsProxy.cpp
 wrapHierarchyCache.cpp
+wrapOpinionProxy.cpp
 wrapPrimFilterCache.cpp
+utils.cpp
 module.cpp
 moduleDeps.cpp
