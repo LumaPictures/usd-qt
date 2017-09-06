@@ -23,6 +23,8 @@
 //
 #include "undoInverse.h"
 
+#include <boost/range/adaptor/reversed.hpp>
+
 #include "undoBlock.h"
 #include "undoRouter.h"
 
@@ -34,8 +36,8 @@ void UsdQtUndoInverse::_Append(std::function<bool()> inverse) {
 
 void UsdQtUndoInverse::_Invert() {
     SdfChangeBlock changeBlock;
-    for (int i = 0; i < _inversion.size(); i++) {
-        _inversion[_inversion.size() - i - 1]();
+    for (const auto& inverse : boost::adaptors::reverse(_inversion)) {
+        inverse();
     }
 }
 
@@ -63,8 +65,8 @@ void UsdQtUndoInverse::Invert() {
 void UsdQtUndoInverse::_Clear() { _inversion.clear(); }
 
 void UsdQtUndoInverse::_Adopt(const UsdQtUndoInverse& inversion) {
-    for (int i = 0; i < inversion._inversion.size(); i++) {
-        _inversion.push_back(inversion._inversion[i]);
+    for (const auto& inverse : inversion._inversion) {
+        _inversion.push_back(inverse);
     }
 }
 
