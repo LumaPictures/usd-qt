@@ -1,0 +1,94 @@
+#usda 1.0
+
+(
+)
+
+def "World" {
+    def "VariantPrim1" (add variantSets = ["variant1", "variant2", "variant3"]
+                        variants = {string variant1 = "one"
+                                    string variant2 = "three"
+                                    string variant3 = "five"
+                                    }
+                        ) {
+        variantSet "variant1" = {
+            "one"{}
+            "two"{}
+        }
+        variantSet "variant2" = {
+            "three"{}
+            "four"{}
+        }
+        variantSet "variant3" = {
+            "five"{}
+            "six"{}
+        }
+    }
+    def "VariantPrim2" (add variantSets = ["variant4", "variant2", "variant3"]
+                        variants = {string variant4 = "eight"
+                                    string variant2 = "four"
+                                    string variant3 = "five"
+                                    }
+        ) {
+        variantSet "variant4" = {
+            "seven"{}
+            "eight"{}
+        }
+        variantSet "variant2" = {
+            "three"{}
+            "four"{}
+        }
+        variantSet "variant3" = {
+            "five"{}
+            "nine"{}
+            "ten"{}
+        }
+    }
+
+    def "MetadataPrim1" (doc = "sharedDoc"){}
+    def "MetadataPrim2" (doc = "sharedDoc"){}
+    def "MetadataPrim3" (doc = "ShaAredDOc"){}
+
+    def "AttrPrim1" {
+        int x = 5
+    }
+    def "AttrPrim2" {
+        int x = 5
+    }
+    def "AttrPrim3" {
+        int x = 7
+    }
+    def "AttrPrim4" {
+        string x = "five"
+    }
+
+    def "Prim1" {
+        int x
+        int y
+        int q
+        rel rel1
+        rel rel2
+        rel relZ
+    }
+    def "Prim2" {
+        int x
+        int y
+        int w
+        rel rel1
+        rel rel2
+        rel relY
+    }
+    def "Prim3" {
+        int x
+        int y
+        int z
+        rel rel1
+        rel rel2
+        rel relX
+    }
+
+    def "TokenPrim" {
+        token a (allowedTokens = ["five", "one", "two", "four"])
+        token b (allowedTokens = ["one", "two", "three"])
+        token c (allowedTokens = ["six", "one", "two", "three"])
+    }
+}
