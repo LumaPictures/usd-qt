@@ -217,5 +217,6 @@ class TestPrimProxy(BaseClasses.ProxyTest):
         self.assertFalse(primProxy.ContainsPathOrDescendent(['/AnotherWorld']))
         self.assertFalse(primProxy.ContainsPathOrDescendent([Sdf.Path()]))
 
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

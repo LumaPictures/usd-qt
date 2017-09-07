@@ -59,6 +59,7 @@ class ItemTree(Generic[T]):
     '''
     A basic tree of items.
     '''
+
     def __init__(self, rootItem=None):
         '''
         Parameters
@@ -338,7 +339,7 @@ class ItemTree(Generic[T]):
                 if childAction == 'delete':
                     # TODO: Can we get rid of this recursion?
                     removed.extend(
-                            self.removeItems(children, childAction='delete'))
+                        self.removeItems(children, childAction='delete'))
                 else:
                     newParent = self._childToParent[itemToDelete]
                     while newParent in items:

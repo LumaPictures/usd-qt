@@ -33,11 +33,13 @@ from ._Qt import QtCore
 # Qt.  When adding a function here, try to document the reason that it's being
 # added and if there's any path to deprecating it
 
+
 def GetEditRole(index):
-   model = index.model()
-   data = model.data(index, QtCore.Qt.EditRole)
-   editRole = ResolveValue(data)
-   return editRole
+    model = index.model()
+    data = model.data(index, QtCore.Qt.EditRole)
+    editRole = ResolveValue(data)
+    return editRole
+
 
 def StyledItemDelegateSetEditorData(cls, delegate, editor, index):
     """PySide appears to force types that can behave as lists 
@@ -49,6 +51,7 @@ def StyledItemDelegateSetEditorData(cls, delegate, editor, index):
     data = model.data(index, QtCore.Qt.EditRole)
     setattr(editor, editor.metaObject().userProperty().name(), data)
 
+
 def StyledItemDelegateSetModelData(cls, delegate, editor, model, index):
     """PySide appears to force types that can behave as lists 
     (ie. GfMatrix*, GfVec*) to be converted to lists when accessed via
@@ -56,7 +59,8 @@ def StyledItemDelegateSetModelData(cls, delegate, editor, model, index):
     so there's a simple work around.
     """
     value = getattr(editor, str(editor.metaObject().userProperty().name()))
-    model.setData(index, value, role = QtCore.Qt.EditRole)
+    model.setData(index, value, role=QtCore.Qt.EditRole)
+
 
 def HeaderViewSetResizeMode(header, mode):
     """This function appears to have been renamed in Qt 5.  For backwards,
@@ -66,14 +70,16 @@ def HeaderViewSetResizeMode(header, mode):
     elif QtCore.qVersion().startswith('5.'):
         header.setSectionResizeMode(mode)
 
+
 def ResolveValue(value):
     """Internal API to be deprecated with VFX Platform 2017"""
     return value
-    
+
+
 def ResolveString(value, stringType):
     """Internal API to be deprecated with VFX Platform 2017"""
     return value
-    
+
 
 def EmitDataChanged(model, topLeft, bottomRight):
     """ The data changed API has changed between Qt4 and Qt5 """

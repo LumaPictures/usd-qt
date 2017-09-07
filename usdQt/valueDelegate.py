@@ -127,7 +127,8 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
             for j in xrange(columns):
                 component = str(compatability.ResolveValue(matrixData[i][j])) \
                     if matrixData[i][j] is not None else ''
-                cellRect = QtCore.QRect(left + cellWidth * j, top + cellHeight * i,
+                cellRect = QtCore.QRect(left + cellWidth * j,
+                                        top + cellHeight * i,
                                         cellWidth, cellHeight)
                 style.drawItemText(painter, cellRect,
                                    matrixOption.displayAlignment,
@@ -144,7 +145,8 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
         displayRole = compatability.ResolveValue(displayRole)
 
         self.initStyleOption(defaultOption, index)
-        style.drawItemText(painter, defaultOption.rect, defaultOption.displayAlignment,
+        style.drawItemText(painter, defaultOption.rect,
+                           defaultOption.displayAlignment,
                            defaultOption.palette, True,
                            displayRole)
 
@@ -210,13 +212,15 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
                 editorHint.type in valueWidgets.matrixTypes):
             size = super(ValueDelegate, self).sizeHint(option, index)
             return QtCore.QSize(size.width(),
-                                size.height() * editorHint.type.pythonClass.dimension[0])
+                                size.height() *
+                                editorHint.type.pythonClass.dimension[0])
 
         elif type(editorHint) == roles.EditorHintTab:
             size = super(ValueDelegate, self).sizeHint(option, index)
             return QtCore.QSize(size.width(), size.height() * 1.35)
 
         return super(ValueDelegate, self).sizeHint(option, index)
+
 
 if __name__ == '__main__':
 

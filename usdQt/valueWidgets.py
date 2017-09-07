@@ -220,7 +220,7 @@ class _VecEdit(_LineEdit):
     scalarType = None
     validatorType = None
 
-    def __init__(self,  parent=None):
+    def __init__(self, parent=None):
         super(_VecEdit, self).__init__(parent=parent)
         self.__layout = QtWidgets.QHBoxLayout()
         self.__editors = []
@@ -251,8 +251,8 @@ class _VecEdit(_LineEdit):
 
     def SetValue(self, value):
         if len(value) != self.valueType.dimension:
-            raise ValueError("Input length %i does not match expected length %i", len(
-                value), self.valueType.dimension)
+            raise ValueError("Input length %i does not match expected length "
+                             "%i", len(value), self.valueType.dimension)
         for index in xrange(self.valueType.dimension):
             if value[index] is None:
                 raise ValueError("Value at %i is None", index)
@@ -260,7 +260,8 @@ class _VecEdit(_LineEdit):
                 str(value[index]), self._stringType)
             if self.__validator.validate(string, 0)[0] != QtGui.QValidator.Acceptable:
                 raise ValueError(
-                    "%s (at index %i) not accepted by validator." % (string, index))
+                    "%s (at index %i) not accepted by validator." %
+                    (string, index))
             self.__editors[index].setText(string)
 
 
@@ -279,7 +280,7 @@ class _MatrixEdit(_LineEdit):
     scalarType = None
     validatorType = None
 
-    def __init__(self,  parent=None):
+    def __init__(self, parent=None):
         super(_MatrixEdit, self).__init__(parent)
         self.__layout = QtWidgets.QGridLayout(self)
         self.__editors = []
@@ -322,13 +323,14 @@ class _MatrixEdit(_LineEdit):
         numColumns = self.valueType.dimension[1]
         if len(value) != numRows:
             raise ValueError(
-                "Input row size %i does not match expected length %i", len(value), numRows)
+                "Input row size %i does not match expected length %i",
+                len(value), numRows)
         for row in xrange(numRows):
             if type(value) is str:
                 raise TypeError("Row cannot be string")
             if len(value[row]) != numColumns:
-                raise ValueError("Input column size %i does not match expected length %i", len(
-                    value[row]), numColumns)
+                raise ValueError("Input column size %i does not match expected "
+                                 "length %i", len(value[row]), numColumns)
             for column in xrange(numColumns):
                 if value[row][column] is None:
                     raise ValueError("Value at (%i, %i) is None", row, column)
@@ -336,7 +338,8 @@ class _MatrixEdit(_LineEdit):
                     str(value[row][column]), self._stringType)
                 if self.__validator.validate(string, 0)[0] != QtGui.QValidator.Acceptable:
                     raise ValueError(
-                        "%s (at %i, %i) not accepted by validator." % (string, row, column))
+                        "%s (at %i, %i) not accepted by validator." %
+                        (string, row, column))
                 self.__editors[self.__GetIndex(row, column)].setText(string)
 
 
@@ -502,21 +505,22 @@ class PathEdit(_LineEdit):
         value = str(value) if value else ''
         self.__lineEdit.setText(value)
 
+
 valueTypeMap = {
     Tf.Type.FindByName('string'): StringEdit,
     Tf.Type.FindByName('TfToken'): StringEdit,
     Tf.Type.Find(Sdf.AssetPath): AssetEdit,
     Tf.Type.Find(Sdf.Path): PathEdit,
     Tf.Type.FindByName('unsigned char'):
-        functools.partial(IntEdit, minValue=0, maxValue=(2 << (8-1))-1),
+        functools.partial(IntEdit, minValue=0, maxValue=(2 << (8 - 1)) - 1),
     Tf.Type.FindByName('unsigned int'):
-        functools.partial(IntEdit, minValue=0, maxValue=(2 << (32-1))-1),
+        functools.partial(IntEdit, minValue=0, maxValue=(2 << (32 - 1)) - 1),
     Tf.Type.FindByName('unsigned long'):
-        functools.partial(IntEdit, minValue=0, maxValue=(2 << (64-1))-1),
+        functools.partial(IntEdit, minValue=0, maxValue=(2 << (64 - 1)) - 1),
     Tf.Type.FindByName('int'): functools.partial(
-        IntEdit, minValue=-(2 << (32-1-1)), maxValue=(2 << (32-1-1))-1),
+        IntEdit, minValue=-(2 << (32 - 1 - 1)), maxValue=(2 << (32 - 1 - 1)) - 1),
     Tf.Type.FindByName('long'): functools.partial(
-        IntEdit, minValue=-(2 << (64-1-1)), maxValue=(2 << (64-1-1))-1),
+        IntEdit, minValue=-(2 << (64 - 1 - 1)), maxValue=(2 << (64 - 1 - 1)) - 1),
     Tf.Type.FindByName('half'): FloatEdit,
     Tf.Type.FindByName('float'): FloatEdit,
     Tf.Type.FindByName('double'): FloatEdit,

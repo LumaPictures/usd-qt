@@ -87,6 +87,7 @@ class AssetTreeView(QtWidgets.QTreeView):
     '''
     Basic ``QTreeView`` subclass for displaying asset data.
     '''
+
     def __init__(self, parent=None):
         '''
         Parameters
@@ -254,11 +255,11 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         Return a PrimSpec for the given prim in the layer containing the stage's
         current edit target. This may be None if the layer does not contain
         authored opinions about the prim.
-        
+
         Parameters
         ----------
         prim : Usd.Prim
-        
+
         Returns
         -------
         Sdf.PrimSpec
@@ -400,7 +401,7 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
                         variantTuples=None, item=None):
         '''
         Add a reference to an existing prim.
-        
+
         Parameters
         ----------
         modelIndex : QtCore.QModelIndex
@@ -425,7 +426,7 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
                                variantTuples=None, item=None):
         '''
         Add a new prim and set it to reference another usd file.
-        
+
         Parameters
         ----------
         modelIndex : QtCore.QModelIndex
@@ -434,7 +435,7 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         primName : str
         variantTuples : Optional[List[Tuple]]
         item : Optional[UsdPrimItem]
-        
+
         Returns
         -------
         Optional[Usd.Prim]
@@ -683,6 +684,7 @@ class OutlinerViewDelegate(QtWidgets.QStyledItemDelegate):
     '''
     Item delegate class assigned to an ``OutlinerTreeView``.
     '''
+
     def __init__(self, activeLayer, parent=None):
         '''
         Parameters

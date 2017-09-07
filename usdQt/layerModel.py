@@ -192,7 +192,7 @@ class LayerStackStyledDelegate(QtWidgets.QStyledItemDelegate):
         depth = compatability.ResolveValue(
             index.data(roles.LayerStackDepthRole))
 
-        if (depth == -1):
+        if depth == -1:
             super(LayerStackStyledDelegate, self).paint(painter, option, index)
             middle = (option.rect.top() + option.rect.bottom()) / 2.0
             painter.setPen(option.palette.color(

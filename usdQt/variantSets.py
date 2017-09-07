@@ -50,7 +50,7 @@ class VariantItem(TreeItem):
         bool
         '''
         return self.variantSet.GetVariantSelection() == \
-               self.variant.variantName
+            self.variant.variantName
 
     @property
     def variants(self):
@@ -109,7 +109,7 @@ class LazyVariantTree(LazyItemTree):
                         primVariant.setName,
                         variantName)
                     variantName = varlib.PrimVariant(primVariant.setName,
-                                                    variantName)
+                                                     variantName)
                     altVariantItem = VariantItem(variantSet,
                                                  variantPath,
                                                  parentVariants,
@@ -123,6 +123,7 @@ class LazyVariantTree(LazyItemTree):
 class VariantModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
     '''Holds a hierarchy of variant sets and their selections
     '''
+
     def __init__(self, stage, prims, parent=None):
         '''
         Parameters
@@ -146,7 +147,8 @@ class VariantModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         return QtCore.Qt.NoItemFlags
 
     def headerData(self, section, orientation, role=QtCore.Qt.DisplayRole):
-        if orientation == QtCore.Qt.Horizontal and role == QtCore.Qt.DisplayRole:
+        if (orientation == QtCore.Qt.Horizontal and
+                role == QtCore.Qt.DisplayRole):
             if section == 0:
                 return 'Variant'
             elif section == 1:
@@ -253,7 +255,8 @@ class VariantContextMenuBuilder(ContextMenuBuilder):
             model = self.view.model()
             setsStr = summary((s.variant.setName for s in selections))
             variantsStr = summary((s.name for s in selections))
-            hasVariantSelection = all(s.variant.variantName for s in selections)
+            hasVariantSelection = all(s.variant.variantName 
+                                      for s in selections)
             a = menu.addAction('Add "%s" Variant' % setsStr)
             a.triggered.connect(self.AddVariant)
 

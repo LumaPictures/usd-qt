@@ -39,6 +39,7 @@ class AbstractTreeModelMixin(object):
     Mixin class that implements the necessary methods for Qt model to reflect
     the structure of an ``ItemTree`` instance.
     '''
+
     def __init__(self, itemTree=None, parent=None):
         '''
         Parameters

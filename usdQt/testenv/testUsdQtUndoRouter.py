@@ -132,5 +132,6 @@ open edit block may result in corrupted undo stack.'):
                     pass
         self.assertEqual(self.localUndoStack, [])
 
+
 if __name__ == '__main__':
     unittest.main()

@@ -143,7 +143,8 @@ class OpinionStackFilter(QtCore.QSortFilterProxyModel):
     def filterAcceptsRow(self, row, parent):
         if self.__shouldShowFullStack:
             return True
-        index = self.sourceModel().index(row, OpinionStackModel.OpinionColumn, parent)
+        index = self.sourceModel().index(row, OpinionStackModel.OpinionColumn,
+                                         parent)
         if self.sourceModel().data(index, QtCore.Qt.DisplayRole) is None:
             return False
         return True
@@ -199,7 +200,8 @@ class OpinionStackModel(QtCore.QAbstractItemModel):
             self.__valid = True
             self.__prim = prim
             self.__listener = Tf.Notice.Register(
-                Usd.Notice.ObjectsChanged, self.__OnObjectsChanged, self.__prim.GetStage())
+                Usd.Notice.ObjectsChanged, self.__OnObjectsChanged,
+                self.__prim.GetStage())
 
         if self.__prim:
             self.__primTree = self._GetPrimTree(prim)
@@ -214,7 +216,8 @@ class OpinionStackModel(QtCore.QAbstractItemModel):
         if isinstance(internalPointer, _LayerItem):
             return QtCore.QModelIndex()
         else:
-            return self.createIndex(internalPointer.parent.row, 0, internalPointer.parent)
+            return self.createIndex(internalPointer.parent.row, 0,
+                                    internalPointer.parent)
 
     def headerData(self, section, orientation, role=QtCore.Qt.DisplayRole):
         if orientation == QtCore.Qt.Horizontal:
@@ -302,6 +305,7 @@ class OpinionStackModel(QtCore.QAbstractItemModel):
             return ~QtCore.Qt.ItemIsEnabled & \
                 super(OpinionStackModel, self).flags(index)
         return super(OpinionStackModel, self).flags(index)
+
 
 if __name__ == '__main__':
     from ._Qt import QtWidgets

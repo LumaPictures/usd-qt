@@ -117,6 +117,7 @@ class LayerItem(TreeItem):
 class SubLayerModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
     '''Holds a hierarchy of usd layers and their sublayers
     '''
+
     def __init__(self, stage, parent=None):
         '''
         Parameters

@@ -145,6 +145,7 @@ class ItemDataModel(QtCore.QAbstractTableModel):
 
     The row item can be any hashable object.
     '''
+
     def __init__(self, columns, itemIndexMap=None, parent=None):
         '''
         Parameters
@@ -379,6 +380,7 @@ class ProxyTreeModel(AbstractTreeModelMixin, QtCore.QAbstractProxyModel):
     Maps the data stored in an `ItemDataModel` to the tree structure provided by
     an `ItemTree`.  Both must contain the same `TreeItem` instances.
     '''
+
     def __init__(self, sourceModel, sourceColumns=None, itemTree=None,
                  parent=None):
         '''

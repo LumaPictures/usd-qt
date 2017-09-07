@@ -120,7 +120,7 @@ class ContextMenuBuilder(QtCore.QObject):
     def DoIt(self, event):
         '''
         Inspect view selection and create context menu.
-        
+
         Views should call this from their contextMenuEvent.
         '''
         selection = self.GetSelection()
@@ -145,7 +145,7 @@ class ContextMenuBuilder(QtCore.QObject):
     def GetSelection(self):
         '''
         Override this to return useful selection objects to your Build.
-        
+
         Returns
         -------
         List
@@ -251,7 +251,7 @@ class MenuBarBuilder(object):
 
 class UsdQtUtilities(object):
     '''Customizable utilities for building a usdqt app.
-    
+
     To overwrite the default implementation, just define a function and then
     call:
     UsdQtUtilities.register('someName', func)
@@ -277,5 +277,6 @@ def GetReferencePath(parent, stage=None):
         'Add Reference',
         'Enter Usd Layer Identifier:')
     return name
+
 
 UsdQtUtilities.register('getReferencePath', GetReferencePath)

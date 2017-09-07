@@ -46,6 +46,7 @@ class HierarchyBaseModel(QtCore.QAbstractItemModel):
     """
     class __LayoutChangedContext(object):
         """context manager to ensure layout changes if exception is thrown"""
+
         def __init__(self, model):
             self.model = model
 
@@ -109,7 +110,8 @@ class HierarchyBaseModel(QtCore.QAbstractItemModel):
     def GetRoot(self):
         """Retrieve the root of the current hierarchy model"""
         rootProxy = self.__index.GetRoot()
-        return rootProxy.GetPrim() if rootProxy and not rootProxy.expired else None
+        return (rootProxy.GetPrim() if rootProxy and not rootProxy.expired
+                else None)
 
     def __OnObjectsChanged(self, notice, sender):
         resyncedPaths = notice.GetResyncedPaths()
@@ -127,9 +129,10 @@ class HierarchyBaseModel(QtCore.QAbstractItemModel):
                     for resyncedPath in resyncedPaths:
                         commonPath = resyncedPath.GetCommonPrefix(indexPath)
                         # if the paths are siblings or if the
-                        # index path is a child of resynced path, you need to update
-                        # any persistent indices
-                        areSiblings = commonPath == resyncedPath.GetParentPath() and commonPath != indexPath
+                        # index path is a child of resynced path, you need to
+                        # update any persistent indices
+                        areSiblings = (commonPath == resyncedPath.GetParentPath()
+                                       and commonPath != indexPath)
                         indexIsChild = (commonPath == resyncedPath)
 
                         if areSiblings or indexIsChild:
@@ -146,7 +149,7 @@ class HierarchyBaseModel(QtCore.QAbstractItemModel):
                         newProxy = self.__index.GetProxy(path)
                         newRow = self.__index.GetRow(newProxy)
 
-                        if (index.row() != newRow):
+                        if index.row() != newRow:
                             for i in xrange(self.columnCount(QtCore.QModelIndex())):
                                 fromIndices.append(index)
                                 toIndices.append(self.createIndex(
@@ -386,9 +389,11 @@ class HierarchyStandardFilterModel(QtCore.QSortFilterProxyModel):
             return True
         if not self.__showInactive and not prim.IsActive():
             return False
-        if not self.__showUndefined and not prim.GetSpecifier() in (Sdf.SpecifierDef, Sdf.SpecifierClass):
+        if not self.__showUndefined and not prim.GetSpecifier() \
+                in (Sdf.SpecifierDef, Sdf.SpecifierClass):
             return False
-        if not self.__showAbstract and not prim.GetSpecifier() in (Sdf.SpecifierDef, Sdf.SpecifierOver):
+        if not self.__showAbstract and not prim.GetSpecifier() \
+                in (Sdf.SpecifierDef, Sdf.SpecifierOver):
             return False
 
         return True
@@ -413,6 +418,7 @@ class HierarchyStandardFilterModel(QtCore.QSortFilterProxyModel):
             return state not in [PrimFilterCache.Reject,
                                  PrimFilterCache.Untraversed]
         return True
+
 
 if __name__ == '__main__':
     import sys

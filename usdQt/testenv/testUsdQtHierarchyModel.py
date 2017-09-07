@@ -171,5 +171,6 @@ class TestSimpleHierarchyDefault(unittest.TestCase):
 class TestSimpleHierarchyAllLoaded(TestSimpleHierarchyDefault):
     predicate = Usd.PrimIsLoaded
 
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

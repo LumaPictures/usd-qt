@@ -69,5 +69,6 @@ class TestSimplePrimFilterCache(unittest.TestCase):
             self.assertEqual(self.cache.GetState(
                 Sdf.Path(path)), pathToState[path])
 
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

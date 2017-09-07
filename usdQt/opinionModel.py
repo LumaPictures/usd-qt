@@ -161,9 +161,9 @@ class OpinionBaseModel(QtCore.QAbstractItemModel):
         opinion model.  It is provided as a 'protected' method so that
         ResyncProxy can use this to update the tree view topology.
         """
-        if not parent in self.__proxyToItem:
-            raise Exception("Cannot add child '%s' to parent '%s' not in model." % (repr(
-                parent), repr(child)))
+        if parent not in self.__proxyToItem:
+            raise Exception("Cannot add child '%s' to parent '%s' "
+                            "not in model." % (repr(parent), repr(child)))
         parentItem = self.__proxyToItem[parent]
         item = OpinionBaseModel.__Item()
 
@@ -211,7 +211,8 @@ class OpinionBaseModel(QtCore.QAbstractItemModel):
                 variantSetProxy = variantSetsProxy.CreateVariantSetProxy(
                     variantSetName)
                 self._AppendProxy(variantSetsProxy, variantSetProxy,
-                                  "./Composition/VariantSet/%s" % variantSetName)
+                                  "./Composition/VariantSet/%s" %
+                                  variantSetName)
 
             for compName in ['references', 'payload', 'specializes']:
                 compProxy = proxy.CreateMetadataProxy(compName)
@@ -244,7 +245,8 @@ class OpinionBaseModel(QtCore.QAbstractItemModel):
             print("need to implement resync...", proxy)
         else:
             raise Exception(
-                "Only prims and property proxies can be resynced. '%s'" % repr(proxy))
+                "Only prims and property proxies can be resynced. '%s'"
+                % repr(proxy))
 
     def ChangeInfoForProxy(self, proxy):
         if not proxy:
@@ -255,14 +257,16 @@ class OpinionBaseModel(QtCore.QAbstractItemModel):
             columnCount = self.columnCount(QtCore.QModelIndex())
             compatability.EmitDataChanged(self,
                                           self.createIndex(row, 0, proxy),
-                                          self.createIndex(row, columnCount, proxy))
+                                          self.createIndex(row, columnCount,
+                                                           proxy))
         elif type(proxy) is _AttributeProxy:
             # TODO:  Special handling for prim specific data
             row = self.__proxyToItem[proxy].row
             columnCount = self.columnCount(QtCore.QModelIndex())
             compatability.EmitDataChanged(self,
                                           self.createIndex(row, 0, proxy),
-                                          self.createIndex(row, columnCount, proxy))
+                                          self.createIndex(row, columnCount,
+                                                           proxy))
 
     def __OnObjectsChanged(self, notice, sender):
         # explore abstracting change processing into central helper class
@@ -347,7 +351,8 @@ class OpinionStandardModel(OpinionBaseModel):
     Value = "Value"
     TypeName = "Type Name"
 
-    def __init__(self, prims, columns=None, timeCode=Usd.TimeCode.Default(), parent=None):
+    def __init__(self, prims, columns=None, timeCode=Usd.TimeCode.Default(),
+                 parent=None):
         super(OpinionStandardModel, self).__init__(prims, parent)
         self.__timeCode = timeCode
         if not columns:
@@ -397,7 +402,8 @@ class OpinionStandardModel(OpinionBaseModel):
             if column == OpinionStandardModel.Value:
                 return proxy.Get(self.__timeCode)
         elif role == QtCore.Qt.ToolTipRole:
-            return "[%s] %s" % (str(proxy.GetTypeName()), proxy.GetDocumentation())
+            return "[%s] %s" % (str(proxy.GetTypeName()),
+                                proxy.GetDocumentation())
         elif role == roles.EditorHintRole:
             if column == OpinionStandardModel.Value:
                 tfType = proxy.GetTypeName().type
@@ -571,6 +577,7 @@ class OpinionStandardModel(OpinionBaseModel):
             return QtCore.Qt.ItemIsEditable | \
                 super(OpinionStandardModel, self).flags(index)
         return super(OpinionStandardModel, self).flags(index)
+
 
 if __name__ == '__main__':
     import sys

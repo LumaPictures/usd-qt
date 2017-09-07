@@ -126,7 +126,7 @@ class _PrimIdTable(object):
         Parameters
         ----------
         path : Sdf.Path
-        
+
         Returns
         -------
         bool
@@ -409,7 +409,7 @@ class _PrimIdTable(object):
             parentPrim = self._stage.GetPrimAtPath(parentPath)
             for child in parentPrim.GetFilteredChildren(self._predicate):
                 inOriginalChildren = binarySearch(sortedOriginalChildren,
-                                                   child.GetPath())
+                                                  child.GetPath())
                 inResyncPaths = binarySearch(sortedPaths, child.GetPath())
 
                 if inOriginalChildren or inResyncPaths:

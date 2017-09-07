@@ -428,6 +428,7 @@ class EditTargetContext(object):
     A Helper context that sets a stage's edit target, but then returns it
     to its original value on exit.
     '''
+
     def __init__(self, stage, target):
         self.stage = stage
         self.target = target
@@ -450,6 +451,7 @@ class VariantContext(object):
      - set multiple variants for a hierarchical variant sets
      - optionally, restore selections after editing variant
     '''
+
     def __init__(self, prim, variantTuples, setAsDefaults=True):
         '''
         Create variant sets and variants that don't exist and get the
@@ -520,10 +522,11 @@ class SessionVariantContext(object):
     Temporarily set some variants but then restore them on exit. Use this 
     context to inspect hypothetical variant selections and then return to the
     session layers original state.
-    
+
     Note: Intended for inspection, tries to restore original state, so changes
     to created specs may be lost.
     '''
+
     def __init__(self, prim, variantTuples):
         '''
         Parameters
