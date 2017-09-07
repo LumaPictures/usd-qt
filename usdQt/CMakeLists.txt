@@ -1,0 +1,61 @@
+set(PXR_PREFIX pxr/usdQt)
+set(PXR_PACKAGE usdQt)
+
+add_custom_target(shared_libs)
+add_custom_target(python ALL)
+
+_pxr_python_module(usdQt
+	PYTHON_LIBRARY
+    LIBRARIES
+        tf
+        usd
+        ${Boost_PYTHON_LIBRARY}
+
+    INCLUDE_DIRS
+        ${Boost_INCLUDE_DIRS}
+
+    CPPFILES
+        attributeProxy.cpp
+        debugCodes.cpp
+        displayGroupProxy.cpp
+        hierarchyCache.cpp
+        metadataProxy.cpp
+        objectProxy.cpp
+        primFilterCache.cpp
+        primProxy.cpp
+        proxyBase.cpp
+        relationshipProxy.cpp
+        variantSetsProxy.cpp
+        utils.cpp
+        undoBlock.cpp
+        undoInverse.cpp
+        undoRouter.cpp
+        undoStateDelegate.cpp
+        wrapHierarchyCache.cpp
+        wrapOpinionProxy.cpp
+        wrapPrimFilterCache.cpp
+        wrapUndoRouter.cpp
+        module.cpp
+        moduleDeps.cpp
+
+    PYTHON_FILES
+        _Qt.py
+        __init__.py
+        _bindings.py
+        app.py
+        common.py
+        compatability.py
+        hierarchyModel.py
+        layerModel.py
+        layers.py
+        opinionModel.py
+        opinionStackModel.py
+        outliner.py
+        primIdTable.py
+        roles.py
+        stageCacheModel.py
+        utils.py
+        valueDelegate.py
+        valueWidgets.py
+        variantSets.py
+)
