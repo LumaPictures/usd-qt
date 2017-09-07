@@ -574,11 +574,15 @@ class OpinionStandardModel(OpinionBaseModel):
 
 if __name__ == '__main__':
     import sys
+    import os
     from ._Qt import QtWidgets
 
     app = QtWidgets.QApplication(sys.argv)
 
-    stage = Usd.Stage.Open('testenv/testUsdQtOpinionModel/simple.usda')
+    dir = os.path.split(__file__)[0]
+    path = os.path.join(
+        dir, 'testenv', 'testUsdQtOpinionModel', 'simple.usda')
+    stage = Usd.Stage.Open(path)
     prim = stage.GetPrimAtPath('/MyPrim1/Child1')
     prim2 = stage.GetPrimAtPath('/MyPrim1/Child2')
     model = OpinionStandardModel([prim, prim2])

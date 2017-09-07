@@ -306,9 +306,13 @@ class OpinionStackModel(QtCore.QAbstractItemModel):
 if __name__ == '__main__':
     from ._Qt import QtWidgets
     import sys
+    import os
     app = QtWidgets.QApplication(sys.argv)
 
-    stage = Usd.Stage.Open('testenv/testUsdQtOpinionModel/simple.usda')
+    dir = os.path.split(__file__)[0]
+    path = os.path.join(
+        dir, 'testenv', 'testUsdQtOpinionModel', 'simple.usda')
+    stage = Usd.Stage.Open(path)
     prim = stage.GetPrimAtPath('/MyPrim1/Child1')
     handler = _AttributeHandler("x", Usd.TimeCode.Default())
     model = OpinionStackModel(prim, handler)

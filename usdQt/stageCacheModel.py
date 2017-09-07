@@ -77,16 +77,19 @@ if __name__ == '__main__':
     '''
     Sample usage
     '''
+    import os
     from pxr import Usd, UsdUtils
     from ._Qt import QtWidgets
     import sys
     app = QtWidgets.QApplication([])
 
     stageCache = UsdUtils.StageCache.Get()
-
+    dir = os.path.split(__file__)[0]
+    path = os.path.join(
+        dir, 'testenv', 'testUsdQtOpinionModel', 'simple.usda')
     with Usd.StageCacheContext(stageCache):
         stage1 = Usd.Stage.CreateInMemory()
-        stage2 = Usd.Stage.Open('testenv/testUsdqOpinionModel/simpleLayer.usda')
+        stage2 = Usd.Stage.Open(path)
         stage3 = Usd.Stage.CreateInMemory()
 
     comboBox = QtWidgets.QComboBox()

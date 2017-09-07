@@ -416,10 +416,13 @@ class HierarchyStandardFilterModel(QtCore.QSortFilterProxyModel):
 
 if __name__ == '__main__':
     import sys
+    import os
     from ._Qt import QtWidgets
     app = QtWidgets.QApplication(sys.argv)
-    stage = Usd.Stage.Open(
-        'testenv/testUsdQtHierarchyModel/simpleHierarchy.usda')
+    dir = os.path.split(__file__)[0]
+    path = os.path.join(
+        dir, 'testenv', 'testUsdQtHierarchyModel', 'simpleHierarchy.usda')
+    stage = Usd.Stage.Open(path)
     model = HierarchyStandardModel(stage)
     search = QtWidgets.QLineEdit()
 

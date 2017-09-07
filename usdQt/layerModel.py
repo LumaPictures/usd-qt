@@ -206,15 +206,19 @@ class LayerStackStyledDelegate(QtWidgets.QStyledItemDelegate):
             super(LayerStackStyledDelegate, self).paint(
                 painter, indentedOption, index)
 
+
 if __name__ == '__main__':
     """ Sample usage """
     from pxr import Usd
     from ._Qt import QtWidgets
     import sys
+    import os
     app = QtWidgets.QApplication([])
 
-    stage = Usd.Stage.Open(
-        "testenv/testUsdqLayerStackModel/simpleLayerStack.usda")
+    dir = os.path.split(__file__)[0]
+    path = os.path.join(
+        dir, 'testenv', 'testUsdQtLayerModel', 'simpleLayerStack.usda')
+    stage = Usd.Stage.Open(path)
 
     comboBox = QtWidgets.QComboBox()
     delegate = LayerStackStyledDelegate()
