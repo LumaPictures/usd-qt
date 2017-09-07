@@ -31,4 +31,4 @@ link_directories(${USD_LIBRARY_DIR})
 include_directories(SYSTEM ${PYTHON_INCLUDE_DIRS})
 include_directories(SYSTEM ${TBB_INCLUDE_DIRS})
 
-add_subdirectory(usdQt)
+add_subdirectory(pxr)

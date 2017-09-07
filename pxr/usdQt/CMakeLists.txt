@@ -51,7 +51,6 @@ _pxr_python_module(usdQt
         opinionModel.py
         opinionStackModel.py
         outliner.py
-        primIdTable.py
         roles.py
         stageCacheModel.py
         utils.py
