@@ -22,7 +22,7 @@
 # language governing permissions and limitations under the Apache License.
 #
 
-from Qt import QtCore, QtGui, QtWidgets
+from ._Qt import QtCore, QtGui, QtWidgets
 
 NULL_INDEX = QtCore.QModelIndex()
 

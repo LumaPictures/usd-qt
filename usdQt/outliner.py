@@ -26,18 +26,18 @@ from __future__ import absolute_import
 
 import operator
 
-from Qt import QtCore, QtGui, QtWidgets
+from ._Qt import QtCore, QtGui, QtWidgets
 from pxr import Sdf, Usd
-from typing import (Iterator, List, Optional,
-                    NamedTuple)
 
 import usdlib.utils
 import usdlib.variants
 from treemodel.itemtree import LazyItemTree, TreeItem
 from treemodel.qt.base import AbstractTreeModelMixin
-from usdQt.common import NULL_INDEX, DARK_ORANGE, passSingleSelection, \
+from .common import NULL_INDEX, DARK_ORANGE, passSingleSelection, \
     passMultipleSelection, ContextMenuBuilder, ContextMenuMixin, \
     UsdQtUtilities
+
+from typing import *
 
 NO_VARIANT_SELECTION = '<No Variant Selected>'
 

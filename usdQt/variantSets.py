@@ -15,13 +15,15 @@ TODO:
 
 from __future__ import absolute_import
 
-from pxr import Sdf, Usd, Tf
-from Qt import QtCore, QtGui, QtWidgets
+from pxr import Sdf, Usd
+from ._Qt import QtCore, QtGui, QtWidgets
 from treemodel.itemtree import TreeItem, LazyItemTree
 from treemodel.qt.base import AbstractTreeModelMixin
-from usdQt.common import NULL_INDEX, ContextMenuBuilder, ContextMenuMixin,\
+from .common import NULL_INDEX, ContextMenuBuilder, ContextMenuMixin,\
     passSingleSelection, passMultipleSelection, UsdQtUtilities
 import usdlib.variants as varlib
+
+from typing import *
 
 
 class VariantItem(TreeItem):

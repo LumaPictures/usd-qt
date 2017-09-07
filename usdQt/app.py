@@ -25,15 +25,14 @@
 from __future__ import absolute_import
 
 from pxr import Sdf, Usd
-from Qt import QtCore, QtGui, QtWidgets
-from usdQt.outliner import (OutlinerTreeView, OutlinerViewDelegate,
-                            OutlinerStageModel, OutlinerContextMenuBuilder)
-from usdQt.layers import LayerTextViewDialog, SubLayerDialog
-from usdQt.variantSets import VariantEditorDialog
-from usdQt.common import MenuBarBuilder
+from ._Qt import QtCore, QtGui, QtWidgets
+from .outliner import (OutlinerTreeView, OutlinerViewDelegate,
+                       OutlinerStageModel, OutlinerContextMenuBuilder)
+from .layers import LayerTextViewDialog, SubLayerDialog
+from .variantSets import VariantEditorDialog
+from .common import MenuBarBuilder
 
-from typing import (Any, Dict, Iterable, Iterator, List, Optional,
-                    Tuple, TypeVar, Union)
+from typing import *
 
 
 class AppMenuBarBuilder(MenuBarBuilder):

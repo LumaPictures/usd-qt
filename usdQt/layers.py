@@ -25,14 +25,13 @@
 from __future__ import absolute_import
 
 from pxr import Sdf, Usd, Tf
-from Qt import QtCore, QtGui, QtWidgets
+from ._Qt import QtCore, QtGui, QtWidgets
 from treemodel.itemtree import TreeItem, ItemTree
 from treemodel.qt.base import AbstractTreeModelMixin
-from usdQt.common import NULL_INDEX, CopyToClipboard, ContextMenuBuilder, \
+from .common import NULL_INDEX, CopyToClipboard, ContextMenuBuilder, \
     ContextMenuMixin, passSingleSelection
 
-from typing import (Any, Dict, Iterable, Iterator, List, Optional,
-                    NamedTuple, Tuple, TypeVar, Union)
+from typing import *
 
 
 def CopyLayerPath(layer):
@@ -180,7 +179,7 @@ class SubLayerModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         '''
         Parameters
         ----------
-        layer : SdfLayer
+        layer : Sdf.Layer
         parent : Optional[LayerItem]
         '''
         layerItem = LayerItem(layer)
