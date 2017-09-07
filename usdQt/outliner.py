@@ -26,16 +26,18 @@ from __future__ import absolute_import
 
 import operator
 
+from Qt import QtCore, QtGui, QtWidgets
 from pxr import Sdf, Usd
+from typing import (Iterator, List, Optional,
+                    NamedTuple)
+
 import usdlib.utils
 import usdlib.variants
-from Qt import QtCore, QtGui, QtWidgets
 from treemodel.itemtree import LazyItemTree, TreeItem
 from treemodel.qt.base import AbstractTreeModelMixin
-from usdQt.common import NULL_INDEX, DARK_ORANGE
-
-from typing import (Any, Dict, Iterable, Iterator, List, Optional,
-                    NamedTuple, Tuple, TypeVar, Union)
+from usdQt.common import NULL_INDEX, DARK_ORANGE, passSingleSelection, \
+    passMultipleSelection, ContextMenuBuilder, ContextMenuMixin, \
+    UsdQtUtilities
 
 NO_VARIANT_SELECTION = '<No Variant Selected>'
 
@@ -188,6 +190,8 @@ class LazyPrimItemTree(LazyItemTree[UsdPrimItem]):
 class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
     '''
     '''
+    primChanged = QtCore.Signal(Usd.Prim)
+
     def __init__(self, stage, parent=None):
         '''
         Parameters
@@ -300,6 +304,7 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         newState = not prim.IsActive()
         self.BeginPrimHierarchyChange(modelIndex, item=item)
         prim.SetActive(newState)
+        self.primChanged.emit(prim)
         self.EndPrimHierarchyChange(item)
 
     def AddNewPrim(self, modelIndex, parentPrim, primName, primType='Xform',
@@ -340,10 +345,14 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         item : Optional[UsdPrimItem]
         '''
         self.BeginPrimHierarchyChange(modelIndex, item=item)
+        varSet = item.prim.GetVariantSet(setName)
+        current = varSet.GetVariantSelection()
         if value == NO_VARIANT_SELECTION:
-            item.prim.GetVariantSet(setName).ClearVariantSelection()
+            varSet.ClearVariantSelection()
         else:
-            item.prim.GetVariantSet(setName).SetVariantSelection(value)
+            varSet.SetVariantSelection(value)
+        if current != varSet.GetVariantSelection():
+            self.primChanged.emit(item.prim)
         self.EndPrimHierarchyChange(item)
 
     def RemovePrimFromCurrentLayer(self, modelIndex, prim, item=None):
@@ -360,54 +369,96 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         parentIndex = self.parent(modelIndex)
         rowIndex = self.itemTree.rowIndex(item)
         self.beginRemoveRows(parentIndex, rowIndex, rowIndex)
-        self.itemTree.removeItems(item)
-        result = self._stage.RemovePrim(prim.GetPath())
+        path = prim.GetPath()
+        result = self._stage.RemovePrim(path)
+        # check if entire prim is gone or if its just the prim edits that are
+        # gone
+        if not self._stage.GetPrimAtPath(path):
+            self.itemTree.removeItems(item)
         self.endRemoveRows()
         return result
 
-    # FIXME: luma-specific
-    def AddNewReference(self, modelIndex, parentPrim, refPath,
-                        primName, item=None):
-        '''
-        Parameters
-        ----------
-        modelIndex : QtCore.QModelIndex
-        parentPrim : Usd.Prim
-        refPath : str
-        primName : str
-        item : Optional[UsdPrimItem]
-        '''
-        if item is None:
-            item = modelIndex.internalPointer()  # type: UsdPrimItem
+    def _SetReference(self, refPrim, refPath, variantTuples=None):
+        '''Set the references on a prim to be a list of one specific path.'''
 
-        refPrimPath = parentPrim.GetPath().AppendChild(primName)
-        refPrim = self._stage.DefinePrim(refPrimPath)
-        assert refPrim, 'Failed to create new prim at %s' % str(refPrimPath)
-        print 'Adding new reference:', refPath
-
-        # FIXME: Stopgap solution, remove when we have variant editor.
-        from luma_usd import dbfiles
-        try:
-            # if we can parse the path, add a reference under an element
-            # variant so that we have element control downstream.
-            _, parseDict = dbfiles.parse(refPath)
-            variantTuples = [('elem', parseDict['elem'])]
-        except (dbfiles.UsdDBParsingError, KeyError, ImportError):
-            variantTuples = []
-        # END Stopgap
+        editLayer = self.stage.GetEditTarget().GetLayer()
+        if not self.stage.HasLocalLayer(editLayer):
+            # We use a temporary stage here to get around the local layer
+            # restriction for variant edit contexts.
+            editTargetStage = Usd.Stage.Open(editLayer)
+            # this assumes prim path is the same in edit target
+            refPrim = editTargetStage.GetPrimAtPath(refPrim.GetPath())
 
         with usdlib.variants.VariantContext(refPrim, variantTuples,
                                             setAsDefaults=True):
             success = refPrim.GetReferences().SetReferences(
                 [Sdf.Reference(refPath)])
 
+        return success
+
+    def AddNewReference(self, modelIndex, prim, refPath,
+                        variantTuples=None, item=None):
+        '''
+        Add a reference to an existing prim.
+        
+        Parameters
+        ----------
+        modelIndex : QtCore.QModelIndex
+        prim : Usd.Prim
+        refPath : str
+        variantTuples : Optional[List[Tuple]]
+        item : Optional[UsdPrimItem]
+        '''
+        if item is None:
+            item = modelIndex.internalPointer()  # type: UsdPrimItem
+
+        success = self._SetReference(prim,
+                                     refPath,
+                                     variantTuples=variantTuples)
+
+        if success:
+            # adding a reference may change structure of prims children
+            self.itemTree.forgetChildren(item)
+            self.primChanged.emit(prim)
+
+    def AddNewPrimAndReference(self, modelIndex, parentPrim, refPath, primName,
+                               variantTuples=None, item=None):
+        '''
+        Add a new prim and set it to reference another usd file.
+        
+        Parameters
+        ----------
+        modelIndex : QtCore.QModelIndex
+        parentPrim : Usd.Prim
+        refPath : str
+        primName : str
+        variantTuples : Optional[List[Tuple]]
+        item : Optional[UsdPrimItem]
+        
+        Returns
+        -------
+        Optional[Usd.Prim]
+        '''
+        if item is None:
+            item = modelIndex.internalPointer()  # type: UsdPrimItem
+
+        refPrimPath = parentPrim.GetPath().AppendChild(primName)
+        newPrim = self._stage.DefinePrim(refPrimPath)
+        assert newPrim, 'Failed to create new prim at %s' % str(refPrimPath)
+        print 'Adding new reference:', refPath
+
+        success = self._SetReference(newPrim,
+                                     refPath,
+                                     variantTuples=variantTuples)
+
         if success:
             childCount = self.itemTree.childCount(parent=item)
-            newItems = self.itemTree.appendPrim(refPrim, item)
+            newItems = self.itemTree.appendPrim(newPrim, item)
             if newItems:
                 self.beginInsertRows(modelIndex, childCount,
                                      childCount + len(newItems) - 1)
                 self.endInsertRows()
+            return newPrim
 
     def ActiveLayerChanged(self, layer):
         '''
@@ -437,70 +488,14 @@ Selection = NamedTuple('Selection', [
 ])
 
 
-class ContextMenuCallback(object):
-    '''descriptor for passing on builder selection to builder methods'''
-
-    def __init__(self, func, supportsMultiSelection=False):
-        self.func = func
-        self.supportsMultiSelection = supportsMultiSelection
-
-    def __call__(self, *args, **kwargs):
-        selection = [s for s in self.builder.GetSelection() if s.prim]
-        if selection:
-            if self.supportsMultiSelection:
-                return self.func(self.builder, selection, *args, **kwargs)
-            return self.func(self.builder, selection[0], *args, **kwargs)
-
-    def __get__(self, builder, objtype):
-        self.builder = builder
-        return self
-
-
-def passSingleSelection(f):
-    '''
-    decorator to get the first selection item from the outliner and pass it
-    into the decorated function.
-
-    Parameters
-    ----------
-    f : Callable
-        This method should operate on a single Selection object.
-
-    Returns
-    -------
-    Callable
-    '''
-    return ContextMenuCallback(f, supportsMultiSelection=False)
-
-
-def passMultipleSelection(f):
-    '''
-    decorator to get the current selection from the outliner and pass it
-    into the decorated function.
-
-    Parameters
-    ----------
-    f : Callable
-        This method should operate on a list of Selection objects.
-
-    Returns
-    -------
-    Callable
-    '''
-    return ContextMenuCallback(f, supportsMultiSelection=True)
-
-
-class ContextMenuBuilder(object):
+class OutlinerContextMenuBuilder(ContextMenuBuilder):
     '''
     Class to customize the building of right-click context menus for selected
     prims.
     '''
-    def __init__(self, view):
-        self.view = view
-
     @property
     def model(self):
-        return self.view._dataModel
+        return self.view.model()
 
     def GetSelection(self):
         '''
@@ -509,12 +504,9 @@ class ContextMenuBuilder(object):
         List[Selection]
         '''
         indexes = self.view.selectionModel().selectedRows()
-        if not indexes:
-            return Selection(None, None, None)
-
         items = [index.internalPointer() for index in indexes]  # type: List[UsdPrimItem]
-        # FIXME: Do we need to support selection for primItem.prim = None?
-        return [Selection(index, item, item.prim or None) for item in items]
+        return [Selection(index, item, item.prim)
+                for item in items if item.prim]
 
     def Build(self, menu, selections):
         '''
@@ -588,6 +580,8 @@ class ContextMenuBuilder(object):
     @passMultipleSelection
     def ActivatePrim(self, multiSelection):
         for selection in multiSelection:
+            if not selection.prim.IsValid():
+                continue
             if not selection.prim.IsActive():
                 self.model.TogglePrimActive(selection.index, selection.prim,
                                             item=selection.item)
@@ -595,6 +589,9 @@ class ContextMenuBuilder(object):
     @passMultipleSelection
     def DeactivatePrim(self, multiSelection):
         for selection in multiSelection:
+            # if a parent is deactivated, this can leave invalid children
+            if not selection.prim.IsValid():
+                continue
             if selection.prim.IsActive():
                 self.model.TogglePrimActive(selection.index, selection.prim,
                                             item=selection.item)
@@ -630,115 +627,45 @@ class ContextMenuBuilder(object):
                                                   selection.prim,
                                                   item=selection.item)
 
-    # FIXME: luma-specific
-    def _GetNewReferencePaths(self):
-        '''Opens a dialog to get a prim name and path from the user
+    def _GetNewReferencePath(self):
+        return UsdQtUtilities.exec_('getReferencePath',
+                                    stage=self.model.stage)
 
-        Returns
-        -------
-        Iterator[Tuple[str, str]]
-            mapping prim names to reference paths
-        '''
-        import luma_qt.lumaFileBrowser
-        import luma_usd.registry
-        import luma_usd.dbfiles
-        import luma.project
-        import luma.filepath
-
-        # Try to find the project...
-        startPath = None
-        project = None
-        try:
-            usdPathsToTry = [self.model.stage.GetRootLayer().identifier]
-            # stage might be an in-memory, so root layer might be an
-            # anonymous...
-            # so try subLayersPaths too
-            usdPathsToTry.extend(self.model.stage.GetRootLayer().subLayerPaths)
-            for usdPath in usdPathsToTry:
-                try:
-                    parsedSqlPath = luma_usd.dbfiles.parse(usdPath)
-                except luma_usd.dbfiles.UsdDBParsingError:
-                    try:
-                        project = luma.filepath.Path(usdPath).projectClass()
-                    except luma.filepath.NamingConventionError:
-                        pass
-                else:
-                    if 'project' in parsedSqlPath[1]:
-                        project = luma.project.Project(
-                            parsedSqlPath[1]['project'])
-                if project is not None:
-                    startPath = project.modelDir
-                    break
-        except Exception:
-            import traceback
-            print "Error extracting project modelDir:"
-            traceback.print_exc()
-
-        result = luma_qt.lumaFileBrowser.lumaBrowser(
-            package='maya',
-            mode=luma_qt.lumaFileBrowser.UsdAssetBrowser.mode,
-            initialPath=startPath
-        )
-        if not result:
-            return
-
-        for item in result:
-            addSuffix = item['copies'] > 1
-            for i in xrange(item['copies']):
-                path = item['path']
-                primName = item['primName']
-                if addSuffix:
-                    primName += str(i + 1).zfill(2)
-                registryPath = luma_usd.registry.getRegistryFromPath(path)
-                if registryPath:
-                    yield primName, registryPath
-
-    # FIXME: add ability to add references to existing prims
     @passSingleSelection
     def AddReference(self, selection):
-        for primName, referencePath in self._GetNewReferencePaths():
-            self.model.AddNewReference(selection.index, selection.prim,
-                                       referencePath, primName)
+        '''Add a reference directly to an existing prim'''
+        refPath = self._GetNewReferencePath()
+        self.model.AddNewReference(selection.index, selection.prim, refPath)
 
 
-class OutlinerTreeView(AssetTreeView):
+class OutlinerTreeView(ContextMenuMixin, AssetTreeView):
     # emitted when a prim has been selected in the view
     primSelectionChanged = QtCore.Signal(list, list)
 
-    def __init__(self, dataModel, menuBuilder=None, parent=None):
+    def __init__(self, dataModel, contextMenuBuilder=None, parent=None):
         '''
         Parameters
         ----------
         dataModel : OutlinerStageModel
-        menuBuilder : Optional[Type[ContextMenuBuilder]]
+        contextMenuBuilder : Optional[Type[ContextMenuBuilder]]
         parent : Optional[QtGui.QWidget]
         '''
-        super(OutlinerTreeView, self).__init__(parent=parent)
-        self.setModel(dataModel)
-        self._dataModel = dataModel
-        if menuBuilder is None:
-            menuBuilder = ContextMenuBuilder
-        self._menuBuilder = menuBuilder(self)
+        if contextMenuBuilder is None:
+            contextMenuBuilder = OutlinerContextMenuBuilder
+        super(OutlinerTreeView, self).__init__(
+            parent=parent,
+            contextMenuBuilder=contextMenuBuilder)
+        # AssetTree view defaults to customContextMenu
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
+        self.setModel(dataModel)
+        self._menuBuilder = contextMenuBuilder(self)
         # keep a ref for model because of refCount bug in pyside
         selectionModel = self.selectionModel()
         selectionModel.selectionChanged.connect(self._SelectionChanged)
 
-    # Qt methods ---------------------------------------------------------------
-    def contextMenuEvent(self, event):
-        selection = [s for s in self._menuBuilder.GetSelection() if s.prim]
-        if not selection:
-            return
-        menu = QtWidgets.QMenu(self)
-        menu = self._menuBuilder.Build(menu, selection)
-        if menu is None:
-            return
-        menu.exec_(event.globalPos())
-        event.accept()
-
     # Custom methods -----------------------------------------------------------
     def _SelectionChanged(self, selected, deselected):
-        '''Connected to selectionChanged '''
+        '''Connected to selectionChanged'''
         def toPrims(qSelection):
             indexes = qSelection.indexes()
             prims = [index.internalPointer().prim for index in indexes
@@ -746,6 +673,10 @@ class OutlinerTreeView(AssetTreeView):
             return prims
 
         self.primSelectionChanged.emit(toPrims(selected), toPrims(deselected))
+
+    def SelectedPrims(self):
+        indexes = self.selectionModel().selectedRows()
+        return [index.internalPointer().prim for index in indexes]
 
 
 class OutlinerViewDelegate(QtWidgets.QStyledItemDelegate):

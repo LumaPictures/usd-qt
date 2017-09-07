@@ -88,7 +88,8 @@ def createPrims(stage, variants):
 def usdstage(tmpdir):
     tempfile = str(tmpdir.join('tmpstage.usd'))
     stage = Usd.Stage.CreateNew(tempfile)
-    return stage
+    yield stage
+    stage.Close()
 
 
 def test_primVariants(usdstage):

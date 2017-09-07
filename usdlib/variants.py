@@ -63,7 +63,7 @@ def iterPrimIndexVariantNodes(prim):
         stack.extend(child.children)
 
 
-def getPrimVariants(prim):
+def getPrimVariants(prim, includePath=False):
     '''
     Returns a list of tuples representing a prim's variant set names and active
     values, sorted by their opinion "strength" in the prim's index.
@@ -71,6 +71,7 @@ def getPrimVariants(prim):
     Parameters
     ----------
     prim : Usd.Prim
+    includePath : bool
 
     Returns
     -------
@@ -82,7 +83,10 @@ def getPrimVariants(prim):
     for node in iterPrimIndexVariantNodes(prim):
         setName, setValue = node.path.GetVariantSelection()
         if setName not in seen:
-            results.append(PrimVariant(setName, setValue))
+            if includePath:
+                results.append((node.path, PrimVariant(setName, setValue)))
+            else:
+                results.append(PrimVariant(setName, setValue))
             seen.add(setName)
 
     # If a variant is not selected, it won't be included in the prim index. So
@@ -96,7 +100,11 @@ def getPrimVariants(prim):
     for setName in prim.GetVariantSets().GetNames():
         if setName not in seen:
             setValue = prim.GetVariantSet(setName).GetVariantSelection()
-            results.append(PrimVariant(setName, setValue))
+            if includePath:
+                path = prim.GetPath().AppendVariantSelection(setName, setValue)
+                results.append((path, PrimVariant(setName, setValue)))
+            else:
+                results.append(PrimVariant(setName, setValue))
 
     return results
 
@@ -136,6 +144,30 @@ def getPrimDefaultVariants(prim, sessionLayer):
                     defaults[name] = variant
                     left.remove(name)
     return defaults
+
+
+def getPrimVariantSelectionInLayer(prim, specificLayer):
+    '''
+    Get the variant selections for a prim that are specified in the session 
+    layer.
+
+    Parameters
+    ----------
+    prim : Usd.Prim
+    specificLayer : Sdf.Layer
+
+    Returns
+    -------
+    Dict[str, str]
+    '''
+    selected = {}
+    variantSets = prim.GetVariantSets()
+    if variantSets.GetNames():
+        for spec in prim.GetPrimStack():
+            if spec.layer == specificLayer:
+                selected.update(spec.variantSelections)
+
+    return selected
 
 
 def getSelectedVariants(rootPrim):
@@ -360,6 +392,14 @@ def variantsByKey(primVariants, cacheKeys=None):
             in zip(cacheKeys, primVariants)]
 
 
+def variantSelectionKey(primVariants):
+    '''Return a distinct key for a list of selections on a prim'''
+    key = ''
+    for setName, variantName in primVariants:
+        key += '{%s=%s}' % (setName, variantName)
+    return key
+
+
 def applySelection(primVariants, selection):
     '''Given prim variants and defaults return ordered primVariants with the
     new selection.
@@ -401,6 +441,7 @@ class EditTargetContext(object):
         self.stage.SetEditTarget(self.originalEditTarget)
 
 
+# rename to CreateVariantContext?
 class VariantContext(object):
     '''
     A Helper context that uses pixar's VariantEditContext to target edits
@@ -443,7 +484,8 @@ class VariantContext(object):
         for variantSetName, variantName in self.variantTuples:
             variantSet = self.prim.GetVariantSets().AppendVariantSet(
                 variantSetName)
-            variantSet.AppendVariant(variantName)
+            if variantName not in variantSet.GetVariantNames():
+                variantSet.AppendVariant(variantName)
 
             original = variantSet.GetVariantSelection()
             self.originalSelections.append((variantSet, original))
@@ -462,9 +504,7 @@ class VariantContext(object):
             context.__enter__()
             self.contexts.append(context)
 
-        # FIXME: this shows all variants instead of just the ones in the context
-        # _logger.debug('In variant context: %s'
-        #               % usdlib.variants.getPrimVariants(self.prim))
+        # print('In variant context: %s' % getPrimVariants(self.prim))
 
     def __exit__(self, type, value, traceback):
         for context, original in reversed(zip(self.contexts,
@@ -473,3 +513,58 @@ class VariantContext(object):
             with EditTargetContext(self.stage, self.sessionLayer):
                 for variantSet, original in self.originalSelections:
                     variantSet.SetVariantSelection(original)
+
+
+class SessionVariantContext(object):
+    '''
+    Temporarily set some variants but then restore them on exit. Use this 
+    context to inspect hypothetical variant selections and then return to the
+    session layers original state.
+    
+    Note: Intended for inspection, tries to restore original state, so changes
+    to created specs may be lost.
+    '''
+    def __init__(self, prim, variantTuples):
+        '''
+        Parameters
+        ----------
+        prim : Usd.Prim
+        variantTuples: Iterable[Tuple[str, str]]
+            iterable of tuples mapping variantSetName to variantName that can
+            represent a hierarchy of nested variants.
+        '''
+        self.originalSelections = []
+        self.prim = prim
+        self.variantTuples = variantTuples
+
+        self.stage = self.prim.GetStage()
+        self.sessionLayer = self.stage.GetSessionLayer()
+        self.createdSpecs = []
+
+    def __enter__(self):
+        variantSets = self.prim.GetVariantSets()
+        for prefix in self.prim.GetPath().GetPrefixes():
+            if not self.sessionLayer.GetPrimAtPath(prefix):
+                self.createdSpecs.append(prefix)
+                break  # removing the parent will remove any children
+        selections = getPrimVariantSelectionInLayer(self.prim, self.sessionLayer)
+        for variantSetName, variantName in self.variantTuples:
+            variantSet = variantSets.GetVariantSet(variantSetName)
+            self.originalSelections.append((variantSet,
+                                            selections.get(variantSetName, '')))
+
+            # make the selection on the session layer so that it will be the
+            # selected variant in the context.
+            with EditTargetContext(self.stage, self.sessionLayer):
+                status = variantSet.SetVariantSelection(variantName)
+                assert status is True, 'variant selection failed'
+                assert variantSet.GetVariantSelection() == variantName
+
+    def __exit__(self, type, value, traceback):
+        with EditTargetContext(self.stage, self.sessionLayer):
+            # restore session layer selection
+            for variantSet, original in self.originalSelections:
+                variantSet.SetVariantSelection(original)
+            # remove any prim spec creation side effects
+            for prefix in self.createdSpecs:
+                self.stage.RemovePrim(prefix)

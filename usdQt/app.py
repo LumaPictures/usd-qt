@@ -27,23 +27,118 @@ from __future__ import absolute_import
 from pxr import Sdf, Usd
 from Qt import QtCore, QtGui, QtWidgets
 from usdQt.outliner import (OutlinerTreeView, OutlinerViewDelegate,
-                            OutlinerStageModel, ContextMenuBuilder)
+                            OutlinerStageModel, OutlinerContextMenuBuilder)
 from usdQt.layers import LayerTextViewDialog, SubLayerDialog
+from usdQt.variantSets import VariantEditorDialog
+from usdQt.common import MenuBarBuilder
 
 from typing import (Any, Dict, Iterable, Iterator, List, Optional,
                     Tuple, TypeVar, Union)
+
+
+class AppMenuBarBuilder(MenuBarBuilder):
+    '''Menu Bar for UsdOutliner that adds saving changes and populates a tools
+    menu.'''
+
+    def __init__(self, dlg):
+        super(AppMenuBarBuilder, self).__init__(dlg)
+        self.editTargetOriginalContents = {self.GetId(dlg.editTarget):
+                                           dlg.editTarget.ExportToString()}
+        dlg.editTargetChanged.connect(self.EditTargetChanged)
+
+    def AddMenus(self):
+        self.AddMenu('file', '&File')
+        self.AddMenu('tools', '&Tools')
+
+    def PopulateMenus(self):
+        fileMenu = self.GetMenu('file')
+        saveAction = fileMenu.addAction('Save Current Edit Layer')
+        saveAction.triggered.connect(self.SaveEditLayer)
+        toolsMenu = self.GetMenu('tools')
+        a = toolsMenu.addAction('Show Current Layer Text')
+        a.triggered.connect(self.dlg.ShowEditTargetLayerText)
+        a = toolsMenu.addAction('Change Edit Target')
+        a.triggered.connect(self.dlg.ChangeEditTarget)
+        a = toolsMenu.addAction('Edit Variants')
+        a.triggered.connect(self.dlg.ShowVariantEditor)
+
+    def _CheckOriginalContents(self, editLayer):
+        import difflib
+
+        editedContents = editLayer.ExportToString()
+        # fetch on disk contents for comparison
+        editLayer.Reload()
+        latestContents = editLayer.ExportToString()
+        # but then restore users edits
+        editLayer.ImportFromString(editedContents)
+        self.dlg.dataModel.ResetStage()
+
+        originalContents = self.GetOriginalContents(editLayer)
+        if originalContents != latestContents:
+            diff = difflib.unified_diff(originalContents.split('\n'),
+                                        latestContents.split('\n'),
+                                        fromfile="original",
+                                        tofile="on disk",
+                                        n=10)
+            dlg = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning,
+                                        'Contents changed!',
+                                        'The contents on disk have changed '
+                                        'since your began editing them. Save '
+                                        'Anyway and risk overwriting changes?',
+                                        buttons=(QtWidgets.QMessageBox.Cancel |
+                                                 QtWidgets.QMessageBox.Yes),
+                                        detailedText='\n'.join(diff))
+            if dlg.exec_() != QtWidgets.QMessageBox.Yes:
+                return False
+        return True
+
+    def SaveEditLayer(self):
+        '''
+        Save the current edit target to the appropriate place. 
+        '''
+        editTarget = self.dlg.editTarget
+        if not self.dlg.editTarget.dirty:
+            print 'Nothing to save'
+            return
+        if not self._CheckOriginalContents(editTarget):
+            return
+
+        self._SaveLayer(editTarget)
+
+    def _SaveLayer(self, layer):
+        layer.Save()
+        self.editTargetOriginalContents[self.GetId(layer)] = \
+            layer.ExportToString()
+
+    def EditTargetChanged(self, layer):
+        self.editTargetOriginalContents.setdefault(self.GetId(layer),
+                                                   layer.ExportToString())
+
+    def GetId(self, layer):
+        '''Overrideable way to get the unique key used to store the original 
+        contents of a layer'''
+        return layer.identifier
+
+    def GetOriginalContents(self, layer):
+        return self.editTargetOriginalContents[self.GetId(layer)]
+
+    def SaveOriginalContents(self, layer, contents=None):
+        if not contents:
+            contents = layer.ExportToString()
+        self.editTargetOriginalContents[self.GetId(layer)] = contents
 
 
 class UsdOutliner(QtWidgets.QDialog):
     # emitted with the new edit layer when the edit target is changed
     editTargetChanged = QtCore.Signal(Sdf.Layer)
 
-    def __init__(self, stage, menuBuilder=None, parent=None):
+    def __init__(self, stage, contextMenuBuilder=None, menuBarBuilder=None,
+                 parent=None):
         '''
         Parameters
         ----------
         stage : Usd.Stage
-        menuBuilder : Optional[Type[ContextMenuBuilder]]
+        contextMenuBuilder : Optional[Type[ContextMenuBuilder]]
         parent : Optional[QtGui.QWidget]
         '''
         assert isinstance(stage, Usd.Stage), 'A Stage instance is required'
@@ -55,23 +150,23 @@ class UsdOutliner(QtWidgets.QDialog):
         # instances of child dialogs
         self.layerTextDialogs = {}
         self.editTargetDlg = None
+        self.variantEditorDlg = None
 
         # Widget and other Qt setup
         self.setModal(False)
         self.UpdateTitle()
 
-        self._menuBar = QtWidgets.QMenuBar(self)
-        self._menus = {}  # type: Dict[str, QtWidgets.QMenu]
-        self.AddMenu('file', '&File')
-        self.AddMenu('tools', '&Tools')
-        self.PopulateMenus()
+        # populate menu bar
+        if menuBarBuilder is None:
+            menuBarBuilder = AppMenuBarBuilder
+        self.menuBarBuilder = menuBarBuilder(self)
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
         layout.setSpacing(2)
-        layout.addWidget(self._menuBar)
-        view = self._GetView(self.dataModel, menuBuilder)
-        delegate = OutlinerViewDelegate(self.stage.GetEditTarget().GetLayer(),
+        layout.addWidget(self.menuBarBuilder._menuBar)
+        view = self._GetView(self.dataModel, contextMenuBuilder)
+        delegate = OutlinerViewDelegate(self.editTarget,
                                         parent=self)
         self.editTargetChanged.connect(delegate.SetActiveLayer)
         self.editTargetChanged.connect(self.dataModel.ActiveLayerChanged)
@@ -80,7 +175,6 @@ class UsdOutliner(QtWidgets.QDialog):
 
         view.setColumnWidth(0, 360)
         self.view = view
-
         self.resize(900, 600)
 
     @property
@@ -97,20 +191,22 @@ class UsdOutliner(QtWidgets.QDialog):
         '''
         return OutlinerStageModel(self.stage, parent=self)
 
-    def _GetView(self, model, menuBuilder):
+    def _GetView(self, model, contextMenuBuilder):
         '''
         Get the view for the outliner
 
         Parameters
         ----------
         model : QtCore.QAbstractItemModel
-        menuBuilder : Optional[Type[ContextMenuBuilder]]
+        contextMenuBuilder : Optional[Type[ContextMenuBuilder]]
 
         Returns
         -------
         QtWidgets.QTreeView
         '''
-        return OutlinerTreeView(model, menuBuilder=menuBuilder, parent=self)
+        return OutlinerTreeView(model,
+                                contextMenuBuilder=contextMenuBuilder,
+                                parent=self)
 
     def UpdateTitle(self, identifier=None):
         '''
@@ -150,48 +246,14 @@ class UsdOutliner(QtWidgets.QDialog):
         self.editTargetChanged.emit(layer)
         self.UpdateTitle()
 
-    def AddMenu(self, name, label=None):
-        '''
-        Parameters
-        ----------
-        name : str
-            name of registered menu
-        label : Optional[str]
-            label to display in the menu bar
-
-        Returns
-        -------
-        QtWidgets.QMenu
-        '''
-        if label is None:
-            label = name
-        menu = self._menuBar.addMenu(label)
-        self._menus[name] = menu
-        return menu
-
-    def GetMenu(self, name):
-        '''
-        Get a named menu from the application's registered menus
-
-        Parameters
-        ----------
-        name : str
-            name of registered menu
-
-        Returns
-        -------
-        Optional[QtWidgets.QMenu]
-        '''
-        return self._menus.get(name.lower())
-
-    def _ShowEditTargetLayerText(self, layer=None):
+    def ShowEditTargetLayerText(self, layer=None):
         # only allow one window per layer
         # may need to hook this bookkeeping up to hideEvent
         self.layerTextDialogs = \
-            dict(((layer, dlg)
-                  for layer, dlg in self.layerTextDialogs.iteritems()
+            dict(((lyr, dlg)
+                  for lyr, dlg in self.layerTextDialogs.iteritems()
                   if dlg.isVisible()))
-        if layer is None:
+        if not isinstance(layer, Sdf.Layer):
             layer = self.stage.GetEditTarget().GetLayer()
         try:
             dlg = self.layerTextDialogs[layer]
@@ -204,24 +266,30 @@ class UsdOutliner(QtWidgets.QDialog):
         dlg.raise_()
         dlg.activateWindow()
 
-    def _ChangeEditTarget(self):
+    def ChangeEditTarget(self):
         # only allow one window
         if not self.editTargetDlg:
             dlg = SubLayerDialog(self.stage, parent=self)
-            dlg.view.editTargetChanged.connect(self.UpdateEditTarget)
-            dlg.view.showLayerContents.connect(self._ShowEditTargetLayerText)
-            dlg.view.openLayer.connect(self._OpenLayerInOutliner)
+            dlg.view.GetSignal('editTargetChanged').connect(self.UpdateEditTarget)
+            dlg.view.GetSignal('showLayerContents').connect(self.ShowEditTargetLayerText)
+            dlg.view.GetSignal('openLayer').connect(self.OpenLayerInOutliner)
             self.editTargetDlg = dlg
         self.editTargetDlg.show()
         self.editTargetDlg.raise_()
         self.editTargetDlg.activateWindow()
 
-    def PopulateMenus(self):
-        toolsMenu = self.GetMenu('tools')
-        a = toolsMenu.addAction('Show Current Layer Text')
-        a.triggered.connect(self._ShowEditTargetLayerText)
-        a = toolsMenu.addAction('Change Edit Target')
-        a.triggered.connect(self._ChangeEditTarget)
+    def ShowVariantEditor(self):
+        # only allow one window
+        if not self.variantEditorDlg:
+            dlg = VariantEditorDialog(self.stage,
+                                      self.view.SelectedPrims(),
+                                      parent=self)
+            self.view.GetSignal('primSelectionChanged').connect(dlg.dataModel.PrimSelectionChanged)
+            self.editTargetChanged.connect(dlg.dataModel.EditTargetChanged)
+            self.variantEditorDlg = dlg
+        self.variantEditorDlg.show()
+        self.variantEditorDlg.raise_()
+        self.variantEditorDlg.activateWindow()
 
     @classmethod
     def FromUsdFile(cls, usdFile, parent=None):
@@ -231,7 +299,7 @@ class UsdOutliner(QtWidgets.QDialog):
             stage.SetEditTarget(stage.GetSessionLayer())
         return cls(stage, parent=parent)
 
-    def _OpenLayerInOutliner(self, layer):
+    def OpenLayerInOutliner(self, layer):
         dlg = self.FromUsdFile(layer.identifier)
         dlg.show()
         dlg.raise_()

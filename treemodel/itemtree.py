@@ -83,6 +83,8 @@ class ItemTree(Generic[T]):
         return item in self._parentToChildren
 
     def _validateItemType(self, item):
+        if self._itemBase is None:
+            return
         if not issubclass(type(item), self._itemBase):
             raise TypeError('Item class {0!r} does not inherit base tree item '
                             'class {1!r}'.format(item.__class__, self._itemBase))
@@ -293,6 +295,8 @@ class ItemTree(Generic[T]):
             self._keyToItem[item.key] = item
             self._parentToChildren[item] = makeChildrenValue(item)
             self._childToParent[item] = parent
+        if self._parentToChildren[parent] is None:
+            self._parentToChildren[parent] = []
         self._parentToChildren[parent].extend(newItems)
 
         return newItems

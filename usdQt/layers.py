@@ -28,7 +28,8 @@ from pxr import Sdf, Usd, Tf
 from Qt import QtCore, QtGui, QtWidgets
 from treemodel.itemtree import TreeItem, ItemTree
 from treemodel.qt.base import AbstractTreeModelMixin
-from usdQt.common import NULL_INDEX, CopyToClipboard
+from usdQt.common import NULL_INDEX, CopyToClipboard, ContextMenuBuilder, \
+    ContextMenuMixin, passSingleSelection
 
 from typing import (Any, Dict, Iterable, Iterator, List, Optional,
                     NamedTuple, Tuple, TypeVar, Union)
@@ -196,10 +197,13 @@ LayerSelection = NamedTuple('LayerSelection', [
 ])
 
 
-class LayerContextMenuBuilder(object):
-
-    def __init__(self, view):
-        self.view = view
+class LayerContextMenuBuilder(ContextMenuBuilder):
+    # emitted when menu option is selected to show layer contents
+    showLayerContents = QtCore.Signal(Sdf.Layer)
+    # emitted with the new edit layer when the edit target is changed
+    editTargetChanged = QtCore.Signal(Sdf.Layer)
+    # emitted when menu option is selected to show layer contents
+    openLayer = QtCore.Signal(Sdf.Layer)
 
     def GetSelection(self):
         indexes = self.view.selectionModel().selectedRows()
@@ -214,61 +218,36 @@ class LayerContextMenuBuilder(object):
         layer = selection[0].layer
 
         a = menu.addAction('Display Layer Text')
-        a.triggered.connect(lambda: self.view.showLayerContents.emit(layer))
+        a.triggered.connect(lambda: self.showLayerContents.emit(layer))
 
         a = menu.addAction('Copy Layer Path')
         a.triggered.connect(lambda: CopyLayerPath(layer))
 
         a = menu.addAction('Open Layer in a new Outliner')
-        a.triggered.connect(lambda: self.view.openLayer.emit(layer))
+        a.triggered.connect(lambda: self.openLayer.emit(layer))
         return menu
 
-
-class SubLayerTreeView(QtWidgets.QTreeView):
-    # emitted when menu option is selected to show layer contents
-    showLayerContents = QtCore.Signal(Sdf.Layer)
-    # emitted with the new edit layer when the edit target is changed
-    editTargetChanged = QtCore.Signal(Sdf.Layer)
-    # emitted when menu option is selected to show layer contents
-    openLayer = QtCore.Signal(Sdf.Layer)
-
-    def __init__(self, parent=None, menuBuilder=None):
-        if menuBuilder is None:
-            menuBuilder = LayerContextMenuBuilder
-        self._menuBuilder = menuBuilder(self)
-        super(SubLayerTreeView, self).__init__(parent=parent)
-        self.doubleClicked.connect(self.SelectLayer)
-
-    # Qt methods ---------------------------------------------------------------
-    def contextMenuEvent(self, event):
-        selection = self._menuBuilder.GetSelection()
-        if not selection:
-            return
-        menu = QtWidgets.QMenu(self)
-        menu = self._menuBuilder.Build(menu, selection)
-        if menu is None:
-            return
-        menu.exec_(event.globalPos())
-        event.accept()
-
-    # Custom methods -----------------------------------------------------------
-    def SelectLayer(self, selectedIndex=None):
+    @passSingleSelection
+    def SelectLayer(self, selectedItem):
         '''
         Parameters
         ----------
-        selectedIndex : Optional[QtCore.QModelIndex]
+        selectedItem : LayerSelection
         '''
-        if not selectedIndex:
-            selectedIndexes = self.view.selectedIndexes()
-            if not selectedIndexes:
-                return
-            selectedIndex = selectedIndexes[0]
-
-        selectedLayer = selectedIndex.internalPointer().layer
-        self.editTargetChanged.emit(selectedLayer)
+        self.editTargetChanged.emit(selectedItem.layer)
         # Explicitly get two arg version of signal for Qt4/Qt5
-        self.model().dataChanged[QtCore.QModelIndex, QtCore.QModelIndex].emit(
+        self.view.model().dataChanged[QtCore.QModelIndex, QtCore.QModelIndex].emit(
             NULL_INDEX, NULL_INDEX)
+
+
+class SubLayerTreeView(ContextMenuMixin, QtWidgets.QTreeView):
+    def __init__(self, parent=None, contextMenuBuilder=None):
+        if contextMenuBuilder is None:
+            contextMenuBuilder = LayerContextMenuBuilder
+        super(SubLayerTreeView, self).__init__(
+            parent=parent,
+            contextMenuBuilder=contextMenuBuilder)
+        self.doubleClicked.connect(self._menuBuilder.SelectLayer)
 
 
 class SubLayerDialog(QtWidgets.QDialog):
