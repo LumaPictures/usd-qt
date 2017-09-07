@@ -33,6 +33,7 @@ from pxr import Sdf
 
 ICONSPATH = os.path.dirname(os.path.realpath(__file__))
 
+
 class IconCache(object):
     __cache = {}
 
@@ -53,6 +54,3 @@ def SpecifierToString(specifier):
         return "class"
     else:
         raise Exception("Unknown specifier.")
-
-
-

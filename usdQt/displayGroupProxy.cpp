@@ -1,5 +1,5 @@
 //
-// Copyright 2016 Pixar
+// Copyright 2017 Pixar
 //
 // Licensed under the Apache License, Version 2.0 (the "Apache License")
 // with the following modification; you may not use this file except in
@@ -22,13 +22,18 @@
 // language governing permissions and limitations under the Apache License.
 //
 
-#include "pxr/base/tf/pyModule.h"
+#include "displayGroupProxy.h"
 
-using namespace boost::python;
+PXR_NAMESPACE_OPEN_SCOPE
 
-TF_WRAP_MODULE {
-    TF_WRAP(HierarchyCache);
-    TF_WRAP(OpinionProxy);
-    TF_WRAP(PrimFilterCache);
-    TF_WRAP(UndoRouter);
+UsdQt_DisplayGroupProxy::UsdQt_DisplayGroupProxy(const TfToken &name)
+    : _name(name) {}
+
+UsdQt_DisplayGroupProxyRefPtr
+UsdQt_DisplayGroupProxy::New(const TfToken &name) {
+    return TfCreateRefPtr(new UsdQt_DisplayGroupProxy(name));
 }
+
+TfToken UsdQt_DisplayGroupProxy::GetName() const { return _name; }
+
+PXR_NAMESPACE_CLOSE_SCOPE

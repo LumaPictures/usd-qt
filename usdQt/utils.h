@@ -1,5 +1,5 @@
 //
-// Copyright 2016 Pixar
+// Copyright 2017 Pixar
 //
 // Licensed under the Apache License, Version 2.0 (the "Apache License")
 // with the following modification; you may not use this file except in
@@ -22,13 +22,29 @@
 // language governing permissions and limitations under the Apache License.
 //
 
-#include "pxr/base/tf/pyModule.h"
+#ifndef USDQT_OBJECTUTILS_H
+#define USDQT_OBJECTUTILS_H
 
-using namespace boost::python;
+#include <algorithm>
+#include <vector>
 
-TF_WRAP_MODULE {
-    TF_WRAP(HierarchyCache);
-    TF_WRAP(OpinionProxy);
-    TF_WRAP(PrimFilterCache);
-    TF_WRAP(UndoRouter);
+#include <boost/range/adaptor/sliced.hpp>
+
+#include "pxr/pxr.h"
+#include "pxr/base/vt/array.h"
+
+PXR_NAMESPACE_OPEN_SCOPE
+
+template <typename Type>
+bool UsdQt_ItemNotInVector(const std::vector<Type>& v, const Type& item) {
+    return std::find(v.begin(), v.end(), item) == v.end();
 }
+
+template <typename Type>
+bool UsdQt_ItemNotInArray(const VtArray<Type>& v, const Type& item) {
+    return std::find(v.begin(), v.end(), item) == v.end();
+}
+
+PXR_NAMESPACE_CLOSE_SCOPE
+
+#endif

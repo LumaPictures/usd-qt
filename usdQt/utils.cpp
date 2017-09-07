@@ -1,5 +1,5 @@
 //
-// Copyright 2016 Pixar
+// Copyright 2017 Pixar
 //
 // Licensed under the Apache License, Version 2.0 (the "Apache License")
 // with the following modification; you may not use this file except in
@@ -22,13 +22,5 @@
 // language governing permissions and limitations under the Apache License.
 //
 
-#include "pxr/base/tf/pyModule.h"
 
-using namespace boost::python;
-
-TF_WRAP_MODULE {
-    TF_WRAP(HierarchyCache);
-    TF_WRAP(OpinionProxy);
-    TF_WRAP(PrimFilterCache);
-    TF_WRAP(UndoRouter);
-}
+#include "utils.h"

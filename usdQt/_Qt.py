@@ -23,7 +23,7 @@
 #
 
 # Use this for site customization of Qt binding versions.  This code targets
-# PySide2, but may be compatable with a variety of other shims/APIs.  Override
+# PySide2, but may be compatible with a variety of other shims/APIs.  Override
 # this file to specify any site specific preferences.
 
 from __future__ import absolute_import

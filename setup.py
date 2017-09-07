@@ -26,7 +26,7 @@ cppModule = Extension('usdQt._usdQt',
                       ('PXR_PYTHON_SUPPORT_ENABLED', None)],
      libraries = ['boost_python-mt', 'tbb', 'usd', 'sdf', 'tf'],
      sources = extensionSources,
-     extra_compile_args=['-std=c++11'])
+     extra_compile_args=['-std=c++11', '-Wno-unused-local-typedefs', '-Wno-deprecated'])
      
 packages = find_packages(exclude=['tests'])
 
@@ -35,7 +35,7 @@ setup(
     version='0.0.1',
     description='USD Qt Components',
     long_description=long_description,
-    url='https://github.com/LumaPictures/usdqt-components',
+    url='https://github.com/LumaPictures/usd-qt',
     license='Modified Apache 2.0 License',
     packages=packages,
     package_dir={'UsdQt':'usdQt'},

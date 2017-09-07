@@ -26,28 +26,26 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from collections import defaultdict
-
 from ._Qt import QtCore, QtWidgets, QtGui
 from pxr import Sdf, Tf, Usd
 
 from ._bindings import PrimFilterCache, _HierarchyCache
 from . import compatability, roles, utils
 
+
 class HierarchyBaseModel(QtCore.QAbstractItemModel):
     """Base class for adapting a stage's prim hierarchy for Qt ItemViews
 
     Most clients will want to use a configuration of the HierachyStandardModel
-    which has a standard set of columns and data or subclass this to provide 
+    which has a standard set of columns and data or subclass this to provide
     their own custom set of columns.
 
-    Clients are encouraged to subclass this module because it provides both 
-    robust handling of change notification and an efficient lazy population.  
+    Clients are encouraged to subclass this module because it provides both
+    robust handling of change notification and an efficient lazy population.
     This model listens for TfNotices and emits the appropriate Qt signals.
     """
     class __LayoutChangedContext(object):
         """context manager to ensure layout changes if exception is thrown"""
-
         def __init__(self, model):
             self.model = model
 
@@ -69,8 +67,8 @@ class HierarchyBaseModel(QtCore.QAbstractItemModel):
 
         'predicate' specifies the prims that may be accessed via the model on
         the stage. A good policy is to be as accepting of prims as possible
-        and rely on a QSortFilterProxyModel to interactively reduce the view.  
-        Changing the predicate is a potentially expensive operation requiring 
+        and rely on a QSortFilterProxyModel to interactively reduce the view.
+        Changing the predicate is a potentially expensive operation requiring
         rebuilding internal caches, making not ideal for interactive filtering.
         """
         super(HierarchyBaseModel, self).__init__(parent)
@@ -85,7 +83,7 @@ class HierarchyBaseModel(QtCore.QAbstractItemModel):
         return self.__stage and self.__stage.GetPseudoRoot()
 
     def ResetStage(self, stage):
-        """Resets the model for use with a new stage.  
+        """Resets the model for use with a new stage.
 
         If the stage isn't valid, this effectively becomes an empty model.
         """
@@ -157,7 +155,7 @@ class HierarchyBaseModel(QtCore.QAbstractItemModel):
                         fromIndices.append(index)
                         toIndices.append(QtCore.QModelIndex())
                 self.changePersistentIndexList(fromIndices, toIndices)
-                
+
     def GetIndexForPath(self, path):
         """Given a path, retrieve the appropriate index"""
         if self.__index.ContainsPath(path):

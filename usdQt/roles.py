@@ -31,10 +31,12 @@ from ._Qt import QtCore
 EditorHintRole = QtCore.Qt.UserRole + 2
 LayerStackDepthRole = QtCore.Qt.UserRole + 3
 HierarchyPrimRole = QtCore.Qt.UserRole + 4
-UsdQtUserRole = QtCore.Qt.UserRole + 16 
+UsdQtUserRole = QtCore.Qt.UserRole + 16
+
 
 class EditorHintBasicValue(object):
     """Used for values whose editor can be inferred soley from the TfType"""
+
     def __init__(self, tfType):
         self.__type = tfType
 
@@ -42,8 +44,10 @@ class EditorHintBasicValue(object):
     def type(self):
         return self.__type
 
+
 class EditorHintTextCombo(object):
     """Used for a string/token editor restricted by a list of allowed values"""
+
     def __init__(self, allowedValues):
         self.__allowedValues = allowedValues
 
@@ -51,7 +55,9 @@ class EditorHintTextCombo(object):
     def allowedValues(self):
         return self.__allowedValues
 
+
 class EditorHintTab(object):
     """Used when an item should be drawn as a tab"""
+
     def __init__(self):
         pass

@@ -37,7 +37,8 @@ class TestSimplePrimFilterCache(unittest.TestCase):
 
     def setUp(self):
         stagePath = 'testenv/testUsdQtPrimFilterCache/simpleFilter.usda'
-        stagePath = stagePath if os.path.isfile(stagePath) else stagePath.split('/')[-1]
+        stagePath = stagePath if os.path.isfile(
+            stagePath) else stagePath.split('/')[-1]
 
         self.stage = Usd.Stage.Open(stagePath)
         self.cache = UsdQt.PrimFilterCache()
@@ -55,9 +56,13 @@ class TestSimplePrimFilterCache(unittest.TestCase):
             ("/World/AcceptParent/AcceptChild", UsdQt.PrimFilterCache.Accept),
             ("/World/IntermediateParent/RejectChild", UsdQt.PrimFilterCache.Reject),
             ("/World/IntermediateParent/AcceptChild", UsdQt.PrimFilterCache.Accept),
-            ("/World/IntermediateParent/IntermediateChild", UsdQt.PrimFilterCache.Accept),
-            ("/World/IntermediateParent/IntermediateChild/AcceptGrandchild", UsdQt.PrimFilterCache.Accept),
-            ("/World/IntermediateParent/IntermediateChild/RejectGrandchild", UsdQt.PrimFilterCache.Reject)]
+            ("/World/IntermediateParent/IntermediateChild",
+             UsdQt.PrimFilterCache.Accept),
+            ("/World/IntermediateParent/IntermediateChild/AcceptGrandchild",
+             UsdQt.PrimFilterCache.Accept),
+            ("/World/IntermediateParent/IntermediateChild/RejectGrandchild",
+             UsdQt.PrimFilterCache.Reject)
+        ]
         )
 
         for path in pathToState:

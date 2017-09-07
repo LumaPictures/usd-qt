@@ -1,0 +1,32 @@
+#usda 1.0
+
+def Xform "MyPrim1" (
+      kind = "prop"
+      add variantSets = ["variant1", "variant2"]){
+   def "Child1"{
+      int x = 1
+      int y = 2
+      rel rel1 = </MyPrim1>
+      rel rel2
+   }
+   def  "Child2"{
+      string x = "one"
+      int y = 2
+      rel rel1 = </MyPrim1>
+      rel rel2 = </MyPrim2>
+   }
+   def  "Child3"{
+      int x = 2
+      int y = 2
+      rel rel1 = </MyPrim1>
+   }
+   def  "Child4" {
+      int x = 1
+      int y = 2
+      rel rel1 = </MyPrim1>
+   }
+}
+
+def Xform "MyPrim2" (add variantSets = ["variant2"]
+                     kind = "prop"){
+}

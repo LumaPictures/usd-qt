@@ -1,5 +1,5 @@
 //
-// Copyright 2016 Pixar
+// Copyright 2017 Pixar
 //
 // Licensed under the Apache License, Version 2.0 (the "Apache License")
 // with the following modification; you may not use this file except in
@@ -22,13 +22,23 @@
 // language governing permissions and limitations under the Apache License.
 //
 
-#include "pxr/base/tf/pyModule.h"
+#ifndef USDQT_PROXYBASE_H
+#define USDQT_PROXYBASE_H
 
-using namespace boost::python;
+#include "pxr/pxr.h"
+#include "pxr/base/tf/declarePtrs.h"
+#include "pxr/base/tf/weakPtr.h"
 
-TF_WRAP_MODULE {
-    TF_WRAP(HierarchyCache);
-    TF_WRAP(OpinionProxy);
-    TF_WRAP(PrimFilterCache);
-    TF_WRAP(UndoRouter);
-}
+PXR_NAMESPACE_OPEN_SCOPE
+
+TF_DECLARE_WEAK_AND_REF_PTRS(UsdQt_ProxyBase);
+
+/// \brief Common super class of an proxy for use with the QAbstractItemModels
+class UsdQt_ProxyBase : public TfRefBase, public TfWeakBase {
+public:
+    virtual bool IsValid() const;
+};
+
+PXR_NAMESPACE_CLOSE_SCOPE
+
+#endif
