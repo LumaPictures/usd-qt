@@ -4,6 +4,33 @@ set(PXR_PACKAGE usdQt)
 add_custom_target(shared_libs)
 add_custom_target(python ALL)
 
+if (INSTALL_PURE_PYTHON)
+    set(PYTHON_FILES
+        _Qt.py
+        __init__.py
+        _bindings.py
+        app.py
+        common.py
+        compatability.py
+        hierarchyModel.py
+        layerModel.py
+        layers.py
+        opinionModel.py
+        opinionStackModel.py
+        outliner.py
+        roles.py
+        stageCacheModel.py
+        utils.py
+        valueDelegate.py
+        valueWidgets.py
+        variantSets.py
+    )
+else ()
+    set(PYTHON_FILES
+        __init__.py)
+endif()
+
+
 _pxr_python_module(usdQt
 	PYTHON_LIBRARY
     LIBRARIES
@@ -39,22 +66,5 @@ _pxr_python_module(usdQt
         moduleDeps.cpp
 
     PYTHON_FILES
-        _Qt.py
-        __init__.py
-        _bindings.py
-        app.py
-        common.py
-        compatability.py
-        hierarchyModel.py
-        layerModel.py
-        layers.py
-        opinionModel.py
-        opinionStackModel.py
-        outliner.py
-        roles.py
-        stageCacheModel.py
-        utils.py
-        valueDelegate.py
-        valueWidgets.py
-        variantSets.py
+        ${PYTHON_FILES}
 )
