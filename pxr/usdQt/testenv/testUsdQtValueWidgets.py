@@ -203,7 +203,7 @@ class TestMatrix2dEdit(_Base.TestValueEdit):
     Widget = UsdQt.valueWidgets.Matrix2dEdit
     SuccessValues = [Gf.Matrix2f(1.0, 2.0, 3.0, 4.0),
                      Gf.Matrix2d(1.0, 2.0, 3.0, 4.0)]
-    SuccessCastedValues = {(('1.0', '2.0'), ('3.0', '4.0'))                           : Gf.Matrix2f(1.0, 2.0, 3.0, 4.0)}
+    SuccessCastedValues = {(('1.0', '2.0'), ('3.0', '4.0')): Gf.Matrix2f(1.0, 2.0, 3.0, 4.0)}
     KeySequences = {('1', '.', '0', QtCore.Qt.Key_Tab, '2', '.', '0', QtCore.Qt.Key_Tab,
                      '3', '.', '0', QtCore.Qt.Key_Tab, '4', '.', '0'): Gf.Matrix2f(1.0, 2.0, 3.0, 4.0), }
     ValueErrorValues = [((1.0, None), (None, 1.0)), Gf.Matrix3f(), "(1.0, 2.0)"]
@@ -233,6 +233,7 @@ class TestTextComboBoxEdit(_Base.TestValueEdit):
                     (QtCore.Qt.Key_Down, QtCore.Qt.Key_Down): 'value3'}
     ValueErrorValues = []
     TypeErrorValues = [1.0, 1, ['mylist'], ('bla',)]
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

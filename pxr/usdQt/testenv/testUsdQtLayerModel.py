@@ -54,7 +54,7 @@ class TestSimpleLayerModelBase(unittest.TestCase):
         for i, layer in enumerate(layerStack[1:]):
             self.assertEqual(
                 os.path.splitext(os.path.split(layer.identifier)[1])[0],
-                self.model.data(self.model.createIndex(i+1, 0)))
+                self.model.data(self.model.createIndex(i + 1, 0)))
 
         self.stage.Close()
         del self.stage
@@ -91,6 +91,7 @@ class TestSimpleLayerStandardModel(unittest.TestCase):
                 assert(flags & ~QtCore.Qt.ItemIsEnabled)
             else:
                 assert(flags & QtCore.Qt.ItemIsEnabled)
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
