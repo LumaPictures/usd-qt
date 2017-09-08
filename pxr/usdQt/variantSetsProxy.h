@@ -130,7 +130,7 @@ public:
     bool ClearVariantSelection();
 
     /// \brief Append a new variant to all set objects for this proxy
-    bool AppendVariant (const std::string &variantName);
+    bool AddVariant (const std::string &variantName);
 };
 
 PXR_NAMESPACE_CLOSE_SCOPE

@@ -38,9 +38,9 @@ class BaseClasses:
     class ProxyTest(unittest.TestCase):
 
         def setUp(self):
-            stagePath = 'testenv/testUsdQtOpinionProxy/simple.usda'
-            stagePath = stagePath if os.path.isfile(
-                stagePath) else stagePath.split('/')[-1]
+            stagePath = 'simple.usda'
+            stagePath = stagePath if os.path.isfile(stagePath) else \
+                os.path.join(os.path.splitext(__file__)[0], stagePath)
             self.stage = Usd.Stage.Open(stagePath)
 
 
@@ -216,7 +216,6 @@ class TestPrimProxy(BaseClasses.ProxyTest):
         self.assertFalse(primProxy.ContainsPathOrDescendent(['/World/Prim']))
         self.assertFalse(primProxy.ContainsPathOrDescendent(['/AnotherWorld']))
         self.assertFalse(primProxy.ContainsPathOrDescendent([Sdf.Path()]))
-
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

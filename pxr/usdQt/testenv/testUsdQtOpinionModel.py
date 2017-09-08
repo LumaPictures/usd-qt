@@ -36,9 +36,9 @@ from pxr.UsdQt._Qt import QtCore, QtWidgets
 class TestOpinionModel(unittest.TestCase):
 
     def setUp(self):
-        stageFilePath = "testenv/testUsdQtOpinionModel/simple.usda"
-        stageFilePath = stageFilePath if os.path.isfile(
-            stageFilePath) else stageFilePath.split('/')[-1]
+        stageFilePath = "simple.usda"
+        stageFilePath = stageFilePath if os.path.isfile(stageFilePath) else \
+            os.path.join(os.path.splitext(__file__)[0], stageFilePath)
         self.stage = Usd.Stage.Open(stageFilePath)
 
     def testProperties(self):
