@@ -77,9 +77,13 @@ bool UsdQt_VariantSetsProxy::GetNames(std::vector<std::string>* names) const {
     return true;
 }
 
-void UsdQt_VariantSetsProxy::AppendVariantSet(const std::string& name) {
+void UsdQt_VariantSetsProxy::AddVariantSet(const std::string& name) {
     for (auto& prim : _prims) {
+        #ifdef PXR_USDQT_APPEND_NOT_ADD
         prim.GetVariantSets().AppendVariantSet(name);
+        #else
+        prim.GetVariantSets().AddVariantSet(name);
+        #endif
     }
 }
 
@@ -165,10 +169,10 @@ bool UsdQt_VariantSetProxy::SetVariantSelection(const std::string& variant) {
     return success;
 }
 
-bool UsdQt_VariantSetProxy::AppendVariant(const std::string& variant) {
+bool UsdQt_VariantSetProxy::AddVariant(const std::string& variant) {
     bool success = true;
     for (auto& variantSet : _variantSets) {
-        success &= variantSet.AppendVariant(variant);
+        success &= variantSet.AddVariant(variant);
     }
     return success;
 }
