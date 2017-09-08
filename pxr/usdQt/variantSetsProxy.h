@@ -71,7 +71,7 @@ public:
     bool GetNames(std::vector<std::string>* names) const;
 
     /// \brief Append a new variant set for all members of this proxy
-    void AppendVariantSet(const std::string& name);
+    void AddVariantSet(const std::string& name);
 
     /// \brief Create a new proxy for the 'name' variant set for all VariantSets
     ///
