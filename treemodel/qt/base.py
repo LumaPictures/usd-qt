@@ -29,7 +29,7 @@ from treemodel.itemtree import ItemTree, TreeItem
 from typing import (Any, Dict, Generic, Iterable, Iterator, List, Optional,
                     Tuple, Union, TYPE_CHECKING)
 
-from Qt import QtCore, QtGui
+from pxr.UsdQt._Qt import QtCore, QtGui
 
 NULL_INDEX = QtCore.QModelIndex()
 
