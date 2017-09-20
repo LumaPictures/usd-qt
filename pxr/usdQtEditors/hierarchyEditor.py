@@ -26,7 +26,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 
 from ._Qt import QtWidgets, QtCore
 from pxr import Usd, UsdUtils, Sdf
@@ -85,10 +85,8 @@ class HierarchyStandardContextMenuStrategy:
     def __BuildStageMap(self, prims):
         """All prims are likely on the same stage, but in the event that we
         allow for hybrid models, this should ensure everything still works"""
-        stageMap = {}
+        stageMap = defaultdict(set)
         for prim in prims:
-            if not prim.GetStage() in stageMap:
-                stageMap[prim.GetStage()] = set()
             stageMap[prim.GetStage()].add(prim.GetPath())
         return stageMap
 

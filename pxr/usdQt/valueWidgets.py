@@ -167,8 +167,8 @@ class _ComboEdit(_ValueEdit):
 class _NumericEdit(_LineEdit):
     """Base class for single line edit that contains a number.
 
-    Values can be limited via an option min and max value .Objects inheriting 
-    from _NumericEdit should set the 'valueType' with the python numeric type 
+    Values can be limited via an option min and max value .Objects inheriting
+    from _NumericEdit should set the 'valueType' with the python numeric type
     as well as a QValidator 'validatorType' class variable.
     """
     valueType = None
@@ -485,12 +485,27 @@ class AssetEdit(_LineEdit):
         self.__lineEdit.setText(value.path)
 
 
+class PathValidator(QtGui.QValidator):
+    """A PathValidator ensures that the path is a valid SdfPath """
+    def __init__(self, parent=None):
+        super(PathValidator, self).__init__(parent)
+
+    def validate(self, string, pos):
+        value = compatability.ResolveString(string, str)
+        if value != '' and not Sdf.Path.IsValidPathString(value):
+            return (QtGui.QValidator.Intermediate, string, pos)
+        return (QtGui.QValidator.Acceptable, string, pos)
+
+
 class PathEdit(_LineEdit):
     valueType = Sdf.Path
 
     def __init__(self, parent=None):
         super(PathEdit, self).__init__(parent)
+        self.__validator = PathValidator()
         self.__lineEdit = QtWidgets.QLineEdit(self)
+        self._stringType = type(self.__lineEdit.text())
+        self.__lineEdit.setValidator(self.__validator)
         self.__layout = QtWidgets.QHBoxLayout()
         self.__layout.addWidget(self.__lineEdit)
         self._SetupLayoutSpacing(self.__layout)
@@ -502,8 +517,11 @@ class PathEdit(_LineEdit):
         return Sdf.Path(str(self.__lineEdit.text()))
 
     def SetValue(self, value):
-        value = str(value) if value else ''
-        self.__lineEdit.setText(value)
+        stringValue = compatability.ResolveString(str(value), self._stringType)
+        print(stringValue, type(stringValue))
+        if self.__validator.validate(stringValue, 0)[0] != QtGui.QValidator.Acceptable:
+            raise ValueError("%s not accepted by validator." % stringValue)
+        self.__lineEdit.setText(stringValue)
 
 
 valueTypeMap = {
@@ -556,6 +574,9 @@ if __name__ == '__main__':
     widget.show()
 
     widget = StringEdit()
+    widget.show()
+
+    widget = PathEdit()
     widget.show()
 
     sys.exit(app.exec_())

@@ -129,7 +129,7 @@ public:
     /// Returns true if all clears were successful.
     bool ClearVariantSelection();
 
-    /// \brief Append a new variant to all set objects for this proxy
+    /// \brief Add a new variant to all set objects for this proxy
     bool AddVariant (const std::string &variantName);
 };
 

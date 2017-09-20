@@ -29,8 +29,8 @@ from __future__ import absolute_import
 import os
 import unittest
 
+from pxr.UsdQt._Qt import QtCore, QtWidgets, QtGui
 from pxr import Gf, Sdf, UsdQt
-from pxr.UsdQt._Qt import QtCore, QtWidgets
 
 
 def setUpModule():
@@ -131,7 +131,8 @@ class _Base:
 
         def testKeySequence(self):
             '''verify a series of keystrokes when the widget has focus'''
-            if not 'PXR_USDQT_SKIP_TEST_KEYS' in os.environ:
+            if 'PXR_USDQT_ALLOW_TEST_KEYS' in os.environ and \
+                    os.environ['PXR_USDQT_ALLOW_TEST_KEYS'] != '0':
                 from pixar.UsdQt._Qt import QtTest
                 for sequence in self.KeySequences:
                     widget = self.Widget()
@@ -157,10 +158,12 @@ class TestStringEdit(_Base.TestValueEdit):
 class TestPathEdit(_Base.TestValueEdit):
     Widget = UsdQt.valueWidgets.PathEdit
     SuccessValues = [Sdf.Path('/World'), Sdf.Path(),
-                     Sdf.Path('./Relative'), Sdf.Path('/World.property')]
+                     Sdf.Path('Relative'), Sdf.Path('/World.property')]
     KeySequences = {}
-    SuccessCastedValues = {'/World': Sdf.Path('/World'), '': Sdf.Path()}
-    ValueErrorValues = []
+    SuccessCastedValues = {'/World': Sdf.Path('/World'), '': Sdf.Path(),
+                           '/World/Child': Sdf.Path('/World/Child')}
+    # TODO: Consider implementing fixup to cleanup /World/Child/ 
+    ValueErrorValues = ['//World', '////', '/World..property', '/World/Child/']
     TypeErrorValues = []
 
 

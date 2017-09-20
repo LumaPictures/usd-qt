@@ -185,6 +185,9 @@ class OpinionController(QtCore.QObject):
     def ResetPrims(self, prims):
         self.model.ResetPrims(prims)
         self.editor.ResetColumnSpanned()
+        
+        # TODO: This is a hack that should be revisited
+        self.editor.view.expandToDepth(1)
 
 
 if __name__ == '__main__':

@@ -56,7 +56,7 @@ class LayerTextEditor(QtWidgets.QWidget):
     @QtCore.Slot(Usd.EditTarget)
     def OnEditTargetChanged(self, editTarget):
         """Slot for changing the layer whenever the edit target changes."""
-        self.__editTargetLayer = editTarget.GetLayer()
+        self.__layer = editTarget.GetLayer()
 
     @QtCore.Slot()
     def __OnRefreshButtonClicked(self):
