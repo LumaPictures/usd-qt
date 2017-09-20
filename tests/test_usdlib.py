@@ -62,10 +62,10 @@ def createVariants(prim, variants):
         if default:
             variantName = variantName[:-len('(default)')]
 
-        variantSet = prim.GetVariantSets().AppendVariantSet(setName)
+        variantSet = prim.GetVariantSets().AddVariantSet(setName)
 
         old = variantSet.GetVariantSelection()
-        variantSet.AppendVariant(variantName)
+        variantSet.AddVariant(variantName)
         variantSet.SetVariantSelection(variantName)
         with variantSet.GetVariantEditContext():
             createVariants(prim, rest)

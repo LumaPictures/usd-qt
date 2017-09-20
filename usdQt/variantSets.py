@@ -296,7 +296,7 @@ class VariantContextMenuBuilder(ContextMenuBuilder):
             with varlib.VariantContext(selectedItem.prim,
                                        selectedItem.parentVariants,
                                        setAsDefaults=True):
-                selectedItem.variantSet.AppendVariant(name)
+                selectedItem.variantSet.AddVariant(name)
         self.view.model().Reset()  # TODO: Reload only necessary part
 
     def _GetVariantSetName(self):
@@ -317,14 +317,14 @@ class VariantContextMenuBuilder(ContextMenuBuilder):
             with varlib.VariantContext(selectedItem.prim,
                                        selectedItem.variants,
                                        setAsDefaults=False):
-                selectedItem.prim.GetVariantSets().AppendVariantSet(name)
+                selectedItem.prim.GetVariantSets().AddVariantSet(name)
         self.view.model().Reset()  # TODO: Reload only necessary part
 
     def AddVariantSet(self):
         name = self._GetVariantSetName()
         if not name:
             return
-        self.view.model().prim.GetVariantSets().AppendVariantSet(name)
+        self.view.model().prim.GetVariantSets().AddVariantSet(name)
         self.view.model().Reset()  # TODO: Reload only necessary part
 
     @passSingleSelection

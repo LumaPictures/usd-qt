@@ -34,6 +34,13 @@ import pxr.Kind as Kind
 from typing import (Any, Dict, Iterable, Iterator, List, Optional, NamedTuple,
                     Tuple, Union)
 
+if not hasattr(Usd.References, 'AddReference'):
+    Usd.Relationship.AddTarget = Usd.Relationship.AppendTarget
+    Usd.VariantSet.AddVariant = Usd.VariantSet.AppendVariant
+    Usd.VariantSets.AddVariantSet = Usd.VariantSets.AppendVariantSet
+    Usd.References.AddReference = Usd.References.AppendReference
+
+
 PrimVariant = NamedTuple('PrimVariant',
                          [('setName', str),
                           ('variantName', str)])
@@ -101,7 +108,7 @@ def getPrimVariants(prim, includePath=False):
         if setName not in seen:
             setValue = prim.GetVariantSet(setName).GetVariantSelection()
             if includePath:
-                path = prim.GetPath().AppendVariantSelection(setName, setValue)
+                path = prim.GetPath().AddVariantSelection(setName, setValue)
                 results.append((path, PrimVariant(setName, setValue)))
             else:
                 results.append(PrimVariant(setName, setValue))
@@ -482,10 +489,10 @@ class VariantContext(object):
 
     def __enter__(self):
         for variantSetName, variantName in self.variantTuples:
-            variantSet = self.prim.GetVariantSets().AppendVariantSet(
+            variantSet = self.prim.GetVariantSets().AddVariantSet(
                 variantSetName)
             if variantName not in variantSet.GetVariantNames():
-                variantSet.AppendVariant(variantName)
+                variantSet.AddVariant(variantName)
 
             original = variantSet.GetVariantSelection()
             self.originalSelections.append((variantSet, original))
