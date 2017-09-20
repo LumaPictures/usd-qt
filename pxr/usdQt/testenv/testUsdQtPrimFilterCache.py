@@ -36,9 +36,9 @@ from collections import OrderedDict
 class TestSimplePrimFilterCache(unittest.TestCase):
 
     def setUp(self):
-        stagePath = 'testenv/testUsdQtPrimFilterCache/simpleFilter.usda'
-        stagePath = stagePath if os.path.isfile(
-            stagePath) else stagePath.split('/')[-1]
+        stagePath = 'simpleFilter.usda'
+        stagePath = stagePath if os.path.isfile(stagePath) else \
+            os.path.join(os.path.splitext(__file__)[0], stagePath)
 
         self.stage = Usd.Stage.Open(stagePath)
         self.cache = UsdQt.PrimFilterCache()

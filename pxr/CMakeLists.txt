@@ -5,3 +5,4 @@ install(
 )
 
 add_subdirectory(usdQt)
+add_subdirectory(usdQtEditors)

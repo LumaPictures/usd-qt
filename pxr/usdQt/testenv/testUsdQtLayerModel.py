@@ -31,9 +31,9 @@ import os.path
 from pxr import Usd, Sdf, UsdQt
 from pxr.UsdQt._Qt import QtCore
 
-stageFilePath = "testenv/testUsdQtLayerModel/simpleLayerStack.usda"
-stageFilePath = stageFilePath if os.path.isfile(
-    stageFilePath) else stageFilePath.split('/')[-1]
+stageFilePath = "simpleLayerStack.usda"
+stageFilePath = stageFilePath if os.path.isfile(stageFilePath) else \
+    os.path.join(os.path.splitext(__file__)[0], stageFilePath)
 
 
 class TestSimpleLayerModelBase(unittest.TestCase):

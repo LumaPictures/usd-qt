@@ -12,7 +12,8 @@ The components in usdview are good reference, but they’re purpose built for th
 ### Design Requirements
 - separate models and views
 - standardize signals/slots between widgets
-- support PyQt4/PyQt5/PySide/PySide2
+- support PySide2
+- optionally compatible with PyQt5/PyQt4/PySide
 
 ### Project Status
 

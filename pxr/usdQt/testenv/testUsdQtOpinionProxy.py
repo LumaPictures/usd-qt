@@ -38,9 +38,9 @@ class BaseClasses:
     class ProxyTest(unittest.TestCase):
 
         def setUp(self):
-            stagePath = 'testenv/testUsdQtOpinionProxy/simple.usda'
-            stagePath = stagePath if os.path.isfile(
-                stagePath) else stagePath.split('/')[-1]
+            stagePath = 'simple.usda'
+            stagePath = stagePath if os.path.isfile(stagePath) else \
+                os.path.join(os.path.splitext(__file__)[0], stagePath)
             self.stage = Usd.Stage.Open(stagePath)
 
 

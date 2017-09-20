@@ -42,9 +42,9 @@ class TestSimpleHierarchyDefault(unittest.TestCase):
     predicate = Usd.PrimDefaultPredicate
 
     def setUp(self):
-        stageFilePath = "testenv/testUsdQtHierarchyModel/simpleHierarchy.usda"
-        stageFilePath = stageFilePath if os.path.isfile(
-            stageFilePath) else stageFilePath.split('/')[-1]
+        stageFilePath = "simpleHierarchy.usda"
+        stageFilePath = stageFilePath if os.path.isfile(stageFilePath) else \
+            os.path.join(os.path.splitext(__file__)[0], stageFilePath)
         self.stage = Usd.Stage.Open(stageFilePath)
         self.stage.Reload()
         self.model = UsdQt.HierarchyStandardModel(
@@ -170,7 +170,6 @@ class TestSimpleHierarchyDefault(unittest.TestCase):
 
 class TestSimpleHierarchyAllLoaded(TestSimpleHierarchyDefault):
     predicate = Usd.PrimIsLoaded
-
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
