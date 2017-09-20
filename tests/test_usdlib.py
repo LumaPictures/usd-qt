@@ -89,7 +89,6 @@ def usdstage(tmpdir):
     tempfile = str(tmpdir.join('tmpstage.usd'))
     stage = Usd.Stage.CreateNew(tempfile)
     yield stage
-    stage.Close()
 
 
 def test_primVariants(usdstage):
