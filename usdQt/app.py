@@ -42,8 +42,8 @@ class AppMenuBarBuilder(MenuBarBuilder):
 
     def __init__(self, dlg):
         super(AppMenuBarBuilder, self).__init__(dlg)
-        self.editTargetOriginalContents = {self.GetId(dlg.editTarget):
-                                           dlg.editTarget.ExportToString()}
+        self.editTargetOriginalContents = \
+            {self.GetId(dlg.editTarget): self._GetDiskContents(dlg.editTarget)}
         dlg.editTargetChanged.connect(self.EditTargetChanged)
 
     def AddMenus(self):
@@ -62,21 +62,30 @@ class AppMenuBarBuilder(MenuBarBuilder):
         a = toolsMenu.addAction('Edit Variants')
         a.triggered.connect(self.dlg.ShowVariantEditor)
 
+    def _GetDiskContents(self, layer):
+        '''Fetch the usd layer's contents on disk.'''
+        # with USD Issue #253 solved, we can do a cheaper check of just
+        # comparing time stamps and getting contents only if needed.
+
+        currentContents = layer.ExportToString()
+        # fetch on disk contents for comparison
+        layer.Reload()
+        diskContents = layer.ExportToString()
+        # but then restore users edits
+        if diskContents != currentContents:
+            layer.ImportFromString(currentContents)
+        # reset stage to avoid any problems with references to stale prims
+        self.dlg.dataModel.ResetStage()
+        return diskContents
+
     def _CheckOriginalContents(self, editLayer):
         import difflib
 
-        editedContents = editLayer.ExportToString()
-        # fetch on disk contents for comparison
-        editLayer.Reload()
-        latestContents = editLayer.ExportToString()
-        # but then restore users edits
-        editLayer.ImportFromString(editedContents)
-        self.dlg.dataModel.ResetStage()
-
+        diskContents = self._GetDiskContents(editLayer)
         originalContents = self.GetOriginalContents(editLayer)
-        if originalContents != latestContents:
+        if originalContents != diskContents:
             diff = difflib.unified_diff(originalContents.split('\n'),
-                                        latestContents.split('\n'),
+                                        diskContents.split('\n'),
                                         fromfile="original",
                                         tofile="on disk",
                                         n=10)
