@@ -177,9 +177,9 @@ def test_primVariants2(usdstage):
     # ensure cleared selection will still get picked up
     prim.GetVariantSets().GetVariantSet('shaderVariant').ClearVariantSelection()
     prim.GetVariantSets().GetVariantSet('elem').ClearVariantSelection()
-    # prim.GetVariantSets().GetVariantSet('color').SetVariantSelection()
     assert prim.GetVariantSets().GetVariantSelection('elem') == ''
     assert prim.GetVariantSets().GetVariantSelection('shaderVariant') == ''
+
     primVariants = usdlib.variants.getPrimVariants(prim)
     assert primVariants == [
         PrimVariant(setName='elem', variantName=''),
@@ -187,5 +187,40 @@ def test_primVariants2(usdstage):
         # PrimVariant(setName='color', variantName=''),
         # PrimVariant(setName='version', variantName='A02'),
         PrimVariant(setName='shaderVariant', variantName=''),
+        # PrimVariant(setName='shader_version', variantName='A02')
+    ]
+
+# the following test, shows an edge case that is not working, and makes the
+# case for new api methods or rethinking how we are doing variant cache keys.
+# Api that would be needed:
+#   - UsdVariantSet.GetParentVariants() or UsdVariantSet.GetSpecPath()
+# OR Building a key with unordered variants would work to store defaults but
+# its a bit heavy handed, but foolproof.
+#   - Key of all elements set at the time that the variant was exposed
+#     ie: (elem-anim, color-red)
+# Perhaps the best option is to refactor our code to handle only getting keys
+# for set variants.
+@pytest.mark.skip
+def test_primVariants3(usdstage):
+    createPrims(usdstage, BASIC_PRIM_WITH_PARALLEL_VARIANTS)
+    prim = usdstage.GetPrimAtPath(
+        BASIC_PRIM_WITH_PARALLEL_VARIANTS.keys()[0])
+    # ensure cleared selection on nested variants will still get picked up
+    prim.GetVariantSets().GetVariantSet('shaderVariant').ClearVariantSelection()
+    prim.GetVariantSets().GetVariantSet('elem').SetVariantSelection('anim')
+    with usdlib.variants.VariantContext(prim, [('elem', ('anim'))]):
+        prim.GetVariantSets().GetVariantSet('color').ClearVariantSelection()
+        assert prim.GetVariantSets().GetVariantSelection('color') == ''
+
+    assert prim.GetVariantSets().GetVariantSelection('elem') == 'anim'
+    assert prim.GetVariantSets().GetVariantSelection('color') == ''
+    assert prim.GetVariantSets().GetVariantSelection('shaderVariant') == ''
+
+    assert usdlib.variants.getPrimVariantsWithKey(prim) == [
+        ('elem', PrimVariant(setName='elem', variantName='anim')),
+        ('{elem=anim}color', PrimVariant(setName='color', variantName='')),
+        # wont get this one as its nested under
+        # PrimVariant(setName='version', variantName='A02'),
+        ('shaderVariant', PrimVariant(setName='shaderVariant', variantName='')),
         # PrimVariant(setName='shader_version', variantName='A02')
     ]

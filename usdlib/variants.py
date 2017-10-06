@@ -61,8 +61,7 @@ def iterPrimIndexVariantNodes(prim):
     Iterator[Pcp.NodeRef]
     '''
     # Note: The prim index will not include variants that have no selection.
-    # consider switching to the new ComputeExpandedPrimIndex() when available
-    # index = prim.ComputeExpandedPrimIndex()
+    # ComputeExpandedPrimIndex() has the same problem
     index = prim.GetPrimIndex()
     stack = deque(index.rootNode.children)
     while stack:
@@ -93,13 +92,13 @@ def getPrimVariantsWithPaths(prim):
     # under different variant hierarchies. These are possible, but aren't
     # practical as the selection on the composed stage is the same.
     paths = []
-    setNames = set()
+    setNames = set(prim.GetVariantSets().GetNames())
     for node in iterPrimIndexVariantNodes(prim):
         setName = node.path.GetVariantSelection()[0]
-        if setName in setNames:
+        if setName not in setNames:
             continue
+        setNames.remove(setName)
         paths.append(node.path)
-        setNames.add(setName)
 
     # If a variant is not selected, it won't be included in the prim index. So
     # we need a way to get those variants. ComputeExpandedPrimIndex() seems
@@ -107,24 +106,24 @@ def getPrimVariantsWithPaths(prim):
     # variant names. The problem is they are not ordered (by hierarchy)...
     # Variants with no selection hide subsequent variants so missing ones are
     # usually top level variants.
-    for setName in prim.GetVariantSets().GetNames():
+    for setName in setNames:
         setValue = prim.GetVariantSet(setName).GetVariantSelection()
         path = prim.GetPath().AppendVariantSelection(setName, setValue)
-        if setName in setNames:
-            continue
-        # fixme: this check doesnt work because even valid ones arent found.
-        # Use Expanded index instead.
+        # fixme: this check doesnt work because even valid top ones aren't found.
         # # check that the variant is in fact a valid top level variant
         # if not prim.GetStage().GetPrimAtPath(path):
         #     continue
         paths.append(path)
-        setNames.add(setName)
 
     results = []
     # an alpha sort of the variant selection portion of the path organizes the
     # variants nicely alphabetically and depth first
+    # for path in paths:
+    variantSets = prim.GetVariantSets()
     for path in sorted(paths, key=lambda x: str(x)[str(x).index('{'):]):
-        variant = PrimVariant(*path.GetVariantSelection())
+        setName, variantName = path.GetVariantSelection()
+        variantName = variantSets.GetVariantSelection(setName)
+        variant = PrimVariant(setName, variantName)
         results.append((path, variant))
 
     return results
