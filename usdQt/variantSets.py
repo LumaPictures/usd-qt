@@ -24,23 +24,26 @@ from usdQt.common import NULL_INDEX, ContextMenuBuilder, ContextMenuMixin,\
 import usdlib.variants as varlib
 
 
-class VariantItem(TreeItem):
-    def __init__(self, variantSet, path, parentVariants, primVariant):
+class VariantItem(treemodel.itemtree.TreeItem):
+
+    def __init__(self, prim, variantSet, path):
         '''
         Parameters
         ----------
         variantSet : Usd.VariantSet
         path : Sdf.Path
-        parentVariants : List[varlib.PrimVariant]
-        primVariant : varlib.PrimVariant
         '''
-        super(VariantItem, self).__init__(
-            key=varlib.variantSelectionKey(parentVariants + [primVariant]))
-        self.variantSet = variantSet
-        self.prim = variantSet.GetPrim()
+        self.prim = prim
         self.path = path
-        self.variant = primVariant
-        self.parentVariants = parentVariants
+        self.variantSet = variantSet
+        super(VariantItem, self).__init__(key=varlib.variantSetKey(path))
+        self.variant = PrimVariant(*path.GetVariantSelection())
+        self.parentVariants = []
+        parentPath = path.GetParentPath()
+        while parentPath.ContainsPrimVariantSelection():
+            parentVariant = PrimVariant(*parentPath.GetVariantSelection())
+            self.parentVariants.insert(0, parentVariant)
+            parentPath = parentPath.GetParentPath()
 
     @property
     def selected(self):
@@ -50,7 +53,7 @@ class VariantItem(TreeItem):
         bool
         '''
         return self.variantSet.GetVariantSelection() == \
-               self.variant.variantName
+           self.variant.variantName
 
     @property
     def variants(self):
@@ -71,6 +74,23 @@ class VariantItem(TreeItem):
         return '{}={}'.format(*self.variant)
 
 
+# TODO:
+def getPrimVariantTree(tree, prim):
+    for path, variant in getPrimVariantsWithPaths(prim):
+        # all nodes returned will have at least one variant selection
+        parentPath = path.GetParentPath()
+        parent = None
+        if parentPath.ContainsPrimVariantSelection():
+            parent = tree.itemByKey(str(parentPath))
+        tree.addItems(VariantItem(path), parent=parent)
+
+    import pprint
+
+    pprint.pprint(tree._parentToChildren)
+    return tree
+
+
+# FIXME:
 class LazyVariantTree(LazyItemTree):
 
     def __init__(self, prim):
@@ -93,8 +113,7 @@ class LazyVariantTree(LazyItemTree):
 
         # set variants temporarily so that underlying variants can be inspected.
         with varlib.SessionVariantContext(self.prim, parentVariants):
-            for path, primVariant in varlib.getPrimVariants(self.prim,
-                                                            includePath=True):
+            for path, primVariant in varlib.getPrimVariantsWithPaths(self.prim):
                 if primVariant in parentVariants:
                     continue
                 variantSet = self.prim.GetVariantSet(primVariant.setName)

@@ -26,6 +26,7 @@ from pxr import Usd
 
 import pytest
 import usdlib.variants
+from usdlib.variants import PrimVariant
 
 BASIC_PRIM_WITH_VARIANTS = {
     '/path/to/test/prim': {
@@ -84,7 +85,7 @@ def createPrims(stage, variants):
     stage.GetRootLayer().Save()
 
 
-@pytest.fixture
+@pytest.fixture(scope='function')
 def usdstage(tmpdir):
     tempfile = str(tmpdir.join('tmpstage.usd'))
     stage = Usd.Stage.CreateNew(tempfile)
@@ -96,19 +97,95 @@ def test_primVariants(usdstage):
     prim = usdstage.GetPrimAtPath(BASIC_PRIM_WITH_VARIANTS.keys()[0])
     primVariants = usdlib.variants.getPrimVariants(prim)
     assert primVariants == [
-        usdlib.variants.PrimVariant(setName='elem', variantName='anim'),
-        usdlib.variants.PrimVariant(setName='color', variantName='blue'),
-        usdlib.variants.PrimVariant(setName='version', variantName='A02')
+        PrimVariant(setName='elem', variantName='anim'),
+        PrimVariant(setName='color', variantName='blue'),
+        PrimVariant(setName='version', variantName='A02')
     ]
-    assert list(usdlib.variants.iterVariantSetKeys(primVariants)) == [
-        'elem', '{elem=anim}color', '{elem=anim}{color=blue}version']
-    assert usdlib.variants.variantsByKey(primVariants) == [
-        ('elem', 'anim'),
-        ('{elem=anim}color', 'blue'),
-        ('{elem=anim}{color=blue}version', 'A02')
+    assert usdlib.variants.getPrimVariantsWithKey(prim) == [
+        ('elem', PrimVariant(setName='elem', variantName='anim')),
+        ('{elem=anim}color', PrimVariant(setName='color', variantName='blue')),
+        ('{elem=anim}{color=blue}version', PrimVariant(setName='version', variantName='A02'))
     ]
     assert usdlib.variants.applySelection(primVariants, {'color': 'red'}) == [
-        usdlib.variants.PrimVariant(setName='elem', variantName='anim'),
-        usdlib.variants.PrimVariant(setName='color', variantName='red'),
-        usdlib.variants.PrimVariant(setName='version', variantName='A02')
+        PrimVariant(setName='elem', variantName='anim'),
+        PrimVariant(setName='color', variantName='red'),
+        PrimVariant(setName='version', variantName='A02')
+    ]
+
+
+BASIC_PRIM_WITH_PARALLEL_VARIANTS = {
+    '/path/to/test/prim': {
+        'elem=anim(default)': {
+            'color=blue(default)': {
+                'version=A01': {},
+                'version=A02(default)': {},
+                'version=A03': {}
+            },
+            'color=red': {
+                'version=A01': {},
+                'version=A02(default)': {},
+                'version=A03': {}
+            }
+        },
+        'elem=rigg': {
+            'size=big(default)': {
+                'animal=dinosaur': {}
+            },
+            'size=small': {
+                'animal=dinosaur': {}
+            }
+        },
+        'shaderVariant=battleReady': {
+            'shader_version=A01': {},
+            'shader_version=A02(default)': {},
+            'shader_version=A03': {}
+        },
+        'shaderVariant=battleTested(default)': {
+            'shader_version=A01': {},
+            'shader_version=A02(default)': {},
+            'shader_version=A03': {}
+        }
+    }
+}
+
+
+def test_primVariants2(usdstage):
+    createPrims(usdstage, BASIC_PRIM_WITH_PARALLEL_VARIANTS)
+    prim = usdstage.GetPrimAtPath(BASIC_PRIM_WITH_PARALLEL_VARIANTS.keys()[0])
+    primVariants = usdlib.variants.getPrimVariants(prim)
+    assert primVariants == [
+        PrimVariant(setName='elem', variantName='anim'),
+        PrimVariant(setName='color', variantName='blue'),
+        PrimVariant(setName='version', variantName='A02'),
+        PrimVariant(setName='shaderVariant', variantName='battleTested'),
+        PrimVariant(setName='shader_version', variantName='A02'),
+    ]
+    assert usdlib.variants.getPrimVariantsWithKey(prim) == [
+        ('elem', PrimVariant(setName='elem', variantName='anim')),
+        ('{elem=anim}color', PrimVariant(setName='color', variantName='blue')),
+        ('{elem=anim}{color=blue}version', PrimVariant(setName='version', variantName='A02')),
+        ('shaderVariant', PrimVariant(setName='shaderVariant', variantName='battleTested')),
+        ('{shaderVariant=battleTested}shader_version', PrimVariant(setName='shader_version', variantName='A02')),
+    ]
+    assert usdlib.variants.applySelection(primVariants, {'color': 'red'}) == [
+        PrimVariant(setName='elem', variantName='anim'),
+        PrimVariant(setName='color', variantName='red'),
+        PrimVariant(setName='version', variantName='A02'),
+        PrimVariant(setName='shaderVariant', variantName='battleTested'),
+        PrimVariant(setName='shader_version', variantName='A02')
+    ]
+    # ensure cleared selection will still get picked up
+    prim.GetVariantSets().GetVariantSet('shaderVariant').ClearVariantSelection()
+    prim.GetVariantSets().GetVariantSet('elem').ClearVariantSelection()
+    # prim.GetVariantSets().GetVariantSet('color').SetVariantSelection()
+    assert prim.GetVariantSets().GetVariantSelection('elem') == ''
+    assert prim.GetVariantSets().GetVariantSelection('shaderVariant') == ''
+    primVariants = usdlib.variants.getPrimVariants(prim)
+    assert primVariants == [
+        PrimVariant(setName='elem', variantName=''),
+        # wont get this one as its nested under
+        # PrimVariant(setName='color', variantName=''),
+        # PrimVariant(setName='version', variantName='A02'),
+        PrimVariant(setName='shaderVariant', variantName=''),
+        # PrimVariant(setName='shader_version', variantName='A02')
     ]
