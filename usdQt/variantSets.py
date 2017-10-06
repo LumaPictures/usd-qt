@@ -24,7 +24,7 @@ from usdQt.common import NULL_INDEX, ContextMenuBuilder, ContextMenuMixin,\
 import usdlib.variants as varlib
 
 
-class VariantItem(treemodel.itemtree.TreeItem):
+class VariantItem(TreeItem):
 
     def __init__(self, prim, variantSet, path):
         '''
@@ -36,8 +36,10 @@ class VariantItem(treemodel.itemtree.TreeItem):
         self.prim = prim
         self.path = path
         self.variantSet = variantSet
-        super(VariantItem, self).__init__(key=varlib.variantSetKey(path))
-        self.variant = PrimVariant(*path.GetVariantSelection())
+        print self.path, varlib.variantSetKey(path)
+        self.variant = varlib.PrimVariant(*path.GetVariantSelection())
+        super(VariantItem, self).__init__(key=(varlib.variantSetKey(path),
+                                               self.variant.variantName))
         self.parentVariants = []
         parentPath = path.GetParentPath()
         while parentPath.ContainsPrimVariantSelection():
@@ -110,7 +112,7 @@ class LazyVariantTree(LazyItemTree):
                 # clear selections will have no child variants
                 return []
             parentVariants = parent.parentVariants + [parent.variant]
-
+        print parentVariants
         # set variants temporarily so that underlying variants can be inspected.
         with varlib.SessionVariantContext(self.prim, parentVariants):
             for path, primVariant in varlib.getPrimVariantsWithPaths(self.prim):
@@ -127,12 +129,9 @@ class LazyVariantTree(LazyItemTree):
                     variantPath = parentPath.AppendVariantSelection(
                         primVariant.setName,
                         variantName)
-                    variantName = varlib.PrimVariant(primVariant.setName,
-                                                    variantName)
-                    altVariantItem = VariantItem(variantSet,
-                                                 variantPath,
-                                                 parentVariants,
-                                                 variantName)
+                    altVariantItem = VariantItem(self.prim,
+                                                 variantSet,
+                                                 variantPath)
                     variantItems.append(altVariantItem)
                 # break loop because next iteration is the children's children
                 return variantItems
