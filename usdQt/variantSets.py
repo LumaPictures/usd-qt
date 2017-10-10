@@ -26,26 +26,23 @@ import usdlib.variants as varlib
 
 class VariantItem(TreeItem):
 
-    def __init__(self, prim, variantSet, path):
+    def __init__(self, prim, parentVariants, variantSet, path, varSetKey):
         '''
         Parameters
         ----------
+        prim : Usd.Prim
+        parentVariants : List[varlib.PrimVariant]
         variantSet : Usd.VariantSet
         path : Sdf.Path
+        varSetKey : str
         '''
         self.prim = prim
         self.path = path
         self.variantSet = variantSet
-        print self.path, varlib.variantSetKey(path)
         self.variant = varlib.PrimVariant(*path.GetVariantSelection())
-        super(VariantItem, self).__init__(key=(varlib.variantSetKey(path),
-                                               self.variant.variantName))
-        self.parentVariants = []
-        parentPath = path.GetParentPath()
-        while parentPath.ContainsPrimVariantSelection():
-            parentVariant = PrimVariant(*parentPath.GetVariantSelection())
-            self.parentVariants.insert(0, parentVariant)
-            parentPath = parentPath.GetParentPath()
+        key = '_'.join((varSetKey, self.variant.variantName))
+        super(VariantItem, self).__init__(key=key)
+        self.parentVariants = parentVariants
 
     @property
     def selected(self):
@@ -76,23 +73,6 @@ class VariantItem(TreeItem):
         return '{}={}'.format(*self.variant)
 
 
-# TODO:
-def getPrimVariantTree(tree, prim):
-    for path, variant in getPrimVariantsWithPaths(prim):
-        # all nodes returned will have at least one variant selection
-        parentPath = path.GetParentPath()
-        parent = None
-        if parentPath.ContainsPrimVariantSelection():
-            parent = tree.itemByKey(str(parentPath))
-        tree.addItems(VariantItem(path), parent=parent)
-
-    import pprint
-
-    pprint.pprint(tree._parentToChildren)
-    return tree
-
-
-# FIXME:
 class LazyVariantTree(LazyItemTree):
 
     def __init__(self, prim):
@@ -112,30 +92,37 @@ class LazyVariantTree(LazyItemTree):
                 # clear selections will have no child variants
                 return []
             parentVariants = parent.parentVariants + [parent.variant]
-        print parentVariants
+
+        parentKey = varlib.variantSelectionKey(parentVariants)
+        level = len(parentVariants)
         # set variants temporarily so that underlying variants can be inspected.
         with varlib.SessionVariantContext(self.prim, parentVariants):
-            for path, primVariant in varlib.getPrimVariantsWithPaths(self.prim):
-                if primVariant in parentVariants:
-                    continue
+            variantItems = []
+            variantSets = set()
+            for path, key, primVariant in varlib.getPrimVariantsWithPaths(self.prim):
+                if parentKey not in key:
+                    continue  # different branch
+                if key.count('{') != level:
+                    continue  # ancestor or grandchild
+
                 variantSet = self.prim.GetVariantSet(primVariant.setName)
-
-                variantItems = []
-                names = variantSet.GetVariantNames()
-                names.append('')
-
-                parentPath = path.GetParentPath()
-                for variantName in names:
-                    variantPath = parentPath.AppendVariantSelection(
-                        primVariant.setName,
-                        variantName)
-                    altVariantItem = VariantItem(self.prim,
-                                                 variantSet,
-                                                 variantPath)
-                    variantItems.append(altVariantItem)
-                # break loop because next iteration is the children's children
-                return variantItems
-        return []
+                if variantSet not in variantSets:
+                    variantSets.add(variantSet)
+                    # add all variants for variant set from parent, because only
+                    # the selected ones are included in getPrimVariants
+                    parentPath = path.GetParentPath()
+                    # for each variant set add a blank '' for clearing selection
+                    for name in variantSet.GetVariantNames() + ['']:
+                        variantPath = parentPath.AppendVariantSelection(
+                            primVariant.setName,
+                            name)
+                        item = VariantItem(self.prim,
+                                           parentVariants,
+                                           variantSet,
+                                           variantPath,
+                                           key)
+                        variantItems.append(item)
+            return variantItems
 
 
 class VariantModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
@@ -289,8 +276,8 @@ class VariantContextMenuBuilder(ContextMenuBuilder):
             a = menu.addAction('Add Top Level Variant Set')
             a.triggered.connect(self.AddVariantSet)
 
-            # TODO: may not be api for these actions, you can always remove the
-            # prim spec and rebuild.
+            # TODO: api for these actions may not exist, but you could remove
+            # the prim spec entirely and rebuild.
             # if isinstance(selection, VariantItem):
             #     layer = self.view.model().Layer()
             #     if layer.GetPrimAtPath(selection.path):

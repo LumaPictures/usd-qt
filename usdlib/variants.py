@@ -63,7 +63,8 @@ def iterPrimIndexVariantNodes(prim):
     def walkVariants(currentNode, parentVariants):
         if currentNode.arcType == Pcp.ArcTypeVariant \
                 and not currentNode.IsDueToAncestor():
-            parentVariants.append(PrimVariant(*currentNode.path.GetVariantSelection()))
+            currentVariant = PrimVariant(*currentNode.path.GetVariantSelection())
+            parentVariants.append(currentVariant)
             yield currentNode, parentVariants
 
         for childNode in currentNode.children:
@@ -99,16 +100,15 @@ def getPrimVariantsWithPaths(prim):
     # practical as the selection on the composed stage is the same.
     results = []
     setNames = prim.GetVariantSets().GetNames()
-    print setNames
     for node, parentVariants in iterPrimIndexVariantNodes(prim):
-        variant = PrimVariant(*node.path.GetVariantSelection())
+        variantSetName, variantName = node.path.GetVariantSelection()
+        variant = PrimVariant(variantSetName, variantName)
         key = variantSetKey(parentVariants + [variant])
         if variant.setName not in setNames:
             continue
         setNames.remove(variant.setName)
         results.append((node.path, key, variant))
 
-    print setNames
     # If a variant is not selected, it won't be included in the prim index. So
     # we need a way to get those variants. ComputeExpandedPrimIndex() seems
     # unstable and slow so far. Using the main api methods we can easily get

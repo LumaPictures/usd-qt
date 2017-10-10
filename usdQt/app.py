@@ -290,6 +290,7 @@ class UsdOutliner(QtWidgets.QDialog):
         self.variantEditorDlg.show()
         self.variantEditorDlg.raise_()
         self.variantEditorDlg.activateWindow()
+        self.dataModel.ResetStage()
 
     @classmethod
     def FromUsdFile(cls, usdFile, parent=None):
