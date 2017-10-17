@@ -522,7 +522,7 @@ class VariantContext(object):
      - set multiple variants for a hierarchical variant sets
      - optionally, restore selections after editing variant
     '''
-    def __init__(self, prim, variantTuples, setAsDefaults=True):
+    def __init__(self, prim, variantTuples, select=True):
         '''
         Create variant sets and variants that don't exist and get the
         variant contexts.
@@ -533,24 +533,24 @@ class VariantContext(object):
         variantTuples: Iterable[Tuple[str, str]]
             iterable of tuples mapping variantSetName to variantName that can
             represent a hierarchy of nested variants.
-        setAsDefaults : bool
-            Set the variants in variantTuples as the default variant
-            in the editContext layer
+        select : Union[bool, callable]
+            If True, select the variants in variantTuples as the default variant
+            in the edit layer.
+            If False, keep them the same as they are currently and author no
+            selection on new variants.
+            If a callable, and if adding a variant other than the current one
+            call function with: 
+                (variantSetName, oldValue, newValue) 
+            and set the value to the result.
         '''
         self.contexts = []
-        self.setAsDefaults = setAsDefaults
+        self.select = select
         self.originalSelections = []
         self.prim = prim
         self.variantTuples = variantTuples
 
         self.stage = self.prim.GetStage()
         self.sessionLayer = self.stage.GetSessionLayer()
-        self.spec = self.stage.GetEditTarget().GetLayer().GetPrimAtPath(
-            prim.GetPath())
-        if not self.spec:
-            self.spec = Sdf.CreatePrimInLayer(
-                self.stage.GetEditTarget().GetLayer(),
-                prim.GetPrimPath())
 
     def __enter__(self):
         for variantSetName, variantName in self.variantTuples:
@@ -569,8 +569,12 @@ class VariantContext(object):
                 assert status is True, 'variant selection failed'
                 assert variantSet.GetVariantSelection() == variantName
 
-            if self.setAsDefaults:
-                self.spec.variantSelections.update({variantSetName: variantName})
+            if self.select and original != variantName:
+                default = variantName
+                if callable(self.select):
+                    default = self.select(variantSetName, original, variantName)
+                if default:
+                    variantSet.SetVariantSelection(default)
 
             context = variantSet.GetVariantEditContext()
             context.__enter__()

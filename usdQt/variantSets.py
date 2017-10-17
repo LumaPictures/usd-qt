@@ -300,7 +300,7 @@ class VariantContextMenuBuilder(ContextMenuBuilder):
             # want to add new variant inside of parents variant context.
             with varlib.VariantContext(selectedItem.prim,
                                        selectedItem.parentVariants,
-                                       setAsDefaults=True):
+                                       select=True):
                 selectedItem.variantSet.AddVariant(name)
         self.view.model().Reset()  # TODO: Reload only necessary part
 
@@ -321,7 +321,7 @@ class VariantContextMenuBuilder(ContextMenuBuilder):
             # want to add new variant set inside of parents variant context.
             with varlib.VariantContext(selectedItem.prim,
                                        selectedItem.variants,
-                                       setAsDefaults=False):
+                                       select=False):
                 selectedItem.prim.GetVariantSets().AddVariantSet(name)
         self.view.model().Reset()  # TODO: Reload only necessary part
 
@@ -353,7 +353,7 @@ class VariantContextMenuBuilder(ContextMenuBuilder):
             return
         with varlib.VariantContext(item.prim,
                                    item.variants,
-                                   setAsDefaults=False):
+                                   select=False):
             item.prim.GetReferences().SetReferences([Sdf.Reference(path)])
 
 

@@ -390,7 +390,7 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
             refPrim = editTargetStage.GetPrimAtPath(refPrim.GetPath())
 
         with usdlib.variants.VariantContext(refPrim, variantTuples,
-                                            setAsDefaults=True):
+                                            select=True):
             success = refPrim.GetReferences().SetReferences(
                 [Sdf.Reference(refPath)])
 
