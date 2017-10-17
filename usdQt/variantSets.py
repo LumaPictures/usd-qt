@@ -25,21 +25,23 @@ import usdlib.variants as varlib
 
 
 class VariantItem(TreeItem):
-    def __init__(self, variantSet, path, parentVariants, primVariant):
+
+    def __init__(self, prim, parentVariants, variantSet, path, varSetKey):
         '''
         Parameters
         ----------
+        prim : Usd.Prim
+        parentVariants : List[varlib.PrimVariant]
         variantSet : Usd.VariantSet
         path : Sdf.Path
-        parentVariants : List[varlib.PrimVariant]
-        primVariant : varlib.PrimVariant
+        varSetKey : str
         '''
-        super(VariantItem, self).__init__(
-            key=varlib.variantSelectionKey(parentVariants + [primVariant]))
-        self.variantSet = variantSet
-        self.prim = variantSet.GetPrim()
+        self.prim = prim
         self.path = path
-        self.variant = primVariant
+        self.variantSet = variantSet
+        self.variant = varlib.PrimVariant(*path.GetVariantSelection())
+        key = '_'.join((varSetKey, self.variant.variantName))
+        super(VariantItem, self).__init__(key=key)
         self.parentVariants = parentVariants
 
     @property
@@ -50,7 +52,7 @@ class VariantItem(TreeItem):
         bool
         '''
         return self.variantSet.GetVariantSelection() == \
-               self.variant.variantName
+           self.variant.variantName
 
     @property
     def variants(self):
@@ -91,33 +93,36 @@ class LazyVariantTree(LazyItemTree):
                 return []
             parentVariants = parent.parentVariants + [parent.variant]
 
+        parentKey = varlib.variantSelectionKey(parentVariants)
+        level = len(parentVariants)
         # set variants temporarily so that underlying variants can be inspected.
         with varlib.SessionVariantContext(self.prim, parentVariants):
-            for path, primVariant in varlib.getPrimVariants(self.prim,
-                                                            includePath=True):
-                if primVariant in parentVariants:
-                    continue
+            variantItems = []
+            variantSets = set()
+            for path, key, primVariant in varlib.getPrimVariantsWithPaths(self.prim):
+                if parentKey not in key:
+                    continue  # different branch
+                if key.count('{') != level:
+                    continue  # ancestor or grandchild
+
                 variantSet = self.prim.GetVariantSet(primVariant.setName)
-
-                variantItems = []
-                names = variantSet.GetVariantNames()
-                names.append('')
-
-                parentPath = path.GetParentPath()
-                for variantName in names:
-                    variantPath = parentPath.AppendVariantSelection(
-                        primVariant.setName,
-                        variantName)
-                    variantName = varlib.PrimVariant(primVariant.setName,
-                                                    variantName)
-                    altVariantItem = VariantItem(variantSet,
-                                                 variantPath,
-                                                 parentVariants,
-                                                 variantName)
-                    variantItems.append(altVariantItem)
-                # break loop because next iteration is the children's children
-                return variantItems
-        return []
+                if variantSet not in variantSets:
+                    variantSets.add(variantSet)
+                    # add all variants for variant set from parent, because only
+                    # the selected ones are included in getPrimVariants
+                    parentPath = path.GetParentPath()
+                    # for each variant set add a blank '' for clearing selection
+                    for name in variantSet.GetVariantNames() + ['']:
+                        variantPath = parentPath.AppendVariantSelection(
+                            primVariant.setName,
+                            name)
+                        item = VariantItem(self.prim,
+                                           parentVariants,
+                                           variantSet,
+                                           variantPath,
+                                           key)
+                        variantItems.append(item)
+            return variantItems
 
 
 class VariantModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
@@ -271,8 +276,8 @@ class VariantContextMenuBuilder(ContextMenuBuilder):
             a = menu.addAction('Add Top Level Variant Set')
             a.triggered.connect(self.AddVariantSet)
 
-            # TODO: may not be api for these actions, you can always remove the
-            # prim spec and rebuild.
+            # TODO: api for these actions may not exist, but you could remove
+            # the prim spec entirely and rebuild.
             # if isinstance(selection, VariantItem):
             #     layer = self.view.model().Layer()
             #     if layer.GetPrimAtPath(selection.path):
@@ -295,7 +300,7 @@ class VariantContextMenuBuilder(ContextMenuBuilder):
             # want to add new variant inside of parents variant context.
             with varlib.VariantContext(selectedItem.prim,
                                        selectedItem.parentVariants,
-                                       setAsDefaults=True):
+                                       select=True):
                 selectedItem.variantSet.AddVariant(name)
         self.view.model().Reset()  # TODO: Reload only necessary part
 
@@ -316,7 +321,7 @@ class VariantContextMenuBuilder(ContextMenuBuilder):
             # want to add new variant set inside of parents variant context.
             with varlib.VariantContext(selectedItem.prim,
                                        selectedItem.variants,
-                                       setAsDefaults=False):
+                                       select=False):
                 selectedItem.prim.GetVariantSets().AddVariantSet(name)
         self.view.model().Reset()  # TODO: Reload only necessary part
 
@@ -348,7 +353,7 @@ class VariantContextMenuBuilder(ContextMenuBuilder):
             return
         with varlib.VariantContext(item.prim,
                                    item.variants,
-                                   setAsDefaults=False):
+                                   select=False):
             item.prim.GetReferences().SetReferences([Sdf.Reference(path)])
 
 

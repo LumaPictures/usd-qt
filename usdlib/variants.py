@@ -31,6 +31,8 @@ import pxr.Usd as Usd
 import pxr.Pcp as Pcp
 import pxr.Kind as Kind
 
+import treemodel.itemtree
+
 from typing import (Any, Dict, Iterable, Iterator, List, Optional, NamedTuple,
                     Tuple, Union)
 
@@ -56,21 +58,114 @@ def iterPrimIndexVariantNodes(prim):
 
     Returns
     -------
-    Iterator[Pcp.NodeRef]
+    Iterator[Pcp.NodeRef, List[PrimVariants]]
     '''
+    def walkVariants(currentNode, parentVariants):
+        if currentNode.arcType == Pcp.ArcTypeVariant \
+                and not currentNode.IsDueToAncestor():
+            currentVariant = PrimVariant(*currentNode.path.GetVariantSelection())
+            parentVariants.append(currentVariant)
+            yield currentNode, parentVariants
+
+        for childNode in currentNode.children:
+            for x in walkVariants(childNode, list(parentVariants)):
+                yield x
+
     # Note: The prim index will not include variants that have no selection.
-    # consider switching to the new ComputeExpandedPrimIndex() when available
+    # ComputeExpandedPrimIndex() has the same problem
     index = prim.GetPrimIndex()
-    stack = deque(index.rootNode.children)
-    while stack:
-        child = stack.popleft()
-        if child.arcType == Pcp.ArcTypeVariant \
-                and not child.IsDueToAncestor():
-            yield child
-        stack.extend(child.children)
+    for node, parentVariantNodes in walkVariants(index.rootNode, []):
+        # yield node, variantSelectionKey(parentVariantNodes)
+        yield node, parentVariantNodes
 
 
-def getPrimVariants(prim, includePath=False):
+def getPrimVariantsWithPaths(prim):
+    '''
+    Returns a list of tuples representing a prim's variant set names and active
+    values.
+    
+    "Sorted" depth first by variant opinion "strength" in the prim's index.
+
+    Parameters
+    ----------
+    prim : Usd.Prim
+
+    Returns
+    -------
+    List[Tuple[Sdf.Path, PrimVariant]]
+        (setName, variantName) pairs and child lists
+    '''
+    # fixme: might need a strategy for duplicate variant sets that are found
+    # under different variant hierarchies. These are possible, but aren't
+    # practical as the selection on the composed stage is the same.
+    results = []
+    setNames = prim.GetVariantSets().GetNames()
+    for node, parentVariants in iterPrimIndexVariantNodes(prim):
+        variantSetName, variantName = node.path.GetVariantSelection()
+        variant = PrimVariant(variantSetName, variantName)
+        key = variantSetKey(parentVariants + [variant])
+        if variant.setName not in setNames:
+            continue
+        setNames.remove(variant.setName)
+        results.append((node.path, key, variant))
+
+    # If a variant is not selected, it won't be included in the prim index. So
+    # we need a way to get those variants. ComputeExpandedPrimIndex() seems
+    # unstable and slow so far. Using the main api methods we can easily get
+    # variant names. The problem is they are not ordered (by hierarchy)...
+    # Variants with no selection hide subsequent variants so missing ones are
+    # usually top level variants.
+    for setName in setNames:
+        setValue = prim.GetVariantSet(setName).GetVariantSelection()
+        path = prim.GetPath().AppendVariantSelection(setName, setValue)
+        variant = PrimVariant(setName, setValue)
+        # fixme: this check doesnt work because even valid top ones aren't found.
+        # # check that the variant is in fact a valid top level variant
+        # if not prim.GetStage().GetPrimAtPath(path):
+        #     continue
+        results.append((path, variantSetKey([variant]), variant))
+
+    return results
+
+
+def getPrimVariants(prim):
+    '''
+    Returns a list of tuples representing a prim's variant set names and active
+    values.  
+
+    Parameters
+    ----------
+    prim : Usd.Prim
+
+    Returns
+    -------
+    List[Union[PrimVariant, List]]
+        (setName, variantName) pairs and child lists
+    '''
+    return [variant for path, key, variant in getPrimVariantsWithPaths(prim)]
+
+
+# def getStrengthSortedPrimVariants(prim):
+#     '''
+#     Returns a list of tuples representing a prim's variant set names and active
+#     values.
+#
+#     Sorted by variant opinion "strength" in the prim's index. (Note that some
+#     opinions have equal strength and will be sequential)
+#
+#     Parameters
+#     ----------
+#     prim : Usd.Prim
+#
+#     Returns
+#     -------
+#     List[Tuple[Sdf.Path, PrimVariant]]
+#     '''
+#     return sorted(getPrimVariantsWithPaths(prim),
+#                   key=lambda x: (str(x).count('{'), str(x)))
+
+
+def getPrimVariantsWithKey(prim):
     '''
     Returns a list of tuples representing a prim's variant set names and active
     values, sorted by their opinion "strength" in the prim's index.
@@ -78,42 +173,14 @@ def getPrimVariants(prim, includePath=False):
     Parameters
     ----------
     prim : Usd.Prim
-    includePath : bool
 
     Returns
     -------
-    List[PrimVariant]
-        (setName, variantName) pairs
+    List[Tuple[(str, PrimVariant)]]
+        (cacheKey, PrimVariant) pairs and child lists
     '''
-    results = []
-    seen = set()
-    for node in iterPrimIndexVariantNodes(prim):
-        setName, setValue = node.path.GetVariantSelection()
-        if setName not in seen:
-            if includePath:
-                results.append((node.path, PrimVariant(setName, setValue)))
-            else:
-                results.append(PrimVariant(setName, setValue))
-            seen.add(setName)
-
-    # If a variant is not selected, it won't be included in the prim index. So
-    # we need a way to get those variants. ComputeExpandedPrimIndex() seems
-    # unstable and slow so far. Using the main api methods we can easily get
-    # variant names. The problem is they are not ordered (by hierarchy)... but
-    # we only add them if they are not found in the index which means they have
-    # no selection. Variants with no selection hide subsequent variants so unless
-    # there are multi-root variant trees (which would require a refactor to
-    # handle appropriately), adding them here will be correct.
-    for setName in prim.GetVariantSets().GetNames():
-        if setName not in seen:
-            setValue = prim.GetVariantSet(setName).GetVariantSelection()
-            if includePath:
-                path = prim.GetPath().AddVariantSelection(setName, setValue)
-                results.append((path, PrimVariant(setName, setValue)))
-            else:
-                results.append(PrimVariant(setName, setValue))
-
-    return results
+    return [(key, variant)
+            for path, key, variant in getPrimVariantsWithPaths(prim)]
 
 
 def getPrimDefaultVariants(prim, sessionLayer):
@@ -340,36 +407,7 @@ def layerPrimHasVariantSelection(primSpec, selection):
     return False
 
 
-def iterVariantSetKeys(variantSetPairs):
-    '''
-    Given an iterable of (setName, variantName) pairs, yield a set of
-    hierarchical cache keys for the sets in the same order.
-
-    >>> primVariants = [
-    ... PrimVariant(setName='elem', variantName='anim'),
-    ... PrimVariant(setName='color', variantName='blue'),
-    ... PrimVariant(setName='version', variantName='A02')
-    ... ]
-    >>> print list(iterVariantSetKeys(primVariants))
-    ... ['elem', '{elem=anim}color', '{elem=anim}{color=blue}version']
-
-    Parameters
-    ----------
-    variantSetPairs : Iterable[PrimVariant]
-        (setName, variantName) pairs
-
-    Returns
-    -------
-    Iterator[str]
-        unique key for a distinct variant set on a prim
-    '''
-    key = ''
-    for setName, variant in variantSetPairs:
-        yield '%s%s' % (key, setName)
-        key = '%s{%s=%s}' % (key, setName, variant)
-
-
-def variantsByKey(primVariants, cacheKeys=None):
+def variantsByKey(primVariants, cacheKeys):
     '''Replace the name of a variant set tuple with its distinct key.
 
     >>> primVariants = [
@@ -393,8 +431,6 @@ def variantsByKey(primVariants, cacheKeys=None):
     List[Tuple[str, str]]
         (cacheKey, variantName) pairs
     '''
-    if not cacheKeys:
-        cacheKeys = iterVariantSetKeys(primVariants)
     return [(cacheKey, activeValue) for cacheKey, (_, activeValue)
             in zip(cacheKeys, primVariants)]
 
@@ -405,6 +441,35 @@ def variantSelectionKey(primVariants):
     for setName, variantName in primVariants:
         key += '{%s=%s}' % (setName, variantName)
     return key
+
+
+def variantSetKey(variantSetPairs):
+    '''
+    Given an iterable of (setName, variantName) pairs, yield a set of
+    hierarchical cache keys for the sets in the same order.
+
+    >>> primVariants = [
+    ... PrimVariant(setName='elem', variantName='anim'),
+    ... PrimVariant(setName='color', variantName='blue'),
+    ... PrimVariant(setName='version', variantName='A02')
+    ... ]
+    >>> print variantSetKey(primVariants))
+    ... '{elem=anim}{color=blue}version'
+
+    Parameters
+    ----------
+    variantSetPairs : Iterable[PrimVariant]
+        (setName, variantName) pairs
+
+    Returns
+    -------
+    Iterator[str]
+        unique key for a distinct variant set on a prim
+    '''
+    key = ''
+    for setName, variant in variantSetPairs[:-2]:
+        key = '%s{%s=%s}' % (key, setName, variant)
+    return '%s%s' % (key, variantSetPairs[-1][0])
 
 
 def applySelection(primVariants, selection):
@@ -457,7 +522,7 @@ class VariantContext(object):
      - set multiple variants for a hierarchical variant sets
      - optionally, restore selections after editing variant
     '''
-    def __init__(self, prim, variantTuples, setAsDefaults=True):
+    def __init__(self, prim, variantTuples, select=True):
         '''
         Create variant sets and variants that don't exist and get the
         variant contexts.
@@ -468,24 +533,24 @@ class VariantContext(object):
         variantTuples: Iterable[Tuple[str, str]]
             iterable of tuples mapping variantSetName to variantName that can
             represent a hierarchy of nested variants.
-        setAsDefaults : bool
-            Set the variants in variantTuples as the default variant
-            in the editContext layer
+        select : Union[bool, callable]
+            If True, select the variants in variantTuples as the default variant
+            in the edit layer.
+            If False, keep them the same as they are currently and author no
+            selection on new variants.
+            If a callable, and if adding a variant other than the current one
+            call function with: 
+                (variantSetName, oldValue, newValue) 
+            and set the value to the result.
         '''
         self.contexts = []
-        self.setAsDefaults = setAsDefaults
+        self.select = select
         self.originalSelections = []
         self.prim = prim
         self.variantTuples = variantTuples
 
         self.stage = self.prim.GetStage()
         self.sessionLayer = self.stage.GetSessionLayer()
-        self.spec = self.stage.GetEditTarget().GetLayer().GetPrimAtPath(
-            prim.GetPath())
-        if not self.spec:
-            self.spec = Sdf.CreatePrimInLayer(
-                self.stage.GetEditTarget().GetLayer(),
-                prim.GetPrimPath())
 
     def __enter__(self):
         for variantSetName, variantName in self.variantTuples:
@@ -504,8 +569,12 @@ class VariantContext(object):
                 assert status is True, 'variant selection failed'
                 assert variantSet.GetVariantSelection() == variantName
 
-            if self.setAsDefaults:
-                self.spec.variantSelections.update({variantSetName: variantName})
+            if self.select and original != variantName:
+                default = variantName
+                if callable(self.select):
+                    default = self.select(variantSetName, original, variantName)
+                if default:
+                    variantSet.SetVariantSelection(default)
 
             context = variantSet.GetVariantEditContext()
             context.__enter__()
