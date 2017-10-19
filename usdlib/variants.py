@@ -48,6 +48,22 @@ PrimVariant = NamedTuple('PrimVariant',
                           ('variantName', str)])
 
 
+def makeValid(name):
+    '''Return a valid variant name by replacing invalid characters'''
+    import re
+    # Valid dentifiers allow [[:alnum:]_|\-]+ with an optional leading dot.
+    # replace non leading dots with _
+    if name.count('.'):
+        name = name[0] + name[1:].replace('.', '_')
+    # could also replace other any invalid characters with _, but that might be
+    # too permissive.
+    # name = re.sub(r'[^a-zA-Z0-9_|\-.]', r'_', name)
+    if not re.match(r'[a-zA-Z0-9_|\-.][a-zA-Z0-9_|\-]*?$', name):
+        raise ValueError('Could not conform \'%s\' to a valid variant name'
+                         % name)
+    return name
+
+
 def iterPrimIndexVariantNodes(prim):
     '''
     Return an iterator over the variant nodes in the given prim's index.
@@ -554,6 +570,8 @@ class VariantContext(object):
 
     def __enter__(self):
         for variantSetName, variantName in self.variantTuples:
+            variantSetName = makeValid(variantSetName)
+            variantName = makeValid(variantName)
             variantSet = self.prim.GetVariantSets().AddVariantSet(
                 variantSetName)
             if variantName not in variantSet.GetVariantNames():
