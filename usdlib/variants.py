@@ -51,7 +51,7 @@ PrimVariant = NamedTuple('PrimVariant',
 def makeValid(name):
     '''Return a valid variant name by replacing invalid characters'''
     import re
-    # Valid dentifiers allow [[:alnum:]_|\-]+ with an optional leading dot.
+    # Valid identifiers allow [[:alnum:]_|\-]+ with an optional leading dot.
     # replace non leading dots with _
     if name.count('.'):
         name = name[0] + name[1:].replace('.', '_')
@@ -546,7 +546,7 @@ class VariantContext(object):
         Parameters
         ----------
         prim : Usd.Prim
-        variantTuples: Iterable[Tuple[str, str]]
+        variantTuples: Optional[Iterable[Tuple[str, str]]]
             iterable of tuples mapping variantSetName to variantName that can
             represent a hierarchy of nested variants.
         select : Union[bool, callable]
@@ -563,7 +563,7 @@ class VariantContext(object):
         self.select = select
         self.originalSelections = []
         self.prim = prim
-        self.variantTuples = variantTuples
+        self.variantTuples = variantTuples or []
 
         self.stage = self.prim.GetStage()
         self.sessionLayer = self.stage.GetSessionLayer()
