@@ -201,10 +201,15 @@ def getPrimVariantsWithKey(prim):
 
 def getPrimDefaultVariants(prim, sessionLayer):
     '''
-    Get the variant selections for a prim if the sessionlayer was muted.
+    Get the variant selections for a prim if the sessionLayer was muted.
 
-    Note that nested variant defaults are still affected by the choices in
-    the sessionLayer.
+    Note that nested variant defaults are still affected by higher strength
+    variant selections in the sessionLayer.
+    
+    Currently "mutes" session layer and its sublayers. (Note that this might 
+    return "defaults" that are indirectly set from the session layers but are 
+    not actually on the session layers and sublayer but instead were brought
+    in by reference or some other arc on the session layer)
 
     Parameters
     ----------
@@ -215,20 +220,30 @@ def getPrimDefaultVariants(prim, sessionLayer):
     -------
     Dict[str, str]
     '''
+    import usdlib.utils
+
     defaults = {}
     variantSets = prim.GetVariantSets()
     left = set(variantSets.GetNames())
+    sessionLayers = usdlib.utils.getAllSubLayers(sessionLayer)
+    sessionSpecified = {}
+    firstNonSessionLayer = True
     for spec in prim.GetPrimStack():
         if not left:
             break
-        if spec.layer == sessionLayer or sessionLayer is None:
-            sessionSpecified = spec.variantSelections.items()
-            for name in left:
-                if name not in sessionSpecified:
-                    defaults[name] = variantSets.GetVariantSelection(name)
-            # we only have to keep searching for ones specified in session
-            left.intersection(sessionSpecified)
+        if spec.layer in sessionLayers:
+            sessionSpecified.update(spec.variantSelections)
         else:
+            # optimization (assumes that session layers are highest strength):
+            if firstNonSessionLayer:
+                # we can stop searching for variants that are not specified
+                # in session layer
+                for name in left:
+                    if name not in sessionSpecified:
+                        defaults[name] = variantSets.GetVariantSelection(name)
+                left.intersection(sessionSpecified.keys())
+                firstNonSessionLayer = False
+
             for name, variant in spec.variantSelections.iteritems():
                 if name in left:
                     defaults[name] = variant

@@ -23,7 +23,7 @@ def getProxyShape(proxyShape=None):
         for node in pm.ls(selection=True):
             if type(node) == pm.nt.Transform:
                 node = node.getShape()
-            if node.type() == 'AL_usdmaya_ProxyShape':
+            if node and node.type() == 'AL_usdmaya_ProxyShape':
                 sel.append(node)
 
         if sel:
@@ -54,6 +54,7 @@ def getProxyShapeStage(proxyShape):
     shapeFilePath = proxyShape.getAttr('filePath')
     shapeFilePath = shapeFilePath.strip()
     stageCache = AL.usdmaya.StageCache.Get()
+    # FIXME: There could be multiple stage caches with the same root layer
     for stage in stageCache.GetAllStages():
         if not stage.GetRootLayer():
             continue
