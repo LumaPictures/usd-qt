@@ -64,14 +64,10 @@ def getProxyShapeStage(proxyShape):
     Usd.Stage
     '''
     import AL.usdmaya
-    shapeFilePath = proxyShape.getAttr('filePath')
-    shapeFilePath = shapeFilePath.strip()
-    stageCache = AL.usdmaya.StageCache.Get()
-    # FIXME: There could be multiple stage caches with the same root layer
-    for stage in stageCache.GetAllStages():
-        if not stage.GetRootLayer():
-            continue
-        if stage.GetRootLayer().identifier == shapeFilePath:
-            return stage
-    raise ValueError('Could not find stage with root layer matching path '
-                     '{0} in AL stage cache'.format(shapeFilePath))
+    shapeObj = AL.usdmaya.ProxyShape.getByName(proxyShape.name())
+    stage = None
+    if shapeObj:
+        stage = shapeObj.getUsdStage()
+    if not stage:
+        raise ValueError('Could not find stage for node {0}'.format(proxyShape))
+    return stage
