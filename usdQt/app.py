@@ -67,6 +67,10 @@ class AppMenuBarBuilder(MenuBarBuilder):
         # with USD Issue #253 solved, we can do a cheaper check of just
         # comparing time stamps and getting contents only if needed.
 
+        if not layer.realPath:
+            # New() or anonymous layer that cant be loaded from disk.
+            return None
+
         currentContents = layer.ExportToString()
         # fetch on disk contents for comparison
         layer.Reload()
@@ -83,7 +87,7 @@ class AppMenuBarBuilder(MenuBarBuilder):
 
         diskContents = self._GetDiskContents(editLayer)
         originalContents = self.GetOriginalContents(editLayer)
-        if originalContents != diskContents:
+        if originalContents and originalContents != diskContents:
             diff = difflib.unified_diff(originalContents.split('\n'),
                                         diskContents.split('\n'),
                                         fromfile="original",
