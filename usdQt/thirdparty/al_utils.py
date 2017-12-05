@@ -34,16 +34,17 @@ def getProxyShape(error=True):
         otherwise, a NoProxyShapeError will be raised
     '''
     proxyShape = None
-    for node in pm.ls(orderedSelection=True):
-        if type(node) == pm.nt.Transform:
-            node = node.getShape()
-        if node and node.type() == 'AL_usdmaya_ProxyShape':
-            proxyShape = node
-            break
-    if proxyShape is None:
-        shapes = pm.ls(type='AL_usdmaya_ProxyShape')
-        if len(shapes) == 1:
-            proxyShape = shapes[0]
+    if pm.pluginInfo(AL_MAYA_PLUGIN, q=1, loaded=1):
+        for node in pm.ls(orderedSelection=True):
+            if type(node) == pm.nt.Transform:
+                node = node.getShape()
+            if node and isinstance(node, pm.nt.AL_usdmaya_ProxyShape):
+                proxyShape = node
+                break
+        if proxyShape is None:
+            shapes = pm.ls(type='AL_usdmaya_ProxyShape')
+            if len(shapes) == 1:
+                proxyShape = shapes[0]
     if proxyShape is None and error:
         raise NoProxyShapeError(
             'Could not resolve a single AL_usdmaya_ProxyShape node in the '
