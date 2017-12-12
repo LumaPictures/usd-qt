@@ -257,13 +257,17 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         
         Parameters
         ----------
-        prim : Usd.Prim
+        prim : Union[Usd.Prim, Sdf.Path]
         
         Returns
         -------
         Sdf.PrimSpec
         '''
-        return self._stage.GetEditTarget().GetPrimSpecForScenePath(prim.GetPath())
+        if isinstance(prim, Usd.Prim):
+            path = prim.GetPath()
+        else:
+            path = prim
+        return self._stage.GetEditTarget().GetPrimSpecForScenePath(path)
 
     # TODO: Possibly reconsider this design.
     # - Should we implement insert/removeRow(s) to handle the begin/end calls?
@@ -373,7 +377,8 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         result = self._stage.RemovePrim(path)
         # check if entire prim is gone or if its just the prim edits that are
         # gone
-        if not self._stage.GetPrimAtPath(path):
+        prim = self._stage.GetPrimAtPath(path)
+        if not prim or prim.GetSpecifier() == Sdf.SpecifierOver:
             self.itemTree.removeItems(item)
         self.endRemoveRows()
         return result
@@ -562,19 +567,20 @@ class OutlinerContextMenuBuilder(ContextMenuBuilder):
                                 self.model.PrimVariantChanged(
                                     selection.index, n, v, item=selection.item))
 
-            menu.addSeparator()
-            spec = self.model.GetPrimSpecAtEditTarget(selections[0].prim)
-            removeLabel = 'Remove Prim'
-            removeEnabled = False
+        menu.addSeparator()
+        removeLabel = 'Remove Prims' if len(selection) > 1 else 'Remove Prim'
+        removeEnabled = False
+        for selection in selections:
+            spec = self.model.GetPrimSpecAtEditTarget(selection.prim)
             if spec:
                 if spec.specifier == Sdf.SpecifierDef:
                     removeEnabled = True
                 elif spec.specifier == Sdf.SpecifierOver:
                     removeLabel = 'Remove Prim Edits'
                     removeEnabled = True
-            a = menu.addAction(removeLabel)
-            connectAction(a, self.RemovePrim)
-            a.setEnabled(removeEnabled)
+        a = menu.addAction(removeLabel)
+        connectAction(a, self.RemovePrim)
+        a.setEnabled(removeEnabled)
         return menu
 
     @passMultipleSelection
@@ -606,7 +612,7 @@ class OutlinerContextMenuBuilder(ContextMenuBuilder):
         if not name:
             return
         newPath = selection.prim.GetPath().AppendChild(name)
-        if self.model.stage.GetPrimAtPath(newPath):
+        if self.model.GetPrimSpecAtEditTarget(newPath):
             QtWidgets.QMessageBox.warning(self.view, 'Duplicate Prim Path',
                                           'A prim already exists at '
                                           '{0}'.format(newPath))
@@ -614,15 +620,23 @@ class OutlinerContextMenuBuilder(ContextMenuBuilder):
         self.model.AddNewPrim(selection.index, selection.prim, name,
                               item=selection.item)
 
-    @passSingleSelection
-    def RemovePrim(self, selection):
-        answer = QtWidgets.QMessageBox.question(
-            self.view, 'Confirm Prim Removal',
-            'Remove prim (and any children) at {0}?'.format(
-                selection.prim.GetPath()),
-            buttons=(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel),
-            defaultButton=QtWidgets.QMessageBox.Ok)
-        if answer == QtWidgets.QMessageBox.Ok:
+    @passMultipleSelection
+    def RemovePrim(self, multiSelection):
+        ask = True
+        for selection in multiSelection:
+            if ask:
+                answer = QtWidgets.QMessageBox.question(
+                    self.view, 'Confirm Prim Removal',
+                    'Remove prim (and any children) at {0}?'.format(
+                        selection.prim.GetPath()),
+                    buttons=(QtWidgets.QMessageBox.Yes |
+                             QtWidgets.QMessageBox.Cancel |
+                             QtWidgets.QMessageBox.YesToAll),
+                    defaultButton=QtWidgets.QMessageBox.Yes)
+                if answer == QtWidgets.QMessageBox.Cancel:
+                    return
+                elif answer == QtWidgets.QMessageBox.YesToAll:
+                    ask = False
             self.model.RemovePrimFromCurrentLayer(selection.index,
                                                   selection.prim,
                                                   item=selection.item)
