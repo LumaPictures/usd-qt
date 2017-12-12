@@ -96,8 +96,10 @@ class AppMenuBarBuilder(MenuBarBuilder):
             dlg = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning,
                                         'Contents changed!',
                                         'The contents on disk have changed '
-                                        'since your began editing them. Save '
-                                        'Anyway and risk overwriting changes?',
+                                        'since your began editing them. '
+                                        '\n\t%s\n '
+                                        'Save Anyway and risk overwriting '
+                                        'changes?' % editLayer.identifier,
                                         buttons=(QtWidgets.QMessageBox.Cancel |
                                                  QtWidgets.QMessageBox.Yes),
                                         detailedText='\n'.join(diff))
