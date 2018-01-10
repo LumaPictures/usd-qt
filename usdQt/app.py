@@ -400,6 +400,29 @@ class UsdOutliner(QtWidgets.QDialog):
         dlg.activateWindow()
         dlg.exec_()
 
+    def SetNewStage(self, stage):
+        '''Reset the stage for this dlg'''
+        self.stage = stage
+        self.dataModel = self._GetModel()
+
+        self.view.setModel(self.dataModel)
+        self.editTargetChanged.emit(self.editTarget)
+        self.view.reset()
+
+        # close instances of child dialogs
+        def close(dlg):
+            if dlg:
+                dlg.close()
+
+        for layerTextDlg in self.layerTextDialogs:
+            close(layerTextDlg)
+        self.layerTextDialogs = {}
+        close(self.editTargetDlg)
+        self.editTargetDlg = None
+        close(self.variantEditorDlg)
+        self.variantEditorDlg = None
+
+        self.UpdateTitle()
 
 if __name__ == '__main__':
     # simple test
