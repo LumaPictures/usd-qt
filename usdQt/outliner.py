@@ -317,6 +317,7 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         Parameters
         ----------
         modelIndex : QtCore.QModelIndex
+            new prim's parent model index
         parentPrim : Usd.Prim
         primName : str
         primType : str
@@ -383,7 +384,7 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         self.endRemoveRows()
         return result
 
-    def _SetReference(self, refPrim, refPath, variantTuples=None):
+    def _SetReference(self, prim, refPath, refPrimPath=None, variantTuples=None):
         '''Set the references on a prim to be a list of one specific path.'''
 
         editLayer = self.stage.GetEditTarget().GetLayer()
@@ -392,16 +393,19 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
             # restriction for variant edit contexts.
             editTargetStage = Usd.Stage.Open(editLayer)
             # this assumes prim path is the same in edit target
-            refPrim = editTargetStage.GetPrimAtPath(refPrim.GetPath())
+            prim = editTargetStage.GetPrimAtPath(prim.GetPath())
 
-        with usdlib.variants.VariantContext(refPrim, variantTuples,
+        with usdlib.variants.VariantContext(prim, variantTuples,
                                             select=True):
-            success = refPrim.GetReferences().SetReferences(
-                [Sdf.Reference(refPath)])
+            if refPrimPath:
+                refs = [Sdf.Reference(refPath, refPrimPath)]
+            else:
+                refs = [Sdf.Reference(refPath)]
+            success = prim.GetReferences().SetReferences(refs)
 
         return success
 
-    def AddNewReference(self, modelIndex, prim, refPath,
+    def AddNewReference(self, modelIndex, prim, refPath, refPrimPath=None,
                         variantTuples=None, item=None):
         '''
         Add a reference to an existing prim.
@@ -419,6 +423,7 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
 
         success = self._SetReference(prim,
                                      refPath,
+                                     refPrimPath=refPrimPath,
                                      variantTuples=variantTuples)
 
         if success:
@@ -427,16 +432,18 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
             self.primChanged.emit(prim)
 
     def AddNewPrimAndReference(self, modelIndex, parentPrim, refPath, primName,
-                               variantTuples=None, item=None):
+                               refPrimPath=None, variantTuples=None, item=None):
         '''
         Add a new prim and set it to reference another usd file.
         
         Parameters
         ----------
         modelIndex : QtCore.QModelIndex
+            new prim's parent model index
         parentPrim : Usd.Prim
         refPath : str
         primName : str
+        refPrimPath : Optional[str]
         variantTuples : Optional[List[Tuple]]
         item : Optional[UsdPrimItem]
         
@@ -447,13 +454,14 @@ class OutlinerStageModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         if item is None:
             item = modelIndex.internalPointer()  # type: UsdPrimItem
 
-        refPrimPath = parentPrim.GetPath().AppendChild(primName)
-        newPrim = self._stage.DefinePrim(refPrimPath)
-        assert newPrim, 'Failed to create new prim at %s' % str(refPrimPath)
-        print 'Adding new reference:', refPath
+        primPath = parentPrim.GetPath().AppendChild(primName)
+        newPrim = self._stage.DefinePrim(primPath)
+        assert newPrim, 'Failed to create new prim at %s' % str(primPath)
+        print 'Adding new reference:', refPath, refPrimPath
 
         success = self._SetReference(newPrim,
                                      refPath,
+                                     refPrimPath=refPrimPath,
                                      variantTuples=variantTuples)
 
         if success:
