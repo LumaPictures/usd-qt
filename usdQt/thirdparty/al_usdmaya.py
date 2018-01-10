@@ -11,12 +11,10 @@ class ProxyShapeOutliner(usdQt.app.UsdOutliner):
     '''Generic outliner attached to a single AL maya ProxyShape node'''
     OUTLINER_WINDOW_NAME = 'MayaUsdOutlinerWin'
 
-    def __init__(self, stage, proxyShape, contextMenuBuilder=None,
-                 menuBarBuilder=None, parent=None):
+    def __init__(self, stage, proxyShape, role=None, parent=None):
         super(ProxyShapeOutliner, self).__init__(
             stage,
-            contextMenuBuilder=contextMenuBuilder,
-            menuBarBuilder=menuBarBuilder,
+            role=role,
             parent=parent)
         self.setObjectName(self.OUTLINER_WINDOW_NAME)
         self._proxyShape = proxyShape
