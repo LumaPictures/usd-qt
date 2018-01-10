@@ -27,40 +27,94 @@ from __future__ import absolute_import
 from pxr import Sdf, Usd
 from Qt import QtCore, QtGui, QtWidgets
 from usdQt.outliner import (OutlinerTreeView, OutlinerViewDelegate,
-                            OutlinerStageModel, OutlinerContextMenuBuilder)
+                            OutlinerStageModel, ActivatePrim, SelectVariants,
+                            RemovePrim)
 from usdQt.layers import LayerTextViewDialog, SubLayerDialog
 from usdQt.variantSets import VariantEditorDialog
-from usdQt.common import MenuBarBuilder
+from usdQt.common import MenuBarBuilder, ContextMenuAction, MenuAction, \
+    MenuSeparator, UsdQtUtilities
 
 from typing import (Any, Dict, Iterable, Iterator, List, Optional,
                     Tuple, TypeVar, Union)
 
 
-class AppMenuBarBuilder(MenuBarBuilder):
-    '''Menu Bar for UsdOutliner that adds saving changes and populates a tools
-    menu.'''
+class OutlinerUserRole(object):
+    '''
+    Base implementation for a customized outliner app that manages which
+    menu actions are available.
+
+    Views and dialogs will support getting their menu actions from calling one
+    of these methods with themselves as an argument.
+    '''
+    @classmethod
+    def OutlinerViewContextActions(cls, view):
+        '''
+        Parameters
+        ----------
+        view : OutlinerTreeView
+
+        Returns
+        -------
+        List[ContextMenuAction]
+        '''
+        return [ActivatePrim(),
+                SelectVariants(),
+                MenuSeparator(),
+                RemovePrim()]
+
+    @classmethod
+    def MenuBarMenus(cls, dlg):
+        '''
+        Parameters
+        ----------
+        dlg : UsdOutliner
+
+        Returns
+        -------
+        List[Tuple[str, str]]
+        '''
+        return [('file', '&File'),
+                ('tools', '&Tools')]
+
+    @classmethod
+    def MenuBarActions(cls, dlg):
+        '''
+        Parameters
+        ----------
+        dlg : UsdOutliner
+
+        Returns
+        -------
+        List[MenuAction]
+        '''
+        saveState = SaveState(dlg)
+
+        return {'file': [SaveEditLayer(saveState)],
+                'tools': [ShowEditTargetLayerText(),
+                          ChangeEditTarget(),
+                          ShowVariantEditor()]}
+
+
+class SaveState(object):
+    '''State tracker for layer contents in an outliner app'''
 
     def __init__(self, dlg):
-        super(AppMenuBarBuilder, self).__init__(dlg)
+        self.dlg = dlg
         self.editTargetOriginalContents = \
             {self.GetId(dlg.editTarget): self._GetDiskContents(dlg.editTarget)}
         dlg.editTargetChanged.connect(self.EditTargetChanged)
 
-    def AddMenus(self):
-        self.AddMenu('file', '&File')
-        self.AddMenu('tools', '&Tools')
+    def EditTargetChanged(self, layer):
+        self.editTargetOriginalContents.setdefault(self.GetId(layer),
+                                                   layer.ExportToString())
 
-    def PopulateMenus(self):
-        fileMenu = self.GetMenu('file')
-        saveAction = fileMenu.addAction('Save Current Edit Layer')
-        saveAction.triggered.connect(self.SaveEditLayer)
-        toolsMenu = self.GetMenu('tools')
-        a = toolsMenu.addAction('Show Current Layer Text')
-        a.triggered.connect(self.dlg.ShowEditTargetLayerText)
-        a = toolsMenu.addAction('Change Edit Target')
-        a.triggered.connect(self.dlg.ChangeEditTarget)
-        a = toolsMenu.addAction('Edit Variants')
-        a.triggered.connect(self.dlg.ShowVariantEditor)
+    def GetOriginalContents(self, layer):
+        return self.editTargetOriginalContents[self.GetId(layer)]
+
+    def SaveOriginalContents(self, layer, contents=None):
+        if not contents:
+            contents = layer.ExportToString()
+        self.editTargetOriginalContents[self.GetId(layer)] = contents
 
     def _GetDiskContents(self, layer):
         '''Fetch the usd layer's contents on disk.'''
@@ -82,7 +136,7 @@ class AppMenuBarBuilder(MenuBarBuilder):
         self.dlg.dataModel.ResetStage()
         return diskContents
 
-    def _CheckOriginalContents(self, editLayer):
+    def CheckOriginalContents(self, editLayer):
         import difflib
 
         diskContents = self._GetDiskContents(editLayer)
@@ -107,53 +161,73 @@ class AppMenuBarBuilder(MenuBarBuilder):
                 return False
         return True
 
-    def SaveEditLayer(self):
+    def GetId(self, layer):
+        return UsdQtUtilities.exec_('GetId', layer)
+
+
+class SaveEditLayer(MenuAction):
+
+    def __init__(self, state, label=None, enable=None, func=None):
+        super(SaveEditLayer, self).__init__(label=label, enable=enable, func=None)
+        self.state = state
+
+    def label(self, builder):
+        return 'Save Current Edit Layer'
+
+    def do(self, builder):
         '''
         Save the current edit target to the appropriate place. 
         '''
-        editTarget = self.dlg.editTarget
-        if not self.dlg.editTarget.dirty:
+        editTarget = builder.dlg.editTarget
+        if not builder.dlg.editTarget.dirty:
             print 'Nothing to save'
             return
-        if not self._CheckOriginalContents(editTarget):
+        if not self.state.CheckOriginalContents(editTarget):
             return
 
         self._SaveLayer(editTarget)
 
     def _SaveLayer(self, layer):
         layer.Save()
-        self.editTargetOriginalContents[self.GetId(layer)] = \
-            layer.ExportToString()
+        self.state.SaveOriginalContents(layer)
 
-    def EditTargetChanged(self, layer):
-        self.editTargetOriginalContents.setdefault(self.GetId(layer),
-                                                   layer.ExportToString())
 
-    def GetId(self, layer):
-        '''Overrideable way to get the unique key used to store the original 
-        contents of a layer'''
-        return layer.identifier
+class ShowEditTargetLayerText(MenuAction):
+    def label(self, builder):
+        return 'Show Current Layer Text'
 
-    def GetOriginalContents(self, layer):
-        return self.editTargetOriginalContents[self.GetId(layer)]
+    def do(self, builder):
+        return builder.dlg.ShowEditTargetLayerText()
 
-    def SaveOriginalContents(self, layer, contents=None):
-        if not contents:
-            contents = layer.ExportToString()
-        self.editTargetOriginalContents[self.GetId(layer)] = contents
+
+class ChangeEditTarget(MenuAction):
+    def label(self, builder):
+        return 'Change Edit Target'
+
+    def do(self, builder):
+        return builder.dlg.ChangeEditTarget()
+
+
+class ShowVariantEditor(MenuAction):
+    def label(self, builder):
+        return 'Edit Variants'
+
+    def do(self, builder):
+        return builder.dlg.ShowVariantEditor()
 
 
 class UsdOutliner(QtWidgets.QDialog):
     # emitted with the new edit layer when the edit target is changed
     editTargetChanged = QtCore.Signal(Sdf.Layer)
 
-    def __init__(self, stage, contextMenuBuilder=None, menuBarBuilder=None,
-                 parent=None):
+    def __init__(self, stage, role=None, parent=None):
         '''
         Parameters
         ----------
         stage : Usd.Stage
-        contextMenuBuilder : Optional[Type[ContextMenuBuilder]]
+        role : Any
+            Optionally provide an object with methods for getting custom
+            menu action configurations.
         parent : Optional[QtGui.QWidget]
         '''
         assert isinstance(stage, Usd.Stage), 'A Stage instance is required'
@@ -171,16 +245,19 @@ class UsdOutliner(QtWidgets.QDialog):
         self.setModal(False)
         self.UpdateTitle()
 
+        if role is None:
+            role = OutlinerUserRole
+        self.role = role
         # populate menu bar
-        if menuBarBuilder is None:
-            menuBarBuilder = AppMenuBarBuilder
-        self.menuBarBuilder = menuBarBuilder(self)
+        self.menuBarBuilder = MenuBarBuilder(self,
+                                             self.role.MenuBarMenus,
+                                             self.role.MenuBarActions)
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
         layout.setSpacing(2)
         layout.addWidget(self.menuBarBuilder._menuBar)
-        view = self._GetView(self.dataModel, contextMenuBuilder)
+        view = self._GetView(self.dataModel, self.role)
         delegate = OutlinerViewDelegate(self.editTarget,
                                         parent=self)
         self.editTargetChanged.connect(delegate.SetActiveLayer)
@@ -206,7 +283,7 @@ class UsdOutliner(QtWidgets.QDialog):
         '''
         return OutlinerStageModel(self.stage, parent=self)
 
-    def _GetView(self, model, contextMenuBuilder):
+    def _GetView(self, model, role):
         '''
         Get the view for the outliner
 
@@ -219,9 +296,10 @@ class UsdOutliner(QtWidgets.QDialog):
         -------
         QtWidgets.QTreeView
         '''
-        return OutlinerTreeView(model,
-                                contextMenuBuilder=contextMenuBuilder,
-                                parent=self)
+        return OutlinerTreeView(
+            model,
+            contextMenuActions=role.OutlinerViewContextActions,
+            parent=self)
 
     def UpdateTitle(self, identifier=None):
         '''
