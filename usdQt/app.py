@@ -217,6 +217,7 @@ class ShowVariantEditor(MenuAction):
 
 
 class UsdOutliner(QtWidgets.QDialog):
+    '''UsdStage editing application which displays the hierarchy of a stage.'''
     # emitted with the new edit layer when the edit target is changed
     editTargetChanged = QtCore.Signal(Sdf.Layer)
 
@@ -401,7 +402,7 @@ class UsdOutliner(QtWidgets.QDialog):
         dlg.exec_()
 
     def SetNewStage(self, stage):
-        '''Reset the stage for this dlg'''
+        '''Reset the stage for this dlg and its views'''
         self.stage = stage
         self.dataModel = self._GetModel()
 
@@ -423,6 +424,7 @@ class UsdOutliner(QtWidgets.QDialog):
         self.variantEditorDlg = None
 
         self.UpdateTitle()
+
 
 if __name__ == '__main__':
     # simple test

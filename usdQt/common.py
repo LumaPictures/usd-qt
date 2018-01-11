@@ -93,7 +93,9 @@ class MenuSeparator(object):
 
 
 class Action(QtCore.QObject):
-
+    '''
+    Base class for ui user triggered actions.
+    '''
     def __init__(self, label=None, enable=None, func=None):
         super(Action, self).__init__()
         self._callable = func
@@ -102,7 +104,9 @@ class Action(QtCore.QObject):
 
 
 class MenuAction(Action):
-
+    '''
+    Base class for menu bar actions that can be added to views.
+    '''
     def do(self, builder):
         if self._callable:
             self._callable()
@@ -133,8 +137,7 @@ class MenuAction(Action):
 
 class ContextMenuAction(Action):
     '''
-    - know how to trigger an action
-    - know whether they should be drawn, enabled based on selection
+    Base class for Context menu actions that can be added to views.
     '''
     def do(self, builder, selection):
         raise NotImplementedError
@@ -254,7 +257,6 @@ class ContextMenuBuilder(QtCore.QObject):
 
 class ContextMenuMixin(object):
     '''Mix this class in with a view to bind a menu to a view'''
-
     def __init__(self, parent=None, contextMenuBuilder=None, contextMenuActions=None):
         if not contextMenuBuilder:
             contextMenuBuilder = ContextMenuBuilder
@@ -311,7 +313,6 @@ class ContextMenuMixin(object):
 
 class MenuBarBuilder(object):
     '''Attach a menu bar to a dialog'''
-
     def __init__(self, dlg, roleGetMenuNames, roleGetMenuActions):
         '''
         Parameters
@@ -399,7 +400,8 @@ class MenuBarBuilder(object):
 
 
 class UsdQtUtilities(object):
-    '''Customizable utilities for building a usdqt app.
+    '''
+    Aggregator for customizable utilities in a usdQt app.
     
     To overwrite the default implementation, just define a function and then
     call:
@@ -421,6 +423,11 @@ class UsdQtUtilities(object):
 
 
 def GetReferencePath(parent, stage=None):
+    '''
+    Overrideable func for getting the path for a new reference from a user.
+
+    Use UsdQtUtilities to provide your pipeline specific file browser ui.
+    '''
     name, _ = QtWidgets.QInputDialog.getText(
         parent,
         'Add Reference',
@@ -429,8 +436,13 @@ def GetReferencePath(parent, stage=None):
 
 
 def GetId(layer):
-    '''Overrideable way to get the unique key used to store the original
-    contents of a layer'''
+    '''
+    Overrideable func to get the unique key used to store the original
+    contents of a layer.
+
+    Use UsdQtUtilities to provide support for pipeline specific resolvers that
+    may need special handling.
+    '''
     if isinstance(layer, Sdf.Layer):
         return layer.identifier
     else:

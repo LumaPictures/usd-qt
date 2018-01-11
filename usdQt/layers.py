@@ -271,7 +271,6 @@ class SubLayerTreeView(ContextMenuMixin, QtWidgets.QTreeView):
 
 
 class SubLayerDialog(QtWidgets.QDialog):
-
     def __init__(self, stage, parent=None):
         '''
         Parameters
