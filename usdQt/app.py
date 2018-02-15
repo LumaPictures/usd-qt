@@ -415,7 +415,7 @@ class UsdOutliner(QtWidgets.QDialog):
             if dlg:
                 dlg.close()
 
-        for layerTextDlg in self.layerTextDialogs:
+        for layerTextDlg in self.layerTextDialogs.values():
             close(layerTextDlg)
         self.layerTextDialogs = {}
         close(self.editTargetDlg)

@@ -42,6 +42,10 @@ if not hasattr(Usd.References, 'AddReference'):
     Usd.References.AddReference = Usd.References.AppendReference
 
 
+class VariantSelectionError(Exception):
+    pass
+
+
 PrimVariant = NamedTuple('PrimVariant',
                          [('setName', str),
                           ('variantName', str)])
@@ -667,8 +671,12 @@ class SessionVariantContext(object):
             # selected variant in the context.
             with EditTargetContext(self.stage, self.sessionLayer):
                 status = variantSet.SetVariantSelection(variantName)
-                assert status is True, 'variant selection failed'
-                assert variantSet.GetVariantSelection() == variantName
+                if status is not True or \
+                        variantSet.GetVariantSelection() != variantName:
+                    raise VariantSelectionError(
+                        'Failed to select prim variant: %s %s=%s, selected: %s'
+                        % (self.prim.GetPath(), variantSetName, variantName,
+                           getPrimVariants(self.prim)))
 
     def __exit__(self, type, value, traceback):
         with EditTargetContext(self.stage, self.sessionLayer):
