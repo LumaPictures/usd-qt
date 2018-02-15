@@ -151,6 +151,8 @@ class LazyPrimItemTree(LazyItemTree[UsdPrimItem]):
         -------
         Iterator[Usd.Prim]
         '''
+        if not startPrim.IsValid():
+            return
         primFilter = self.primFilter
         if primFilter is None:
             for child in startPrim.GetFilteredChildren(self.primPredicate):
