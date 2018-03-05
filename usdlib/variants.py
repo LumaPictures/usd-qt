@@ -611,8 +611,7 @@ class VariantContext(object):
                 default = variantName
                 if callable(self.select):
                     default = self.select(variantSetName, original, variantName)
-                if default:
-                    variantSet.SetVariantSelection(default)
+                variantSet.SetVariantSelection(default)
 
             context = variantSet.GetVariantEditContext()
             context.__enter__()
