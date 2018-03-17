@@ -27,15 +27,15 @@ from Qt import QtCore, QtGui, QtWidgets
 NULL_INDEX = QtCore.QModelIndex()
 
 NO_COLOR = QtGui.QColor(0, 0, 0, 0)
-GREEN = QtGui.QColor(14, 93, 45, 64)
-BRIGHT_GREEN = QtGui.QColor(14, 163, 45, 64)
-YELLOW = QtGui.QColor(255, 255, 102, 64)
+GREEN = QtGui.QColor(14, 93, 45, 200)
+BRIGHT_GREEN = QtGui.QColor(14, 163, 45, 200)
+YELLOW = QtGui.QColor(255, 255, 102, 200)
 BRIGHT_YELLOW = QtGui.QColor(255, 255, 185, 200)
 DARK_ORANGE = QtGui.QColor(186, 99, 0, 200)
-LIGHT_BLUE = QtGui.QColor(78, 181, 224, 128)
+LIGHT_BLUE = QtGui.QColor(78, 181, 224, 200)
 BRIGHT_ORANGE = QtGui.QColor(255, 157, 45, 200)
 PALE_ORANGE = QtGui.QColor(224, 150, 66, 200)
-DARK_BLUE = QtGui.QColor(14, 82, 130, 128)
+DARK_BLUE = QtGui.QColor(14, 82, 130, 200)
 
 
 class FallbackException(Exception):
