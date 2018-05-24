@@ -637,18 +637,25 @@ class SessionVariantContext(object):
     Note: Intended for inspection, tries to restore original state, so changes
     to created specs may be lost.
     '''
-    def __init__(self, prim, variantTuples):
+    def __init__(self, prim, variantTuples, optionalVariantSets=None):
         '''
         Parameters
         ----------
         prim : Usd.Prim
         variantTuples: Iterable[Tuple[str, str]]
-            iterable of tuples mapping variantSetName to variantName that can
+            Iterable of tuples mapping variantSetName to variantName that can
             represent a hierarchy of nested variants.
+        optionalVariantSets : Optional[Iterable[str]]
+            Names of variant sets that are considered optional. Optional sets
+            are skipped over if they cannot be set, rather than causing an
+            exception to be raised.
         '''
         self.originalSelections = []
         self.prim = prim
         self.variantTuples = variantTuples
+        self.optionalVariantSets = set()
+        if optionalVariantSets:
+            self.optionalVariantSets.update(optionalVariantSets)
 
         self.stage = self.prim.GetStage()
         self.sessionLayer = self.stage.GetSessionLayer()
@@ -670,8 +677,9 @@ class SessionVariantContext(object):
             # selected variant in the context.
             with EditTargetContext(self.stage, self.sessionLayer):
                 status = variantSet.SetVariantSelection(variantName)
-                if status is not True or \
-                        variantSet.GetVariantSelection() != variantName:
+                if (status is not True
+                        or variantSet.GetVariantSelection() != variantName) \
+                        and variantSetName not in self.optionalVariantSets:
                     raise VariantSelectionError(
                         'Failed to select prim variant: %s %s=%s, selected: %s'
                         % (self.prim.GetPath(), variantSetName, variantName,
