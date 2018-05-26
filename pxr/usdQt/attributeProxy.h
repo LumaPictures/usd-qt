@@ -50,7 +50,7 @@ TF_DECLARE_WEAK_AND_REF_PTRS(UsdQt_AttributeProxy);
 /// that one wrote to operate on an Attribute should whenever possible also
 /// work on an attribute proxy.
 class UsdQt_AttributeProxy
-    : public UsdQt_ObjectProxyBase<UsdAttribute, SdfSpecTypeAttribute> {
+    : public UsdQt_PropertyProxyBase<UsdAttribute, SdfSpecTypeAttribute> {
 private:
     std::vector<UsdAttribute> _attributes;
     explicit UsdQt_AttributeProxy(const std::vector<UsdAttribute>& attributes);

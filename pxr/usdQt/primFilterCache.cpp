@@ -148,7 +148,7 @@ UsdQtPrimFilterCache::State UsdQtPrimFilterPathContains::operator()(
                          TfStringToLower(_substring)))
         return UsdQtPrimFilterCache::Accept;
 
-    if (not prim.GetChildren().empty())
+    if (!prim.GetChildren().empty())
         return UsdQtPrimFilterCache::Intermediate;
     return UsdQtPrimFilterCache::Reject;
 }

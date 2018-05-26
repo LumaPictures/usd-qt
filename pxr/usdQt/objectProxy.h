@@ -78,7 +78,7 @@ public:
 
 template <typename T, SdfSpecType SpecType>
 class UsdQt_ObjectProxyBase : public UsdQt_ObjectProxy {
-private:
+protected:
     virtual std::vector<T>& _GetObjects() = 0;
     virtual const std::vector<T>& _GetObjects() const = 0;
 
@@ -111,6 +111,21 @@ public:
 
     /// \brief Return the number of attributes this proxy refers to.
     size_t GetSize() const;
+};
+
+/// \brief A Property specific specialization of UsdQt_ObjectProxyBase
+///
+template <typename T, SdfSpecType SpecType>
+class UsdQt_PropertyProxyBase : public UsdQt_ObjectProxyBase<T, SpecType> {
+public:
+    /// \brief Check if ANY property for this proxy is defined.
+    bool IsDefined() const;    
+
+    /// \brief Check if ANY property for this proxy is authored.
+    bool IsAuthored() const;    
+
+    /// \brief Check if ANY property for this proxy is authored at the editTarget.
+    bool IsAuthoredAt(const UsdEditTarget&) const;
 };
 
 PXR_NAMESPACE_CLOSE_SCOPE

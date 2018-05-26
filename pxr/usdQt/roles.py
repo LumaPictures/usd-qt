@@ -28,14 +28,39 @@ from __future__ import print_function
 
 from ._Qt import QtCore
 
+# The editor hint role is used to provide additional information for UI
+# instantiation that the value of the edit role alone may not be sufficient to
+# provide.  For example, we may need to differentiate between a GfVec3f that
+# represents a 3-tuple and a GfVec3f that represents a color.
+# All UsdQt EditorHints are defined below and are prefixed with EditorHint.
 EditorHintRole = QtCore.Qt.UserRole + 2
+
+# Used in models representing layer stacks to represent the depth in the
+# in the hierarchy.  Sublayers of the root layer have depth 1.  Sublayers of 
+# those layers have depth 2.
 LayerStackDepthRole = QtCore.Qt.UserRole + 3
+
+# Used to retrieve the prim object in hierarchy models.
 HierarchyPrimRole = QtCore.Qt.UserRole + 4
+
+# Specializations that leverage UsdQt at its core can use UsdQtUserRole as the 
+# first safe index for additional user roles
 UsdQtUserRole = QtCore.Qt.UserRole + 16
 
 
 class EditorHintBasicValue(object):
     """Used for values whose editor can be inferred soley from the TfType"""
+
+    def __init__(self, tfType):
+        self.__type = tfType
+
+    @property
+    def type(self):
+        return self.__type
+
+        
+class EditorHintColorValue(object):
+    """Hint for when a color editor needs to be instantiated"""
 
     def __init__(self, tfType):
         self.__type = tfType

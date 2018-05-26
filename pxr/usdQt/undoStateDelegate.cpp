@@ -333,9 +333,9 @@ void UsdQt_UndoStateDelegate::_OnDeleteSpec(const SdfPath& path,
     _MarkCurrentStateAsDirty();
 
     SdfDataRefPtr deletedData = TfCreateRefPtr(new SdfData());
-    SdfLayer::TraversalFunction copyFunc = boost::bind(
+    SdfLayer::TraversalFunction copyFunc = std::bind(
         &_CopySpecAtPath, boost::cref(*boost::get_pointer(_GetLayerData())),
-        boost::get_pointer(deletedData), _1);
+        boost::get_pointer(deletedData), std::placeholders::_1);
     _GetLayer()->Traverse(path, copyFunc);
 
     const SdfSpecType deletedSpecType = _GetLayer()->GetSpecType(path);

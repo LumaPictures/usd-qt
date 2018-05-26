@@ -261,6 +261,9 @@ void wrapOpinionProxy() {
             .def("GetSize", &This::GetSize)
             .def("GetAttributes", &This::GetAttributes,
                  return_value_policy<TfPySequenceToList>())
+            .def("IsDefined", &This::IsDefined)
+            .def("IsAuthored", &This::IsAuthored)
+            .def("IsAuthoredAt", &This::IsAuthoredAt)
             .def("__repr__", &::_AttributeRepr);
     }
     {
@@ -279,6 +282,9 @@ void wrapOpinionProxy() {
             .def("GetMetadataFields", &This::GetMetadataFields)
             .def("CreateMetadataProxy", &This::CreateMetadataProxy,
                  return_value_policy<TfPyRefPtrFactory<>>())
+            .def("IsDefined", &This::IsDefined)
+            .def("IsAuthored", &This::IsAuthored)
+            .def("IsAuthoredAt", &This::IsAuthoredAt)
             .def("__repr__", &::_RelationshipRepr);
     }
     {

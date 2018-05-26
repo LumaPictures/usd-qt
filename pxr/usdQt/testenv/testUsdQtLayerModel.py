@@ -56,14 +56,14 @@ class TestSimpleLayerModelBase(unittest.TestCase):
                 os.path.splitext(os.path.split(layer.identifier)[1])[0],
                 self.model.data(self.model.createIndex(i + 1, 0)))
 
-        self.stage.Close()
-        del self.stage
-        self.assertEqual(self.model.rowCount(), 0)
+    def test_invalidModel(self):
+        invalidModel = UsdQt.LayerBaseModel()
+        self.assertEqual(invalidModel.rowCount(), 0)
         with self.assertRaises(Exception):
-            self.model.data(self.model.createIndex(0, 0))
+            invalidModel.data(invalidModel.createIndex(0, 0))
 
         with self.assertRaises(Exception):
-            self.model.GetLayerFromIndex(self.createIndex(0, 0))
+            invalidModel.GetLayerFromIndex(self.createIndex(0, 0))
 
 
 class TestSimpleLayerStandardModel(unittest.TestCase):

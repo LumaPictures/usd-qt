@@ -180,7 +180,7 @@ void UsdQt_HierarchyCache::_InvalidateSubtree(const SdfPath& path) {
     if (_pathToProxy.count(path) > 0) {
         TfWeakPtr<Proxy> proxy = _pathToProxy[path];
         UsdPrim prim = proxy->GetPrim();
-        if (prim.IsValid() and _predicate(prim)) {
+        if (prim.IsValid() && _predicate(prim)) {
             TF_DEBUG(USDQT_DEBUG_HIERARCHYCACHE)
                 .Msg("Keeping '%s' during invalidation.\n", path.GetText());
             for (const auto& childPath : proxy->_GetChildren()) {
