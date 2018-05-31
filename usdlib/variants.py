@@ -667,15 +667,16 @@ class SessionVariantContext(object):
             if not self.sessionLayer.GetPrimAtPath(prefix):
                 self.createdSpecs.append(prefix)
                 break  # removing the parent will remove any children
-        selections = getPrimVariantSelectionInLayer(self.prim, self.sessionLayer)
-        for variantSetName, variantName in self.variantTuples:
-            variantSet = variantSets.GetVariantSet(variantSetName)
-            self.originalSelections.append((variantSet,
-                                            selections.get(variantSetName, '')))
+        selections = getPrimVariantSelectionInLayer(self.prim,
+                                                    self.sessionLayer)
+        # make the selections on the session layer so that they are guaranteed
+        # to be selected within the context.
+        with EditTargetContext(self.stage, self.sessionLayer):
+            for variantSetName, variantName in self.variantTuples:
+                variantSet = variantSets.GetVariantSet(variantSetName)
+                original = selections.get(variantSetName, '')
+                self.originalSelections.append((variantSet, original))
 
-            # make the selection on the session layer so that it will be the
-            # selected variant in the context.
-            with EditTargetContext(self.stage, self.sessionLayer):
                 status = variantSet.SetVariantSelection(variantName)
                 if (status is not True
                         or variantSet.GetVariantSelection() != variantName) \
