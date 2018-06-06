@@ -26,9 +26,11 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from ._Qt import QtCore, QtWidgets
+from ._Qt import QtCore, QtWidgets, QtGui
 
-from pxr import Usd, Tf
+from pxr import Usd
+from pxr import Gf
+from pxr import Tf
 
 from ._bindings import _AttributeProxy, _DisplayGroupProxy, _MetadataProxy, \
     _MetadataDictKeyProxy, _ObjectProxy, _PrimProxy, \
@@ -51,6 +53,16 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
     widgets to the default UsdQt handlers or write a new StyledItemDelegate
     using ValueDelegate as a reference implementation.
     """
+
+    class _PainterContext(object):
+        def __init__(self, painter):
+            self.painter = painter
+
+        def __enter__(self):
+            self.painter.save()
+
+        def __exit__(self, *args):
+            self.painter.restore()
 
     def __init__(self, parent=None):
         super(ValueDelegate, self).__init__(parent)
@@ -77,6 +89,41 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
     #             if type(arrayData[0]) == [Gf.Vec4d, Gf.Vec4f, Gf.Vec4h, Gf.Vec3d, Gf.Vec3f, Gf.Vec3h, Gf.Vec2d, Gf.Vec2f, Gf.Vec2h]:
     #             style.drawItemText(painter, cellRect, arrayOption.displayAlignment,
     # arrayOption.palette, True, Usdq.ToString(displayData[i][j]))
+
+    def PaintColor(self, painter, option, index):
+        super(ValueDelegate, self).paint(
+            painter, option, QtCore.QModelIndex())
+        vecOption = QtWidgets.QStyleOptionViewItem(option)
+        self.initStyleOption(vecOption, index)
+        style = QtWidgets.QApplication.style()
+        left = vecOption.rect.left()
+        top = vecOption.rect.top()
+        width = vecOption.rect.width()
+        height = vecOption.rect.height()
+
+        vecData = compatability.GetEditRole(index)
+        if not vecData:
+            return
+
+        colorWidth = 20
+        pad = 5
+        columns = vecData.dimension
+        cellWidth = (width - colorWidth) / columns
+
+        if len(vecData) not in (3, 4):
+            raise Exception("Paint color only supports color3f and color4f.")
+        displayVecData = Gf.ConvertLinearToDisplay(vecData)
+        with self._PainterContext(painter):
+            painter.setBrush(QtGui.QColor(*[c * 255 for c in displayVecData]))
+            painter.setPen(QtCore.Qt.NoPen)
+            painter.drawRect(left, top, colorWidth, height)
+
+        for i in xrange(columns):
+            cellRect = QtCore.QRect(colorWidth + pad + left + cellWidth * i, top,
+                                    cellWidth, height)
+            style.drawItemText(painter, cellRect, vecOption.displayAlignment,
+                               vecOption.palette, True,
+                               str(vecData[i]))
 
     def PaintVec(self, painter, option, index):
         super(ValueDelegate, self).paint(
@@ -154,15 +201,18 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
         editorHint = index.data(roles.EditorHintRole)
         editorHint = compatability.ResolveValue(editorHint)
 
-        if type(editorHint) == roles.EditorHintBasicValue:
+        if type(editorHint) is roles.EditorHintBasicValue:
             if editorHint.type in valueWidgets.matrixTypes:
                 self.PaintMatrix(painter, option, index)
                 return
             elif editorHint.type in valueWidgets.vecTypes:
                 self.PaintVec(painter, option, index)
                 return
-        elif type(editorHint) == roles.EditorHintTab:
+        elif type(editorHint) is roles.EditorHintTab:
             self.PaintTab(painter, option, index)
+            return
+        elif type(editorHint) is roles.EditorHintColorValue:
+            self.PaintColor(painter, option, index)
             return
         super(ValueDelegate, self).paint(painter, option, index)
 
@@ -174,6 +224,10 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
         elif tfType in valueWidgets.valueTypeMap:
             return valueWidgets.valueTypeMap[tfType](parent=parent)
 
+    def CreateColorValueEditor(self, tfType, parent):
+        editor = valueWidgets.colorTypeMap[tfType](parent=parent)
+        return editor
+
     def CreateTextComboEditor(self, allowedValues, parent):
         editor = valueWidgets.TextComboEdit(allowedValues, parent=parent)
         editor.editFinished.connect(self.CommitAndCloseEditor)
@@ -183,10 +237,12 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
         editorHint = index.data(roles.EditorHintRole)
         editorHint = compatability.ResolveValue(editorHint)
 
-        if type(editorHint) == roles.EditorHintBasicValue:
+        if type(editorHint) is roles.EditorHintBasicValue:
             return self.CreateBasicValueEditor(editorHint.type, parent)
-        elif type(editorHint) == roles.EditorHintTextCombo:
+        elif type(editorHint) is roles.EditorHintTextCombo:
             return self.CreateTextComboEditor(editorHint.allowedValues, parent)
+        elif type(editorHint) is roles.EditorHintColorValue:
+            return self.CreateColorValueEditor(editorHint.type, parent)
 
     @QtCore.Slot()
     def CommitAndCloseEditor(self):

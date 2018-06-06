@@ -46,7 +46,7 @@ class TestUndoRouter(unittest.TestCase):
         with UsdQt.UndoBlock():
             self.stage.DefinePrim('/World')
 
-        self.stage.Close()
+        self.stage = None
         with self.assertRaises(Tf.ErrorException):
             self.localUndoStack[-1].Invert()
 

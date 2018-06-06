@@ -35,13 +35,16 @@ from ._Qt import QtCore, QtWidgets
 
 class TreeView(QtWidgets.QTreeView):
     """Specialization of QTreeView to add selection edit based functionality.
+    
+    Selection edits allow editing of all selected attriutes simultaneously.
 
     This class should be as sparse as possible.  In general, all models and
-    functionality should work find with QTreeView natively.  This only exists
-    because commitData seems like the best place for selection based overrides.
-    Neither the delegate nor the model have access to the selection model. To
-    avoid breaking encapsulation, we provide this class for common selection
-    based functionality like multiselection edits.
+    functionality should work with QTreeView natively.  
+    
+    This exists because commitData seems like the best place for selection 
+    based overrides. Neither the delegate nor the model have access to the 
+    selection model. To avoid breaking encapsulation, we use this wrapper 
+    class instead.
     """
 
     SelectedEditOff = 0
@@ -55,8 +58,7 @@ class TreeView(QtWidgets.QTreeView):
         self.__selectionEditMode = mode
 
     def commitData(self, editor):
-        """override commit of data to allow us to edit multiple selected indexes
-        """
+        """overriden to support multiple selected index edits"""
 
         # TODO: Add an UndoBlock
         if self.indexWidget(self.currentIndex()) == editor:

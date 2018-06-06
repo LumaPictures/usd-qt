@@ -114,10 +114,9 @@ std::string UsdQt_ObjectProxyBase<T, SpecType>::GetDocumentation() const {
 
 template <typename T, SdfSpecType SpecType>
 bool UsdQt_ObjectProxyBase<T, SpecType>::IsValid() const {
-    for (auto object : _GetObjects()) {
-        if (!object) return false;
-    }
-    return true;
+    return std::all_of(
+        this->_GetObjects().begin(), this->_GetObjects().end(),
+        [](const UsdObject& object) { return object.IsValid(); });
 }
 
 template <typename T, SdfSpecType SpecType>
@@ -125,8 +124,34 @@ size_t UsdQt_ObjectProxyBase<T, SpecType>::GetSize() const {
     return _GetObjects().size();
 }
 
+template <typename T, SdfSpecType SpecType>
+bool UsdQt_PropertyProxyBase<T, SpecType>::IsAuthored() const {
+    return std::any_of(
+        this->_GetObjects().begin(), this->_GetObjects().end(),
+        [](const UsdProperty& property) { return property.IsAuthored(); });
+}
+
+template <typename T, SdfSpecType SpecType>
+bool UsdQt_PropertyProxyBase<T, SpecType>::IsAuthoredAt(
+    const UsdEditTarget& editTarget) const {
+    return std::any_of(this->_GetObjects().begin(), this->_GetObjects().end(),
+                       [&editTarget](const T& property) {
+                           return property.IsAuthoredAt(editTarget);
+                       });
+}
+
+template <typename T, SdfSpecType SpecType>
+bool UsdQt_PropertyProxyBase<T, SpecType>::IsDefined() const {
+    return std::any_of(this->_GetObjects().begin(), this->_GetObjects().end(),
+                       [](const T& property) { return property.IsDefined(); });
+}
+
+template class UsdQt_ObjectProxyBase<UsdPrim, SdfSpecTypePrim>;
 template class UsdQt_ObjectProxyBase<UsdAttribute, SdfSpecTypeAttribute>;
 template class UsdQt_ObjectProxyBase<UsdRelationship, SdfSpecTypeRelationship>;
-template class UsdQt_ObjectProxyBase<UsdPrim, SdfSpecTypePrim>;
+
+template class UsdQt_PropertyProxyBase<UsdAttribute, SdfSpecTypeAttribute>;
+template class UsdQt_PropertyProxyBase<UsdRelationship, SdfSpecTypeRelationship>;
+
 
 PXR_NAMESPACE_CLOSE_SCOPE

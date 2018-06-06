@@ -34,6 +34,21 @@ from pxr import Gf, Tf, Sdf
 
 from . import compatability
 
+# A Note on 'None'
+#
+# This file aims to provide editors that are compatable with all
+# VtValues/SdfValueTypeNames that may appear in a Usd file. That means that
+# 'None' may be a value that needs to be handled by a widget's SetValue (as
+# 'None' may be returned by an attribute's Get). At the same time, calling Set
+# with a value of None will raise an Exception, so value editors cannot not
+# return None in their GetValue. When values are not explicitly defined (say an
+# empty numeric value, we prefer to map the undefined field to the type's
+# VtZero value. It may be tempting to try and equate a SetValue with a Block or
+# a Clear, but that may be ambiguous.
+#
+# In short, Widgets MUST be instantiatable with None via SetValue and NEVER
+# return None via GetValue.
+
 
 class _ValueEditMetaclass(type(QtWidgets.QWidget)):
     """Metaclass used for all subclasses of _ValueEdit
@@ -63,14 +78,19 @@ class _ValueEditMetaclass(type(QtWidgets.QWidget)):
                 setter = clsAttributes['SetValue']
             else:
                 for base in bases:
-                    if hasattr(base, 'GetValue'):
+                    if hasattr(base, 'SetValue'):
                         setter = base.SetValue
                         break
                 else:
                     raise NotImplementedError(
-                        "GetValue must be defined in class or parent.")
+                        "SetValue must be defined in class or parent.")
             clsAttributes['value'] = QtCore.Property(
                 valueType, getter, setter, user=True)
+            # NOTE: We're supposed to be able to declare a notify signal in the
+            # Qt property declaration.  I haven't gotten it working so I've been
+            # manually defining it in each SetValue method.  We should
+            # reevaluate this approach to declaring the value user property as
+            # it is a little convoluted.
         return super(_ValueEditMetaclass, meta).__new__(
             meta, name, bases, clsAttributes)
 
@@ -78,8 +98,8 @@ class _ValueEditMetaclass(type(QtWidgets.QWidget)):
 class _ValueEdit(QtWidgets.QWidget):
     """Infers Qt user property called 'value' from class variable 'valueType'.
 
-    Subclasses must set 'valueType' to be not None and implement 'GetValue', 
-    'SetValue', and 'IsChanged'. 
+    Subclasses must set 'valueType' to be not None and implement 'GetValue',
+    'SetValue', and 'IsChanged'.
     """
     __metaclass__ = _ValueEditMetaclass
     valueType = None
@@ -96,9 +116,9 @@ class _ValueEdit(QtWidgets.QWidget):
     def IsChanged(self):
         """Returns whether the widget should be considered changed by delegates.
 
-        There are several actions that can trigger setModelData in the 
+        There are several actions that can trigger setModelData in the
         ValueDelegate.  A custom IsChanged allows us to filter those out by
-        limiting the edits that will be considered a change.  
+        limiting the edits that will be considered a change.
         (It would be nice to remove this if possible.)
         """
         raise NotImplementedError()
@@ -196,9 +216,13 @@ class _NumericEdit(_LineEdit):
         self._stringType = type(self.__lineEdit.text())
 
     def GetValue(self):
-        return self.valueType(self.__lineEdit.text())
+        return self.valueType(self.__lineEdit.text())\
+            if len(self.__lineEdit.text()) > 0 else 0.0
 
     def SetValue(self, value):
+        if value is None:
+            self.__lineEdit.clear()
+            return
         stringValue = compatability.ResolveString(str(value), self._stringType)
         if self.__validator.validate(stringValue, 0)[0] != QtGui.QValidator.Acceptable:
             raise ValueError("%s not accepted by validator." % stringValue)
@@ -243,13 +267,15 @@ class _VecEdit(_LineEdit):
         self._stringType = type(self.__editors[0].text())
 
     def GetValue(self):
-        vec = self.valueType()
-        for index in xrange(self.valueType.dimension):
-            scalar = self.scalarType(self.__editors[index].text())
-            vec[index] = scalar
-        return vec
+        text = (self.__editors[i].text()
+                for i in xrange(self.valueType.dimension))
+        return self.valueType(*(self.scalarType(t) if t else 0.0 for t in text))
 
     def SetValue(self, value):
+        if value is None:
+            for index in xrange(self.valueType.dimension):
+                self.__editors[index].clear()
+            return
         if len(value) != self.valueType.dimension:
             raise ValueError("Input length %i does not match expected length "
                              "%i", len(value), self.valueType.dimension)
@@ -284,7 +310,6 @@ class _MatrixEdit(_LineEdit):
         super(_MatrixEdit, self).__init__(parent)
         self.__layout = QtWidgets.QGridLayout(self)
         self.__editors = []
-
         self.__validator = self.validatorType()
 
         for row in xrange(self.valueType.dimension[0]):
@@ -308,19 +333,16 @@ class _MatrixEdit(_LineEdit):
         return row * self.valueType.dimension[1] + column
 
     def GetValue(self):
-        matrix = self.valueType()
-        numRows = self.valueType.dimension[0]
-        numColumns = self.valueType.dimension[1]
-        for row in xrange(numRows):
-            for column in xrange(numColumns):
-                scalar = self.scalarType(
-                    self.__editors[self.__GetIndex(row, column)].text())
-                matrix[row, column] = scalar
-        return matrix
+        text = (e.text() for e in self.__editors)
+        return self.valueType(*(self.scalarType(t) if t else 0.0 for t in text))
 
     def SetValue(self, value):
         numRows = self.valueType.dimension[0]
         numColumns = self.valueType.dimension[1]
+        if value is None:
+            for e in self.__editors:
+                e.clear()
+            return
         if len(value) != numRows:
             raise ValueError(
                 "Input row size %i does not match expected length %i",
@@ -461,7 +483,9 @@ class StringEdit(_LineEdit):
         return str(self.__lineEdit.text())
 
     def SetValue(self, value):
-        value = value if value else ''
+        if value is None:
+            self.__lineEdit.clear()
+            return
         self.__lineEdit.setText(value)
 
 
@@ -479,14 +503,19 @@ class AssetEdit(_LineEdit):
         self._SetupLineEdit(self.__lineEdit)
 
     def GetValue(self):
-        return Sdf.AssetPath(str(self.__lineEdit.text()))
+        text = str(self.__lineEdit.text())
+        return Sdf.AssetPath(text) if text else Sdf.AssetPath()
 
     def SetValue(self, value):
+        if value is None:
+            self.__lineEdit.clear()
+            return
         self.__lineEdit.setText(value.path)
 
 
 class PathValidator(QtGui.QValidator):
     """A PathValidator ensures that the path is a valid SdfPath """
+
     def __init__(self, parent=None):
         super(PathValidator, self).__init__(parent)
 
@@ -514,21 +543,149 @@ class PathEdit(_LineEdit):
         self._SetupLineEdit(self.__lineEdit)
 
     def GetValue(self):
-        return Sdf.Path(str(self.__lineEdit.text()))
+        text = str(self.__lineEdit.text())
+        return Sdf.Path(text) if text else Sdf.Path()
 
     def SetValue(self, value):
+        if value is None:
+            self.__lineEdit.clear()
+            return
         stringValue = compatability.ResolveString(str(value), self._stringType)
-        print(stringValue, type(stringValue))
         if self.__validator.validate(stringValue, 0)[0] != QtGui.QValidator.Acceptable:
             raise ValueError("%s not accepted by validator." % stringValue)
         self.__lineEdit.setText(stringValue)
 
 
+class _ColorButton(QtWidgets.QPushButton):
+    '''The color button stores its color in DISPLAY space not LINEAR space'''
+    class _PainterContext(object):
+        def __init__(self, widget):
+            self.widget = widget
+            self._painter = None
+
+        def __enter__(self):
+            self._painter = QtGui.QPainter()
+            self._painter.begin(self.widget)
+            return self._painter
+
+        def __exit__(self, *args):
+            self._painter.end()
+
+    def __init__(self, parent=None):
+        super(_ColorButton, self).__init__(parent)
+        self._color = QtGui.QColor(255, 255, 255)
+
+    @property
+    def displayColor(self):
+        """Returns color in display space"""
+        return self._color
+
+    @displayColor.setter
+    def displayColor(self, color):
+        """Set color in display space"""
+        if self._color == color:
+            return
+
+        self._color = color
+        self.update()
+
+    def paintEvent(self, event):
+        super(_ColorButton, self).paintEvent(event)
+
+        # Paint a subset of the button the defined color
+        with self._PainterContext(self) as painter:
+            painter.setPen(QtGui.QPen(self._color))
+            painter.setBrush(QtGui.QBrush(self._color))
+
+            bounds = self.geometry()
+            area = QtCore.QRect(5, 5, bounds.width() - 11, bounds.height() - 11)
+            painter.drawRect(area)
+
+
+class _ColorEdit(_ValueEdit):
+    '''Stores a color in LINEAR space'''
+    valueType = None
+
+    def __init__(self, parent=None):
+        super(_ColorEdit, self).__init__(parent)
+        self.__layout = QtWidgets.QHBoxLayout()
+        self._SetupLayoutSpacing(self.__layout)
+        self._colorButton = _ColorButton()
+        self._colorButton.setMaximumWidth(30)
+        self._colorButton.clicked.connect(self._OnPushed)
+        self._valueWidget = valueTypeMap[Tf.Type.Find(self.valueType)]()
+
+        self.__layout.addWidget(self._colorButton)
+        self.__layout.addWidget(self._valueWidget)
+        self.setLayout(self.__layout)
+
+        # TODO: There should be a way to more directly identify if one of the
+        # numeric widgets have changed.
+        for child in self._valueWidget.children():
+            if isinstance(child, QtWidgets.QLineEdit):
+                child.editingFinished.connect(self._SetButtonColor)
+
+        self._changed = False
+
+    def _SetButtonColor(self):
+        assert(self.valueType.dimension in (3, 4))
+        value = Gf.ConvertLinearToDisplay(self.value)
+        self._colorButton.displayColor = QtGui.QColor(
+            *[255 * v for v in value])
+
+    def _OnPushed(self):
+        if self.valueType.dimension in (3, 4):
+            options = QtWidgets.QColorDialog.ColorDialogOptions()
+            displayColor = QtGui.QColor(*[255 * v for v in
+                                          Gf.ConvertLinearToDisplay(self.value)])
+            if self.valueType.dimension == 4:
+                options = QtWidgets.QColorDialog.ShowAlphaChannel
+            newColor = QtWidgets.QColorDialog.getColor(
+                displayColor, self, unicode(self.valueType), options)
+            if newColor.isValid():
+                if self.valueType.dimension == 3:
+                    value = (newColor.red(), newColor.green(), newColor.blue())
+                elif self.valueType.dimension == 4:
+                    value = (newColor.red(), newColor.green(),
+                             newColor.blue(), newColor.alpha())
+                value = self.valueType(*(v/255.0 for v in value))
+                value = Gf.ConvertDisplayToLinear(value)
+                self.value = self.valueType(*(round(v, 2) for v in value))
+                self._changed = True
+
+    def GetValue(self):
+        return self._valueWidget.value
+
+    def SetValue(self, value):
+        self._valueWidget.value = value
+        self._SetButtonColor()
+
+    def IsChanged(self):
+        return self._valueWidget.IsChanged() or self._changed
+
+
+class Color3dEdit(_ColorEdit):
+    valueType = Gf.Vec3d
+
+
+class Color4dEdit(_ColorEdit):
+    valueType = Gf.Vec4d
+
+
+colorTypeMap = {
+    Tf.Type.Find(Gf.Vec3f): Color3dEdit,
+    Tf.Type.Find(Gf.Vec3d): Color3dEdit,
+    Tf.Type.Find(Gf.Vec3h): Color3dEdit,
+    Tf.Type.Find(Gf.Vec4f): Color4dEdit,
+    Tf.Type.Find(Gf.Vec4d): Color4dEdit,
+    Tf.Type.Find(Gf.Vec4h): Color4dEdit,
+}
+
 valueTypeMap = {
     Tf.Type.FindByName('string'): StringEdit,
     Tf.Type.FindByName('TfToken'): StringEdit,
-    Tf.Type.Find(Sdf.AssetPath): AssetEdit,
-    Tf.Type.Find(Sdf.Path): PathEdit,
+    Tf.Type.FindByName('SdfAssetPath'): AssetEdit,
+    Tf.Type.FindByName('SdfPath'): PathEdit,
     Tf.Type.FindByName('unsigned char'):
         functools.partial(IntEdit, minValue=0, maxValue=(2 << (8 - 1)) - 1),
     Tf.Type.FindByName('unsigned int'):
@@ -556,6 +713,8 @@ valueTypeMap = {
     Tf.Type.Find(Gf.Matrix4d): Matrix4dEdit,
 }
 
+floatTypes = {Tf.Type.FindByName('half'),
+              Tf.Type.FindByName('float'), Tf.Type.FindByName('double')}
 vecTypes = {Tf.Type.Find(Gf.Vec2i), Tf.Type.Find(Gf.Vec2f),
             Tf.Type.Find(Gf.Vec2d), Tf.Type.Find(Gf.Vec2h),
             Tf.Type.Find(Gf.Vec3i), Tf.Type.Find(Gf.Vec3f),
@@ -569,14 +728,30 @@ matrixTypes = {Tf.Type.Find(Gf.Matrix2f), Tf.Type.Find(Gf.Matrix2d),
 if __name__ == '__main__':
     import sys
     app = QtWidgets.QApplication(sys.argv)
+    layout = QtWidgets.QVBoxLayout()
 
-    widget = Vec3dEdit()
-    widget.show()
+    widget = FloatEdit()
+    widget.value = .5
+    layout.addWidget(widget)
 
-    widget = StringEdit()
-    widget.show()
+    widget1 = Vec3dEdit()
+    widget1.value = (1, 2, 3)
+    layout.addWidget(widget1)
 
-    widget = PathEdit()
-    widget.show()
+    widget2 = StringEdit()
+    widget2.value = "one"
+    layout.addWidget(widget2)
+
+    widget3 = PathEdit()
+    widget3.value = Sdf.Path("/World")
+    layout.addWidget(widget3)
+
+    widget4 = Color3dEdit()
+    widget4.value = (.5, .5, .5)
+    layout.addWidget(widget4)
+
+    mainWidget = QtWidgets.QWidget()
+    mainWidget.setLayout(layout)
+    mainWidget.show()
 
     sys.exit(app.exec_())

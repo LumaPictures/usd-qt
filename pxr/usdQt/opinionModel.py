@@ -75,6 +75,15 @@ class OpinionBaseModel(QtCore.QAbstractItemModel):
             self.row = None
             self.proxy = None
             self.persistentName = None
+            
+    _colorTypes = {
+        Sdf.ValueTypeNames.Color3f,
+        Sdf.ValueTypeNames.Color3d,
+        Sdf.ValueTypeNames.Color3h,
+        Sdf.ValueTypeNames.Color4f,
+        Sdf.ValueTypeNames.Color4d,
+        Sdf.ValueTypeNames.Color4h,
+    }
 
     def __init__(self, prims, parent=None):
         super(OpinionBaseModel, self).__init__(parent)
@@ -407,6 +416,8 @@ class OpinionStandardModel(OpinionBaseModel):
         elif role == roles.EditorHintRole:
             if column == OpinionStandardModel.Value:
                 tfType = proxy.GetTypeName().type
+                if proxy.GetTypeName() in self._colorTypes:
+                    return roles.EditorHintColorValue(tfType)
                 if tfType == Tf.Type.FindByName("TfToken"):
                     allowedValues = proxy.GetAllowedTokens()
                     if len(allowedValues) > 0:

@@ -42,7 +42,7 @@ TF_DECLARE_WEAK_AND_REF_PTRS(UsdQt_RelationshipProxy);
 /// \class UsdQt_RelationshipProxy
 /// \brief Proxy interface for a relationship
 class UsdQt_RelationshipProxy
-    : public UsdQt_ObjectProxyBase<UsdRelationship, SdfSpecTypeRelationship> {
+    : public UsdQt_PropertyProxyBase<UsdRelationship, SdfSpecTypeRelationship> {
 private:
     std::vector<UsdRelationship> _relationships;
     explicit UsdQt_RelationshipProxy(const std::vector<UsdRelationship>& rels);

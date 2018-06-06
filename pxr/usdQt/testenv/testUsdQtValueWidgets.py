@@ -84,6 +84,7 @@ class _Base:
     Namespace to prevent test from being executed
     '''
     class TestValueEdit(unittest.TestCase):
+        AttributeErrorValues = []
 
         def setUp(self):
             self.longMessage = True
@@ -129,6 +130,13 @@ class _Base:
                 with self.assertRaises(TypeError):
                     widget.value = value
 
+        def testAttributeErrors(self):
+            '''verify that some values are unsettable [raise TypeError]'''
+            widget = self.Widget()
+            for value in self.AttributeErrorValues:
+                with self.assertRaises(AttributeError):
+                    widget.value = value
+
         def testKeySequence(self):
             '''verify a series of keystrokes when the widget has focus'''
             if 'PXR_USDQT_ALLOW_TEST_KEYS' in os.environ and \
@@ -161,8 +169,9 @@ class TestPathEdit(_Base.TestValueEdit):
                      Sdf.Path('Relative'), Sdf.Path('/World.property')]
     KeySequences = {}
     SuccessCastedValues = {'/World': Sdf.Path('/World'), '': Sdf.Path(),
-                           '/World/Child': Sdf.Path('/World/Child')}
-    # TODO: Consider implementing fixup to cleanup /World/Child/ 
+                           '/World/Child': Sdf.Path('/World/Child'),
+                           None: Sdf.Path.emptyPath}
+    # TODO: Consider implementing fixup to cleanup /World/Child/
     ValueErrorValues = ['//World', '////', '/World..property', '/World/Child/']
     TypeErrorValues = []
 
@@ -174,8 +183,8 @@ class TestIntEdit(_Base.TestValueEdit):
                     ('1', '.', '0', '0',): 100,
                     ('1', 'e', 'e', '-', '2',): 12
                     }
-    SuccessCastedValues = {"1": 1}
-    ValueErrorValues = ["-1.0", 'one', 1.0, [1], None]
+    SuccessCastedValues = {"1": 1, None: 0}
+    ValueErrorValues = ["-1.0", 'one', 1.0, [1]]
     TypeErrorValues = []
 
 
@@ -184,8 +193,9 @@ class TestFloatEdit(_Base.TestValueEdit):
     SuccessValues = [1, 1.0, 1e100, -10000, 10000, 123456789, 1.0, long(10000)]
     KeySequences = {('1', '.', '0', '0', QtCore.Qt.Key_Return): 1.0,
                     ('1', 'e', 'e', '-', '2',): 1e-2}
-    SuccessCastedValues = {"1.0": 1, '1e100': 1e100, "-100": -100, "+100": 100}
-    ValueErrorValues = ['one', [1.0], '1e', '-', '+', None]
+    SuccessCastedValues = {"1.0": 1, '1e100': 1e100, "-100": -100, "+100": 100,
+                           None: 0.0}
+    ValueErrorValues = ['one', [1.0], '1e', '-', '+']
     TypeErrorValues = []
 
 
@@ -194,7 +204,8 @@ class TestVec2dEdit(_Base.TestValueEdit):
     SuccessValues = [Gf.Vec2f(1.0, 2.0), Gf.Vec2d(
         1.0, 2.0), Gf.Vec2h(1.0, 2.0), (1.0, 2.0), [1.0, 2.0]]
     SuccessCastedValues = {('1.0', '2.0'): (1.0, 2.0),
-                           ('1e10', 1.0): (1e10, 1.0)}
+                           ('1e10', 1.0): (1e10, 1.0),
+                           None: Gf.Vec2d(0.0)}
     KeySequences = {('1', '.', '0', QtCore.Qt.Key_Tab,
                      '2', '.', '0'): (1.0, 2.0), }
     ValueErrorValues = [(1.0, None), (None, 1.0), ("1.0", "one"),
@@ -206,7 +217,8 @@ class TestMatrix2dEdit(_Base.TestValueEdit):
     Widget = UsdQt.valueWidgets.Matrix2dEdit
     SuccessValues = [Gf.Matrix2f(1.0, 2.0, 3.0, 4.0),
                      Gf.Matrix2d(1.0, 2.0, 3.0, 4.0)]
-    SuccessCastedValues = {(('1.0', '2.0'), ('3.0', '4.0')): Gf.Matrix2f(1.0, 2.0, 3.0, 4.0)}
+    SuccessCastedValues = {(('1.0', '2.0'), ('3.0', '4.0')): Gf.Matrix2f(1.0, 2.0, 3.0, 4.0),
+                           None: Gf.Matrix2d(0.0)}
     KeySequences = {('1', '.', '0', QtCore.Qt.Key_Tab, '2', '.', '0', QtCore.Qt.Key_Tab,
                      '3', '.', '0', QtCore.Qt.Key_Tab, '4', '.', '0'): Gf.Matrix2f(1.0, 2.0, 3.0, 4.0), }
     ValueErrorValues = [((1.0, None), (None, 1.0)), Gf.Matrix3f(), "(1.0, 2.0)"]
@@ -237,6 +249,25 @@ class TestTextComboBoxEdit(_Base.TestValueEdit):
     ValueErrorValues = []
     TypeErrorValues = [1.0, 1, ['mylist'], ('bla',)]
 
+
+class TestColor4dEdit(_Base.TestValueEdit):
+    Widget = UsdQt.valueWidgets.Color4dEdit
+    SuccessValues = [Gf.Vec4d(.1, .2, .3, .4), (.5, .6, .7, .8)]
+    SuccessCastedValues = {None: Gf.Vec4d()}
+    KeySequences = {}
+    ValueErrorValues = ['red', 'blue', ['red']]
+    TypeErrorValues = [1.0, 1]
+
+
+class TestAssetEdit(_Base.TestValueEdit):
+    Widget = UsdQt.valueWidgets.AssetEdit
+    SuccessValues = [Sdf.AssetPath('/path/to/file.ext'),
+                     Sdf.AssetPath('./relativePath.ext')]
+    SuccessCastedValues = {None: Sdf.AssetPath()}
+    KeySequences = {}
+    ValueErrorValues = []
+    TypeErrorValues = []
+    AttributeErrorValues = [1.0, 1, '/string/path.ext']
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

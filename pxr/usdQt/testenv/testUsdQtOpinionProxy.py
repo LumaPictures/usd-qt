@@ -119,6 +119,8 @@ class TestAttributeProxy(BaseClasses.ProxyTest):
             [prim1.GetAttribute('x'), prim2.GetAttribute('x'),
              prim3.GetAttribute('x')])
 
+        # test a combination of common series of operations like
+        # Get, Set, Clear, and Block
         self.assertEqual(attrProxy2.GetTypeName(), Sdf.ValueTypeNames.Int)
         self.assertEqual(attrProxy2.GetVariability(), Sdf.VariabilityVarying)
         self.assertEqual(attrProxy2.Get(Usd.TimeCode.Default()), None)
@@ -140,8 +142,21 @@ class TestAttributeProxy(BaseClasses.ProxyTest):
             self.assertTrue(attrProxy3.Set(22, Usd.TimeCode.Default()))
         self.assertTrue(attrProxy3.Clear())
         self.assertEqual(attrProxy3.Get(Usd.TimeCode.Default()), None)
+        
+    def testAuthoredAndDefined(self):
+        """Validates IsDefined() and IsAuthored() methods"""
+        prim1 = self.stage.GetPrimAtPath('/World/Prim1')
+        prim2 = self.stage.GetPrimAtPath('/World/AttrPrim1')
+
+        attrProxyX = _AttributeProxy(
+            [prim1.GetAttribute('x'), prim2.GetAttribute('x')])
+            
+        self.assertTrue(attrProxyX.IsDefined())
+        self.assertTrue(attrProxyX.IsAuthored())
+        
 
     def testToken(self):
+        """Validates GetAllowedTokens() for token attributes"""
         prim = self.stage.GetPrimAtPath('/World/TokenPrim')
 
         attrProxy = _AttributeProxy(

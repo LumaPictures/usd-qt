@@ -23,6 +23,7 @@ def Xform "MyPrim1" (
    def  "Child4" {
       int x = 1
       int y = 2
+      color3f z = (.5, .6, .7)
       rel rel1 = </MyPrim1>
    }
 }
