@@ -11,12 +11,10 @@ class ProxyShapeOutliner(usdQt.app.UsdOutliner):
     '''Generic outliner attached to a single AL maya ProxyShape node'''
     OUTLINER_WINDOW_NAME = 'MayaUsdOutlinerWin'
 
-    def __init__(self, stage, proxyShape, contextMenuBuilder=None,
-                 menuBarBuilder=None, parent=None):
+    def __init__(self, stage, proxyShape, role=None, parent=None):
         super(ProxyShapeOutliner, self).__init__(
             stage,
-            contextMenuBuilder=contextMenuBuilder,
-            menuBarBuilder=menuBarBuilder,
+            role=role,
             parent=parent)
         self.setObjectName(self.OUTLINER_WINDOW_NAME)
         self._proxyShape = proxyShape
@@ -56,8 +54,8 @@ class ProxyShapeOutliner(usdQt.app.UsdOutliner):
                 toSelect.append(dag)
 
         if toSelectPrimPaths:
-            print 'pm.AL_usdmaya_ProxyShapeSelect(%s, primPath=%s, ' \
-                  'append=True)' % (self._proxyShape, toSelectPrimPaths)
+            # print 'pm.AL_usdmaya_ProxyShapeSelect(%s, primPath=%s, ' \
+            #       'append=True)' % (self._proxyShape, toSelectPrimPaths)
             pm.AL_usdmaya_ProxyShapeSelect(
                 self._proxyShape,
                 primPath=toSelectPrimPaths,
@@ -71,24 +69,15 @@ class ProxyShapeOutliner(usdQt.app.UsdOutliner):
                 toDeselect.append(dag)
 
         if toDeselectPrimPaths:
-            print 'pm.AL_usdmaya_ProxyShapeSelect(%s, primPath=%s, ' \
-                  'deselect=True)' % (self._proxyShape, toDeselectPrimPaths)
+            # print 'pm.AL_usdmaya_ProxyShapeSelect(%s, primPath=%s, ' \
+            #       'deselect=True)' % (self._proxyShape, toDeselectPrimPaths)
             pm.AL_usdmaya_ProxyShapeSelect(
                 self._proxyShape,
                 primPath=str(prim.GetPath()),
                 deselect=True
             )
 
-        # manually keep these in sync if needed
-        # if toDeselect:
-        #     pm.select(toDeselect, deselect=True)
-        # if toSelect:
-        #     pm.select(toDeselect, add=True)
-
-        # this does not seem to deliver on its promise of keeping things synced.
-        # pm.AL_usdmaya_ProxyShapePostSelect(self._proxyShape)
         self._blockSelectionCallback = False
-        print 'current selection: %s' % pm.selected()
 
     def mayaSelectionChanged(self, *args):
         '''Callback to mirror maya selection changes in the Outliner'''

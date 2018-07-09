@@ -200,9 +200,26 @@ class ItemTree(Generic[T]):
             parent = self._root
         return list(self._getItemChildren(parent))
 
+    def iterChildren(self, parent=None):
+        '''
+        Return an iterator over the immediate children of `parent`.
+
+        Parameters
+        ----------
+        parent : Optional[T]
+            if None, defaults to the root item
+
+        Returns
+        -------
+        Iterator[T]
+        '''
+        if parent is None:
+            parent = self._root
+        return iter(self._getItemChildren(parent))
+
     def childAtRow(self, parent, row):
         '''
-        Return the parent's child at the given index. 
+        Return the parent's child at the given index.
 
         Parameters
         ----------
@@ -376,6 +393,14 @@ class ItemTree(Generic[T]):
             yield item
 
     def iterItems(self):
+        '''
+        Return an iterator over all of the key-item pairs in the tree, in an
+        undefined order.
+
+        Returns
+        -------
+        Iterator[Tuple[Hashable, T]]
+        '''
         return self._keyToItem.iteritems()
 
 

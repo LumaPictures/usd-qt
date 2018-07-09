@@ -22,17 +22,23 @@
 # language governing permissions and limitations under the Apache License.
 #
 
+from pxr import Sdf
+
 from ._Qt import QtCore, QtGui, QtWidgets
+
 
 NULL_INDEX = QtCore.QModelIndex()
 
 NO_COLOR = QtGui.QColor(0, 0, 0, 0)
-GREEN = QtGui.QColor(14, 93, 45, 64)
+GREEN = QtGui.QColor(14, 93, 45, 200)
+BRIGHT_GREEN = QtGui.QColor(14, 163, 45, 200)
+YELLOW = QtGui.QColor(255, 255, 102, 200)
+BRIGHT_YELLOW = QtGui.QColor(255, 255, 185, 200)
 DARK_ORANGE = QtGui.QColor(186, 99, 0, 200)
-LIGHT_BLUE = QtGui.QColor(78, 181, 224, 128)
+LIGHT_BLUE = QtGui.QColor(78, 181, 224, 200)
 BRIGHT_ORANGE = QtGui.QColor(255, 157, 45, 200)
 PALE_ORANGE = QtGui.QColor(224, 150, 66, 200)
-DARK_BLUE = QtGui.QColor(14, 82, 130, 128)
+DARK_BLUE = QtGui.QColor(14, 82, 130, 200)
 
 
 class FallbackException(Exception):
@@ -53,69 +59,135 @@ def CopyToClipboard(text):
     cb.setText(text, QtGui.QClipboard.Clipboard)
 
 
-class ContextMenuCallback(object):
-    '''descriptor for passing on builder selection to builder methods'''
-
-    def __init__(self, func, supportsMultiSelection=False):
-        self.func = func
-        self.supportsMultiSelection = supportsMultiSelection
-
-    def __call__(self, *args, **kwargs):
-        selection = self.builder.GetSelection()
-        if selection:
-            if self.supportsMultiSelection:
-                return self.func(self.builder, selection)
-            return self.func(self.builder, selection[0])
-
-    def __get__(self, builder, objtype):
-        self.builder = builder
-        return self
-
-
-def passSingleSelection(f):
+def passSingleSelection(cls):
     '''
-    decorator to get the first selection item from the outliner and pass it
-    into the decorated function.
+    ContextMenuAction decorator that will make it so the first selection item
+     is passed to the action's do() method.
 
     Parameters
     ----------
-    f : Callable
-        This method should operate on a single Selection object.
+    cls : ContextMenuAction
 
     Returns
     -------
-    Callable
+    ContextMenuAction
     '''
-    return ContextMenuCallback(f, supportsMultiSelection=False)
+    cls.supportsMultiSelection = False
+    return cls
 
 
-def passMultipleSelection(f):
+def passMultipleSelection(cls):
     '''
-    decorator to get the current selection from the outliner and pass it
-    into the decorated function.
+    ContextMenuAction decorator that will make it so the full selection list
+     is passed to the action's do() method.
 
     Parameters
     ----------
-    f : Callable
-        This method should operate on a list of Selection objects.
+    cls : ContextMenuAction
 
     Returns
     -------
-    Callable
+    ContextMenuAction
     '''
-    return ContextMenuCallback(f, supportsMultiSelection=True)
+    cls.supportsMultiSelection = True
+    return cls
+
+
+class MenuSeparator(object):
+    '''Use with Actions to specify a separator when configuring menu actions'''
+    pass
+
+
+class Action(QtCore.QObject):
+    '''
+    Base class for ui user triggered actions.
+    '''
+    def __init__(self, label=None, enable=None, func=None):
+        super(Action, self).__init__()
+        self._callable = func
+        self._label = label
+        self._enable = enable
+
+
+class MenuAction(Action):
+    '''
+    Base class for menu bar actions that can be added to views.
+    '''
+    def do(self, builder):
+        if self._callable:
+            self._callable()
+        else:
+            raise NotImplementedError('No callable given and no do() method '
+                                      'implemented for %s'
+                                      % self.__class__.__name__)
+
+    def shouldShow(self, builder):
+        return True
+
+    def enable(self, builder):
+        '''Returns whether the menu item should be enabled'''
+        return True
+
+    def label(self, builder):
+        raise NotImplementedError
+
+    def Build(self, builder, menu):
+        '''Add action to menu bar (override this for dynamically generated menus)
+        '''
+        a = menu.addAction(self.label(builder))
+        enable = self.enable(builder)
+        if enable:
+            a.triggered.connect(lambda: self.do(builder))
+        a.setEnabled(enable)
+
+
+class ContextMenuAction(Action):
+    '''
+    Base class for Context menu actions that can be added to views.
+    '''
+    def do(self, builder, selection):
+        raise NotImplementedError
+
+    def shouldShow(self, builder, selections):
+        return bool(selections)
+
+    def enable(self, builder, selections):
+        '''Returns whether the menu item should be enabled based on selection'''
+        return len(selections) == 1 or self.supportsMultiSelection
+
+    def label(self, builder, selection):
+        raise NotImplementedError
+
+    def Build(self, builder, menu, selection):
+        '''Add action to menu, override this for dynamically generated menus'''
+        a = menu.addAction(self.label(builder, selection))
+        enable = self.enable(builder, selection)
+        if enable:
+            a.triggered.connect(lambda: builder.CallAction(self))
+        a.setEnabled(enable)
 
 
 class ContextMenuBuilder(QtCore.QObject):
     '''
-    Base class to customize the building of right-click context menus for 
+    Class to customize the building of right-click context menus for
     selected view items.
     '''
-    showMenuOnNoSelection = False
-
-    def __init__(self, view):
+    def __init__(self, view, actions):
+        '''
+        Parameters
+        ----------
+        view : QtGui.QView
+        actions : List[ContextMenuActions]
+        '''
         super(ContextMenuBuilder, self).__init__()
         self.view = view
+        self.actions = actions
+        # add any actions here if you want to use their signals
+        self.nonMenuActions = []
+
+    @property
+    def model(self):
+        return self.view.model()
 
     def DoIt(self, event):
         '''
@@ -124,57 +196,81 @@ class ContextMenuBuilder(QtCore.QObject):
         Views should call this from their contextMenuEvent.
         '''
         selection = self.GetSelection()
-        if not selection and not self.showMenuOnNoSelection:
-            return
         menu = QtWidgets.QMenu(self.view)
-        menu = self.Build(menu, selection)
-        if menu is None:
+        for action in self.actions:
+            self.AddAction(menu, action, selection)
+        if menu.isEmpty():
             return
         menu.exec_(event.globalPos())
         event.accept()
 
-    def GetSelectedRowItems(self):
+    def CallAction(self, action):
         '''
-        Returns
-        -------
-        List[T]
+        Execute an action and provide it with the current view selection.
         '''
-        indexes = self.view.selectionModel().selectedRows()
-        return [index.internalPointer() for index in indexes]
+        selection = self.GetSelection()
+        if selection:
+            if action.supportsMultiSelection:
+                return action.do(self, selection)
+            return action.do(self, selection[0])
+        else:
+            return action.do(self)
 
-    def GetSelection(self):
+    def AddAction(self, menu, action, selection):
         '''
-        Override this to return useful selection objects to your Build.
-
-        Returns
-        -------
-        List
-        '''
-        return self.GetSelectedRowItems()
-
-    def Build(self, menu, selections):
-        '''
-        Build and return the top-level context menu for the view.
+        Add action to the context menu if it should be displayed.
 
         Parameters
         ----------
-        menu : QtWidgets.QMenu
-        selections : List[Selection]
+        menu : QMenu
+        action : ContextMenuAction
+        selection : List[Selection]
+        '''
+        if isinstance(action, MenuSeparator):
+            menu.addSeparator()
+            return
+        if not action.shouldShow(self, selection):
+            return
+        action.Build(self, menu, selection)
+
+    def AddNonMenuAction(self, action):
+        '''
+        Register an action that doesnt need to be Built or added to a menu
+        (Example: double click).
+
+        Parameters
+        ----------
+        action : ContextMenuAction
 
         Returns
         -------
-        Optional[QtWidgets.QMenu]
+        func : callable that you should connect to the appropriate qt signal.
         '''
-        raise NotImplementedError
+        self.nonMenuActions.append(action)
+
+        def func():
+            self.CallAction(action)
+
+        return func
+
+    def GetSelection(self):
+        '''
+        Get the Selection list that should be handed to the actions (Uses
+        the view's configured selection method by default)
+        '''
+        return self.view.GetSelection()
 
 
 class ContextMenuMixin(object):
-    '''Mix this class in with a view to bind a menu top a view'''
-
-    def __init__(self, parent=None, contextMenuBuilder=None):
+    '''Mix this class in with a view to bind a menu to a view'''
+    def __init__(self, parent=None, contextMenuBuilder=None, contextMenuActions=None):
         if not contextMenuBuilder:
-            raise ValueError('must provide a menu builder to this class')
-        self._menuBuilder = contextMenuBuilder(self)
+            contextMenuBuilder = ContextMenuBuilder
+        if not contextMenuActions:
+            contextMenuActions = self.defaultContextMenuActions
+        # bind actions to view
+        contextMenuActions = contextMenuActions(self)
+        self._menuBuilder = contextMenuBuilder(self, contextMenuActions)
         super(ContextMenuMixin, self).__init__(parent=parent)
 
     # Qt methods ---------------------------------------------------------------
@@ -183,28 +279,62 @@ class ContextMenuMixin(object):
 
     # Custom methods -----------------------------------------------------------
     def GetSignal(self, name):
-        # search the view and then the menu for a signal
-        for obj in (self, self._menuBuilder):
+        # search the view and then the menu and menu actions for a signal
+        toSearch = [self, self._menuBuilder] + self._menuBuilder.actions + \
+                   self._menuBuilder.nonMenuActions
+        for obj in toSearch:
             signal = getattr(obj, name, None)
             if signal and isinstance(signal, QtCore.Signal):
                 return signal
-        raise ValueError('Signal not found: {} in {} or {}'.format(
-            name, self.__class__, self._menuBuilder.__class__))
+        raise ValueError('Signal not found: {} in any of {}'.format(
+            name, ', '.join([x.__class__.__name__ for x in toSearch])))
+
+    def defaultContextMenuActions(self, view):
+        '''Override with default context menu actions'''
+        raise ValueError('must provide context menu actions for this class')
 
     @property
     def menuBuilder(self):
         return self._menuBuilder
 
+    def GetSelectedRowItems(self):
+        '''
+        Returns
+        -------
+        List[T]
+        '''
+        indexes = self.selectionModel().selectedRows()
+        return [index.internalPointer() for index in indexes]
+
+    def GetSelection(self):
+        '''
+        Override this to return useful selection objects to your actions.
+
+        Returns
+        -------
+        List
+        '''
+        return self.GetSelectedRowItems()
+
 
 class MenuBarBuilder(object):
     '''Attach a menu bar to a dialog'''
-
-    def __init__(self, dlg):
+    def __init__(self, dlg, roleGetMenuNames, roleGetMenuActions):
+        '''
+        Parameters
+        ----------
+        dlg : QDialog
+        roleGetMenuNames : Callable
+            Role method that will return menu bar names
+        roleGetMenuActions : Callable
+            Role method that will return menu bar actions
+        '''
         self.dlg = dlg
         self._menuBar = QtWidgets.QMenuBar(dlg)
         self._menus = {}  # type: Dict[str, QtWidgets.QMenu]
-        self.AddMenus()
-        self.PopulateMenus()
+        self.AddMenus(roleGetMenuNames(dlg))
+        self.actions = roleGetMenuActions(dlg)
+        self.PopulateMenus(self.actions)
 
     def AddMenu(self, name, label=None):
         '''
@@ -240,17 +370,44 @@ class MenuBarBuilder(object):
         '''
         return self._menus.get(name.lower())
 
-    def AddMenus(self):
+    def AddMenus(self, menus):
         '''Create any menus needed on the bar'''
-        pass
+        for name, text in menus:
+            self.AddMenu(name, text)
 
-    def PopulateMenus(self):
+    def CallAction(self, action):
+        '''
+        Call the menu action.
+        '''
+        return action.do(self)
+
+    def AddAction(self, menu, action):
+        '''
+        Add action to the menu if it should be displayed.
+
+        Parameters
+        ----------
+        menu : QMenu
+        action : MenuAction
+        '''
+        if isinstance(action, MenuSeparator):
+            menu.addSeparator()
+            return
+        if not action.shouldShow(self):
+            return
+        action.Build(self, menu)
+
+    def PopulateMenus(self, actions):
         '''Populate Menus in the menu bar'''
-        pass
+        for menuName, menuActions in actions.iteritems():
+            menu = self.GetMenu(menuName)
+            for action in menuActions:
+                self.AddAction(menu, action)
 
 
 class UsdQtUtilities(object):
-    '''Customizable utilities for building a usdqt app.
+    '''
+    Aggregator for customizable utilities in a usdQt app.
 
     To overwrite the default implementation, just define a function and then
     call:
@@ -272,6 +429,11 @@ class UsdQtUtilities(object):
 
 
 def GetReferencePath(parent, stage=None):
+    '''
+    Overrideable func for getting the path for a new reference from a user.
+
+    Use UsdQtUtilities to provide your pipeline specific file browser ui.
+    '''
     name, _ = QtWidgets.QInputDialog.getText(
         parent,
         'Add Reference',
@@ -279,4 +441,19 @@ def GetReferencePath(parent, stage=None):
     return name
 
 
-UsdQtUtilities.register('getReferencePath', GetReferencePath)
+def GetId(layer):
+    '''
+    Overrideable func to get the unique key used to store the original
+    contents of a layer.
+
+    Use UsdQtUtilities to provide support for pipeline specific resolvers that
+    may need special handling.
+    '''
+    if isinstance(layer, Sdf.Layer):
+        return layer.identifier
+    else:
+        return layer
+
+
+UsdQtUtilities.register('GetReferencePath', GetReferencePath)
+UsdQtUtilities.register('GetId', GetId)

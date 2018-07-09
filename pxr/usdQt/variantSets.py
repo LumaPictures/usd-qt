@@ -2,9 +2,6 @@
 Variant Set and Variant Editing Widget.
 
 TODO:
-- support more than one variant set at each level of the hierarchy (This is 
-  supported in usd) i.e. two variants that are not mutually exclusive, but can 
-  be selected at the same time because they are in different sets.
 - Expand selected variants initially
 - Possible: Only fetch variant children when requested by expansion for 
   performance. Unfortunately this may mean we loose ui friendliness of the 
@@ -27,21 +24,23 @@ from typing import *
 
 
 class VariantItem(TreeItem):
-    def __init__(self, variantSet, path, parentVariants, primVariant):
+
+    def __init__(self, prim, parentVariants, variantSet, path, varSetKey):
         '''
         Parameters
         ----------
+        prim : Usd.Prim
+        parentVariants : List[varlib.PrimVariant]
         variantSet : Usd.VariantSet
         path : Sdf.Path
-        parentVariants : List[varlib.PrimVariant]
-        primVariant : varlib.PrimVariant
+        varSetKey : str
         '''
-        super(VariantItem, self).__init__(
-            key=varlib.variantSelectionKey(parentVariants + [primVariant]))
-        self.variantSet = variantSet
-        self.prim = variantSet.GetPrim()
+        self.prim = prim
         self.path = path
-        self.variant = primVariant
+        self.variantSet = variantSet
+        self.variant = varlib.PrimVariant(*path.GetVariantSelection())
+        key = '_'.join((varSetKey, self.variant.variantName))
+        super(VariantItem, self).__init__(key=key)
         self.parentVariants = parentVariants
 
     @property
@@ -51,8 +50,7 @@ class VariantItem(TreeItem):
         -------
         bool
         '''
-        return self.variantSet.GetVariantSelection() == \
-            self.variant.variantName
+        return self.variantSet.GetVariantSelection() == self.variant.variantName
 
     @property
     def variants(self):
@@ -93,33 +91,36 @@ class LazyVariantTree(LazyItemTree):
                 return []
             parentVariants = parent.parentVariants + [parent.variant]
 
+        parentKey = varlib.variantSelectionKey(parentVariants)
+        level = len(parentVariants)
         # set variants temporarily so that underlying variants can be inspected.
         with varlib.SessionVariantContext(self.prim, parentVariants):
-            for path, primVariant in varlib.getPrimVariants(self.prim,
-                                                            includePath=True):
-                if primVariant in parentVariants:
-                    continue
+            variantItems = []
+            variantSets = set()
+            for path, key, primVariant in varlib.getPrimVariantsWithPaths(self.prim):
+                if parentKey not in key:
+                    continue  # different branch
+                if key.count('{') != level:
+                    continue  # ancestor or grandchild
+
                 variantSet = self.prim.GetVariantSet(primVariant.setName)
-
-                variantItems = []
-                names = variantSet.GetVariantNames()
-                names.append('')
-
-                parentPath = path.GetParentPath()
-                for variantName in names:
-                    variantPath = parentPath.AppendVariantSelection(
-                        primVariant.setName,
-                        variantName)
-                    variantName = varlib.PrimVariant(primVariant.setName,
-                                                     variantName)
-                    altVariantItem = VariantItem(variantSet,
-                                                 variantPath,
-                                                 parentVariants,
-                                                 variantName)
-                    variantItems.append(altVariantItem)
-                # break loop because next iteration is the children's children
-                return variantItems
-        return []
+                if variantSet not in variantSets:
+                    variantSets.add(variantSet)
+                    # add all variants for variant set from parent, because only
+                    # the selected ones are included in getPrimVariants
+                    parentPath = path.GetParentPath()
+                    # for each variant set add a blank '' for clearing selection
+                    for name in variantSet.GetVariantNames() + ['']:
+                        variantPath = parentPath.AppendVariantSelection(
+                            primVariant.setName,
+                            name)
+                        item = VariantItem(self.prim,
+                                           parentVariants,
+                                           variantSet,
+                                           variantPath,
+                                           key)
+                        variantItems.append(item)
+            return variantItems
 
 
 class VariantModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
@@ -234,86 +235,67 @@ class VariantContextMenuBuilder(ContextMenuBuilder):
     Class to customize the building of right-click context menus for selected
     variants.
     '''
-    showMenuOnNoSelection = True
-    referenceAdded = QtCore.Signal()
 
-    def Build(self, menu, selections):
-        '''
-        Build and return the top-level context menu for the view.
 
-        Parameters
-        ----------
-        menu : QtWidgets.QMenu
-        selections : List[Selection]
+def _summary(strings):
+    return '/'.join(set(strings))
 
-        Returns
-        -------
-        Optional[QtWidgets.QMenu]
-        '''
-        def summary(strings):
-            return '/'.join(set(strings))
 
-        if selections:
-            model = self.view.model()
-            setsStr = summary((s.variant.setName for s in selections))
-            variantsStr = summary((s.name for s in selections))
-            hasVariantSelection = all(s.variant.variantName 
-                                      for s in selections)
-            a = menu.addAction('Add "%s" Variant' % setsStr)
-            a.triggered.connect(self.AddVariant)
+def variantSetNames(selections):
+    return _summary((s.variant.setName for s in selections))
 
-            # for now only allow one nested variant set per variant
-            allowAdding = not any(model.itemTree.childCount(parent=s)
-                                  for s in selections)
-            a = menu.addAction('Add Nested Variant Set Under "%s"'
-                               % variantsStr)
-            a.triggered.connect(self.AddNestedVariantSet)
-            a.setEnabled(hasVariantSelection and allowAdding)
-            a = menu.addAction('Add Reference Under "%s"' % variantsStr)
-            a.triggered.connect(self.AddReference)
-            a.setEnabled(hasVariantSelection)
-        if len(selections) == 0:
-            a = menu.addAction('Add Top Level Variant Set')
-            a.triggered.connect(self.AddVariantSet)
 
-            # TODO: may not be api for these actions, you can always remove the
-            # prim spec and rebuild.
-            # if isinstance(selection, VariantItem):
-            #     layer = self.view.model().Layer()
-            #     if layer.GetPrimAtPath(selection.path):
-            #         a = menu.addAction('Remove Variant')
-            #         a.triggered.connect(self.RemoveVariant)
-            #         a = menu.addAction('Remove Variant Set')
-            #         a.triggered.connect(self.RemoveVariantSet)
-        return menu
+def variantsNames(selections):
+    return _summary((s.name for s in selections))
 
-    @passMultipleSelection
-    def AddVariant(self, selectedItems):
+
+def hasVariantSelection(selections):
+    return all(s.variant.variantName for s in selections)
+
+
+@passMultipleSelection
+class AddVariant(ContextMenuAction):
+    def label(self, builder, selections):
+        return 'Add "%s" Variant' % variantSetNames(selections)
+
+    def do(self, builder, selections):
         name, _ = QtWidgets.QInputDialog.getText(
-            self.view,
+            builder.view,
             'Enter New Variant Name',
             'Name for the new variant \n%s=:'
-            % '/'.join((i.variant.setName for i in selectedItems)))
+            % '/'.join((i.variant.setName for i in selections)))
         if not name:
             return
-        for selectedItem in selectedItems:
+        for selectedItem in selections:
             # want to add new variant inside of parents variant context.
             with varlib.VariantContext(selectedItem.prim,
                                        selectedItem.parentVariants,
-                                       setAsDefaults=True):
-                selectedItem.variantSet.AppendVariant(name)
-        self.view.model().Reset()  # TODO: Reload only necessary part
+                                       select=True):
+                selectedItem.variantSet.AddVariant(name)
+        builder.view.model().Reset()  # TODO: Reload only necessary part
 
-    def _GetVariantSetName(self):
-        name, _ = QtWidgets.QInputDialog.getText(
-            self.view,
-            'Enter New Variant Set Name',
-            'Name for the new variant set:')
-        return name
 
-    @passMultipleSelection
-    def AddNestedVariantSet(self, selectedItems):
-        name = self._GetVariantSetName()
+def _GetVariantSetName(view):
+    name, _ = QtWidgets.QInputDialog.getText(
+        view,
+        'Enter New Variant Set Name',
+        'Name for the new variant set:')
+    return name
+
+
+@passMultipleSelection
+class AddNestedVariant(ContextMenuAction):
+    def enable(self, builder, selections):
+        # for now only allow one nested variant set per variant
+        allowAdding = not any(builder.view.model().itemTree.childCount(parent=s)
+                              for s in selections)
+        return hasVariantSelection(selections) and allowAdding
+
+    def label(self, builder, selections):
+        return 'Add Nested Variant Set Under "%s"' % variantsNames(selections)
+
+    def do(self, builder, selectedItems):
+        name = _GetVariantSetName(builder.view)
         if not name:
             return
 
@@ -321,51 +303,66 @@ class VariantContextMenuBuilder(ContextMenuBuilder):
             # want to add new variant set inside of parents variant context.
             with varlib.VariantContext(selectedItem.prim,
                                        selectedItem.variants,
-                                       setAsDefaults=False):
-                selectedItem.prim.GetVariantSets().AppendVariantSet(name)
-        self.view.model().Reset()  # TODO: Reload only necessary part
+                                       select=False):
+                selectedItem.prim.GetVariantSets().AddVariantSet(name)
+        builder.view.model().Reset()  # TODO: Reload only necessary part
 
-    def AddVariantSet(self):
-        name = self._GetVariantSetName()
+
+class AddVariantSet(ContextMenuAction):
+    def label(self, builder, selection):
+        return 'Add Top Level Variant Set'
+
+    def enable(self, builder, selection):
+        return len(selection) == 0
+
+    def shouldShow(self, builder, selection):
+        return self.enable(builder, selection)
+
+    def do(self, builder):
+        name = _GetVariantSetName(builder.view)
         if not name:
             return
-        self.view.model().prim.GetVariantSets().AppendVariantSet(name)
-        self.view.model().Reset()  # TODO: Reload only necessary part
+        builder.view.model().prim.GetVariantSets().AddVariantSet(name)
+        builder.view.model().Reset()  # TODO: Reload only necessary part
 
-    @passSingleSelection
-    def RemoveVariant(self, selectedItem):
-        pass
 
-    @passSingleSelection
-    def RemoveVariantSet(self, item):
-        model = self.view.model()
-        spec = model.Layer().GetPrimAtPath(item.path)
-        if spec:
-            # FIXME:
-            spec.variantSetNameList.Remove(item.variant.setName)
+@passSingleSelection
+class AddReference(ContextMenuAction):
+    referenceAdded = QtCore.Signal()
 
-    @passSingleSelection
-    def AddReference(self, item):
-        path = UsdQtUtilities.exec_('getReferencePath',
-                                    self.view,
+    def label(self, builder, selections):
+        return 'Add Reference Under "%s"' % variantsNames(selections)
+
+    def enable(self, builder, selections):
+        return hasVariantSelection(selections)
+
+    def do(self, builder, item):
+        path = UsdQtUtilities.exec_('GetReferencePath',
+                                    builder.view,
                                     stage=item.prim.GetStage())
         if not path:
             return
         with varlib.VariantContext(item.prim,
                                    item.variants,
-                                   setAsDefaults=False):
+                                   select=False):
             item.prim.GetReferences().SetReferences([Sdf.Reference(path)])
+        builder.view.model().Reset()  # TODO: Reload only necessary part
 
 
 class VariantTreeView(ContextMenuMixin, QtWidgets.QTreeView):
 
-    def __init__(self, parent=None, contextMenuBuilder=None):
-        if contextMenuBuilder is None:
-            contextMenuBuilder = VariantContextMenuBuilder
+    def __init__(self, parent=None, contextMenuActions=None):
         super(VariantTreeView, self).__init__(
             parent=parent,
-            contextMenuBuilder=contextMenuBuilder)
+            contextMenuBuilder=ContextMenuBuilder,
+            contextMenuActions=contextMenuActions)
         self.setSelectionMode(self.ExtendedSelection)
+
+    def defaultContextMenuActions(self, view):
+        return [AddVariant(),
+                AddNestedVariant(),
+                AddVariantSet(),
+                AddReference()]
 
 
 class VariantEditorDialog(QtWidgets.QDialog):
