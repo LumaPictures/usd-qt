@@ -83,33 +83,6 @@ class UsdPrimItem(TreeItem):
         super(UsdPrimItem, self).__init__(self.path)
 
 
-class AssetTreeView(QtWidgets.QTreeView):
-    '''
-    Basic ``QTreeView`` subclass for displaying asset data.
-    '''
-
-    def __init__(self, parent=None):
-        '''
-        Parameters
-        ----------
-        parent : Optional[QtGui.QWidget]
-        '''
-        super(AssetTreeView, self).__init__(parent=parent)
-
-        # QAbstractItemView(?) options
-        self.setAlternatingRowColors(True)
-        #         self.setSortingEnabled(True)
-        self.setSelectionBehavior(self.SelectRows)
-        self.setSelectionMode(self.ExtendedSelection)
-        self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        #         self.sortByColumn(0, QtCore.Qt.AscendingOrder)
-        self.setEditTriggers(self.CurrentChanged | self.SelectedClicked)
-
-        # QTreeView-specific options
-        self.setUniformRowHeights(True)
-        self.header().setStretchLastSection(True)
-
-
 class LazyPrimItemTree(LazyItemTree[UsdPrimItem]):
 
     def __init__(self, rootPrim, primFilter=None, primPredicate=None):
@@ -636,8 +609,8 @@ class AddReference(ContextMenuAction):
         builder.model.AddNewReference(selection.index, selection.prim, refPath)
 
 
-class OutlinerTreeView(ContextMenuMixin, AssetTreeView):
-    # emitted when a prim has been selected in the view
+class OutlinerTreeView(ContextMenuMixin, QtWidgets.QTreeView):
+    # Emitted with lists of selected and deselected prims
     primSelectionChanged = QtCore.Signal(list, list)
 
     def __init__(self, dataModel, contextMenuActions=None,
@@ -646,18 +619,26 @@ class OutlinerTreeView(ContextMenuMixin, AssetTreeView):
         Parameters
         ----------
         dataModel : OutlinerStageModel
-        role :
+        contextMenuActions : Optional[Callable[[OutlinerTreeView], List[ContextMenuAction]]]
+        contextMenuBuilder : Optional[Type[ContextMenuBuilder]]
         parent : Optional[QtGui.QWidget]
         '''
         super(OutlinerTreeView, self).__init__(
             parent=parent,
             contextMenuBuilder=contextMenuBuilder,
             contextMenuActions=contextMenuActions)
-        # AssetTree view defaults to customContextMenu
-        self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
+
+        self.setAlternatingRowColors(True)
+        self.setSelectionBehavior(self.SelectRows)
+        self.setSelectionMode(self.ExtendedSelection)
+        self.setEditTriggers(self.CurrentChanged | self.SelectedClicked)
+
+        self.setUniformRowHeights(True)
+        self.header().setStretchLastSection(True)
+
         self.setModel(dataModel)
 
-        # keep a ref for model because of refCount bug in pyside
+        # This can't be a one-liner because of a PySide refcount bug.
         selectionModel = self.selectionModel()
         selectionModel.selectionChanged.connect(self._SelectionChanged)
 
