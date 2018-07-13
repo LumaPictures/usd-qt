@@ -172,7 +172,7 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
 
         for i in xrange(rows):
             for j in xrange(columns):
-                component = str(compatability.ResolveValue(matrixData[i][j])) \
+                component = str(matrixData[i][j]) \
                     if matrixData[i][j] is not None else ''
                 cellRect = QtCore.QRect(left + cellWidth * j,
                                         top + cellHeight * i,
@@ -189,7 +189,6 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
         defaultOption = QtWidgets.QStyleOptionViewItem(option)
 
         displayRole = index.data(QtCore.Qt.DisplayRole)
-        displayRole = compatability.ResolveValue(displayRole)
 
         self.initStyleOption(defaultOption, index)
         style.drawItemText(painter, defaultOption.rect,
@@ -199,7 +198,6 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
 
     def paint(self, painter, option, index):
         editorHint = index.data(roles.EditorHintRole)
-        editorHint = compatability.ResolveValue(editorHint)
 
         if type(editorHint) is roles.EditorHintBasicValue:
             if editorHint.type in valueWidgets.matrixTypes:
@@ -235,7 +233,6 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
 
     def createEditor(self, parent, option, index):
         editorHint = index.data(roles.EditorHintRole)
-        editorHint = compatability.ResolveValue(editorHint)
 
         if type(editorHint) is roles.EditorHintBasicValue:
             return self.CreateBasicValueEditor(editorHint.type, parent)
@@ -262,7 +259,6 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
 
     def sizeHint(self, option, index):
         editorHint = index.data(roles.EditorHintRole)
-        editorHint = compatability.ResolveValue(editorHint)
 
         if (type(editorHint) == roles.EditorHintBasicValue and
                 editorHint.type in valueWidgets.matrixTypes):

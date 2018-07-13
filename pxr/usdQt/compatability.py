@@ -71,16 +71,6 @@ def HeaderViewSetResizeMode(header, mode):
         header.setSectionResizeMode(mode)
 
 
-def ResolveValue(value):
-    """Internal API to be deprecated with VFX Platform 2017"""
-    return value
-
-
-def ResolveString(value, stringType):
-    """Internal API to be deprecated with VFX Platform 2017"""
-    return value
-
-
 def EmitDataChanged(model, topLeft, bottomRight):
     """ The data changed API has changed between Qt4 and Qt5 """
     if QtCore.qVersion().startswith('4.'):

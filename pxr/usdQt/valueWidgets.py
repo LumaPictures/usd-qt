@@ -32,8 +32,6 @@ from ._Qt import QtCore, QtWidgets, QtGui
 
 from pxr import Gf, Tf, Sdf
 
-from . import compatability
-
 # A Note on 'None'
 #
 # This file aims to provide editors that are compatable with all
@@ -212,9 +210,6 @@ class _NumericEdit(_LineEdit):
 
         self._SetupLineEdit(self.__lineEdit)
 
-        # get the preferred string type of the current Qt context
-        self._stringType = type(self.__lineEdit.text())
-
     def GetValue(self):
         return self.valueType(self.__lineEdit.text())\
             if len(self.__lineEdit.text()) > 0 else 0.0
@@ -223,10 +218,10 @@ class _NumericEdit(_LineEdit):
         if value is None:
             self.__lineEdit.clear()
             return
-        stringValue = compatability.ResolveString(str(value), self._stringType)
-        if self.__validator.validate(stringValue, 0)[0] != QtGui.QValidator.Acceptable:
-            raise ValueError("%s not accepted by validator." % stringValue)
-        self.__lineEdit.setText(stringValue)
+        value = str(value)
+        if self.__validator.validate(value, 0)[0] != QtGui.QValidator.Acceptable:
+            raise ValueError("%s not accepted by validator." % value)
+        self.__lineEdit.setText(value)
 
 
 class _VecEdit(_LineEdit):
@@ -263,8 +258,6 @@ class _VecEdit(_LineEdit):
         self._SetupLayoutSpacing(self.__layout)
         self.setLayout(self.__layout)
         self.setFocusProxy(self.__editors[0])
-        # get the preferred string type of the current Qt context
-        self._stringType = type(self.__editors[0].text())
 
     def GetValue(self):
         text = (self.__editors[i].text()
@@ -282,8 +275,7 @@ class _VecEdit(_LineEdit):
         for index in xrange(self.valueType.dimension):
             if value[index] is None:
                 raise ValueError("Value at %i is None", index)
-            string = compatability.ResolveString(
-                str(value[index]), self._stringType)
+            string = str(value[index])
             if self.__validator.validate(string, 0)[0] != QtGui.QValidator.Acceptable:
                 raise ValueError(
                     "%s (at index %i) not accepted by validator." %
@@ -326,8 +318,6 @@ class _MatrixEdit(_LineEdit):
         # self.setFocusPolicy(QtCore.Qt.StrongFocus)
         self.setLayout(self.__layout)
         self._SetupLayoutSpacing(self.__layout)
-        # get the preferred string type of the current Qt context
-        self._stringType = type(self.__editors[0].text())
 
     def __GetIndex(self, row, column):
         return row * self.valueType.dimension[1] + column
@@ -356,8 +346,7 @@ class _MatrixEdit(_LineEdit):
             for column in xrange(numColumns):
                 if value[row][column] is None:
                     raise ValueError("Value at (%i, %i) is None", row, column)
-                string = compatability.ResolveString(
-                    str(value[row][column]), self._stringType)
+                string = str(value[row][column])
                 if self.__validator.validate(string, 0)[0] != QtGui.QValidator.Acceptable:
                     raise ValueError(
                         "%s (at %i, %i) not accepted by validator." %
@@ -519,11 +508,10 @@ class PathValidator(QtGui.QValidator):
     def __init__(self, parent=None):
         super(PathValidator, self).__init__(parent)
 
-    def validate(self, string, pos):
-        value = compatability.ResolveString(string, str)
+    def validate(self, value, pos):
         if value != '' and not Sdf.Path.IsValidPathString(value):
-            return (QtGui.QValidator.Intermediate, string, pos)
-        return (QtGui.QValidator.Acceptable, string, pos)
+            return (QtGui.QValidator.Intermediate, value, pos)
+        return (QtGui.QValidator.Acceptable, value, pos)
 
 
 class PathEdit(_LineEdit):
@@ -533,7 +521,6 @@ class PathEdit(_LineEdit):
         super(PathEdit, self).__init__(parent)
         self.__validator = PathValidator()
         self.__lineEdit = QtWidgets.QLineEdit(self)
-        self._stringType = type(self.__lineEdit.text())
         self.__lineEdit.setValidator(self.__validator)
         self.__layout = QtWidgets.QHBoxLayout()
         self.__layout.addWidget(self.__lineEdit)
@@ -550,10 +537,10 @@ class PathEdit(_LineEdit):
         if value is None:
             self.__lineEdit.clear()
             return
-        stringValue = compatability.ResolveString(str(value), self._stringType)
-        if self.__validator.validate(stringValue, 0)[0] != QtGui.QValidator.Acceptable:
-            raise ValueError("%s not accepted by validator." % stringValue)
-        self.__lineEdit.setText(stringValue)
+        value = str(value)
+        if self.__validator.validate(value, 0)[0] != QtGui.QValidator.Acceptable:
+            raise ValueError("%s not accepted by validator." % value)
+        self.__lineEdit.setText(value)
 
 
 class _ColorButton(QtWidgets.QPushButton):

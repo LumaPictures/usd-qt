@@ -536,20 +536,16 @@ class OpinionStandardModel(OpinionBaseModel):
             if column == OpinionStandardModel.Value:
                 proxy = self.GetProxyForIndex(index)
                 if type(proxy) is _AttributeProxy:
-                    valuePy = compatability.ResolveValue(value)
-                    proxy.Set(valuePy, self.__timeCode)
+                    proxy.Set(value, self.__timeCode)
                     return True
                 elif type(proxy) is _MetadataProxy:
-                    valuePy = compatability.ResolveValue(value)
-                    proxy.SetValue(valuePy)
+                    proxy.SetValue(value)
                     return True
                 elif type(proxy) is _MetadataDictKeyProxy:
-                    valuePy = compatability.ResolveValue(value)
-                    proxy.SetValue(valuePy)
+                    proxy.SetValue(value)
                     return True
                 elif type(proxy) is _VariantSetProxy:
-                    valuePy = compatability.ResolveValue(value)
-                    proxy.SetVariantSelection(valuePy)
+                    proxy.SetVariantSelection(value)
                     return True
                 else:
                     raise Exception("Unsupported type.")

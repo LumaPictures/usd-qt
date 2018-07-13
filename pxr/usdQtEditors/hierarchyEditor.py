@@ -31,7 +31,6 @@ from collections import OrderedDict, defaultdict
 from ._Qt import QtWidgets, QtCore
 from pxr import Usd, UsdUtils, Sdf
 from pxr import UsdQt
-import pxr.UsdQt.compatability
 
 
 class HierarchyStandardContextMenuStrategy:
@@ -209,7 +208,6 @@ class HierarchyEditor(QtWidgets.QWidget):
         unorderedPrims = set()
         for index in selectedIndices:
             prim = index.data(role=UsdQt.roles.HierarchyPrimRole)
-            prim = UsdQt.compatability.ResolveValue(prim)
             if prim not in unorderedPrims:
                 unorderedPrims.add(prim)
                 orderedPrims.append(prim)

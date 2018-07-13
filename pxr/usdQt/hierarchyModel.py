@@ -30,7 +30,7 @@ from ._Qt import QtCore, QtWidgets, QtGui
 from pxr import Sdf, Tf, Usd
 
 from ._bindings import PrimFilterCache, _HierarchyCache
-from . import compatability, roles, utils
+from . import roles, utils
 
 
 class HierarchyBaseModel(QtCore.QAbstractItemModel):
@@ -173,7 +173,6 @@ class HierarchyBaseModel(QtCore.QAbstractItemModel):
         the prim for an index"""
         if modelIndex.isValid():
             proxy = modelIndex.internalPointer()
-            proxy = compatability.ResolveValue(proxy)
             if type(proxy) is _HierarchyCache.Proxy and not proxy.expired:
                 return proxy.GetPrim()
         return None
@@ -362,8 +361,7 @@ class HierarchyStandardFilterModel(QtCore.QSortFilterProxyModel):
 
     def SetPathContainsFilter(self, substring):
         self.__filterCache.ApplyPathContainsFilter(self.sourceModel().GetRoot(),
-                                                   compatability.ResolveValue(
-                                                       substring),
+                                                   substring,
                                                    self.__filterCachePredicate)
         self.__filterCacheActive = True
         self.invalidateFilter()
@@ -401,7 +399,6 @@ class HierarchyStandardFilterModel(QtCore.QSortFilterProxyModel):
     def filterAcceptsRow(self, sourceRow, sourceParent):
         index = self.sourceModel().index(sourceRow, 0, sourceParent)
         prim = index.data(role=roles.HierarchyPrimRole)
-        prim = compatability.ResolveValue(prim)
         if not prim:
             raise Exception("Retrieved invalid prim during filtering.")
 

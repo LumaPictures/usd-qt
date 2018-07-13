@@ -31,7 +31,6 @@ from ._Qt import QtCore, QtWidgets, QtGui
 
 from pxr import Sdf
 
-from . import compatability
 from . import roles
 
 
@@ -189,9 +188,7 @@ class LayerStackStyledDelegate(QtWidgets.QStyledItemDelegate):
 
     def paint(self, painter, option, index):
         # indentation snippet from http://www.mimec.org/node/305
-        depth = compatability.ResolveValue(
-            index.data(roles.LayerStackDepthRole))
-
+        depth = index.data(roles.LayerStackDepthRole)
         if depth == -1:
             super(LayerStackStyledDelegate, self).paint(painter, option, index)
             middle = (option.rect.top() + option.rect.bottom()) / 2.0
