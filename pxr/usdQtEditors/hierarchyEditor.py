@@ -28,9 +28,11 @@ from __future__ import print_function
 
 from collections import OrderedDict, defaultdict
 
-from ._Qt import QtWidgets, QtCore
 from pxr import Usd, UsdUtils, Sdf
-from pxr import UsdQt
+from pxr.UsdQt.hierarchyModel import HierarchyStandardFilterModel
+from pxr.UsdQt import roles
+
+from ._Qt import QtWidgets, QtCore
 
 
 class HierarchyStandardContextMenuStrategy:
@@ -117,7 +119,7 @@ class HierarchyEditor(QtWidgets.QWidget):
 
     # A context menu strategy takes the editor as an input
     ContextMenuStrategy = HierarchyStandardContextMenuStrategy
-    FilterModel = UsdQt.HierarchyStandardFilterModel
+    FilterModel = HierarchyStandardFilterModel
 
     def __init__(self, parent=None):
         super(HierarchyEditor, self).__init__(parent=parent)
@@ -145,7 +147,7 @@ class HierarchyEditor(QtWidgets.QWidget):
             self.__showMenuItems[item].setCheckable(True)
             self.showMenu.addAction(self.__showMenuItems[item])
 
-        self.__filterModel = UsdQt.HierarchyStandardFilterModel()
+        self.__filterModel = HierarchyStandardFilterModel()
 
         self.__showMenuItems[HierarchyEditor.ShowInactive].toggled.connect(
             self.__filterModel.TogglePrimInactive)
@@ -207,7 +209,7 @@ class HierarchyEditor(QtWidgets.QWidget):
         orderedPrims = []
         unorderedPrims = set()
         for index in selectedIndices:
-            prim = index.data(role=UsdQt.roles.HierarchyPrimRole)
+            prim = index.data(role=roles.HierarchyPrimRole)
             if prim not in unorderedPrims:
                 unorderedPrims.add(prim)
                 orderedPrims.append(prim)
@@ -225,6 +227,7 @@ class HierarchyEditor(QtWidgets.QWidget):
 
 if __name__ == "__main__":
     import sys
+    from pxr.UsdQt.hierarchyModel import HierarchyBaseModel
 
     app = QtWidgets.QApplication(sys.argv)
 
@@ -232,7 +235,7 @@ if __name__ == "__main__":
         stage = Usd.Stage.Open(
             '../usdQt/testenv/testUsdQtHierarchyModel/simpleHierarchy.usda')
 
-    model = UsdQt.HierarchyBaseModel(stage)
+    model = HierarchyBaseModel(stage)
 
     class Listener(QtCore.QObject):
 
@@ -242,7 +245,7 @@ if __name__ == "__main__":
         @QtCore.Slot()
         def OnPrimSelectionChanged(self, selected=None, deselected=None):
             for index in self.sender().selectedIndexes():
-                prim = index.data(role=UsdQt.roles.HierarchyPrimRole)
+                prim = index.data(role=roles.HierarchyPrimRole)
                 # print(prim)
 
     editor = HierarchyEditor()

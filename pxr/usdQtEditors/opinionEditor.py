@@ -27,17 +27,17 @@ from __future__ import division
 from __future__ import print_function
 
 from pxr import Usd
-from pxr import UsdQt
 
 # TODO: Make all proxies and handlers not private
 from pxr.UsdQt._bindings import _AttributeProxy, _DisplayGroupProxy, \
     _MetadataProxy, _PrimProxy, _VariantSetProxy, _VariantSetsProxy
-from pxr.UsdQt.opinionStackModel import _AttributeHandler, _PrimMetadataHandler, \
-    _VariantSetHandler, _VariantSetsHandler
-
-from . import treeView
+from pxr.UsdQt.opinionStackModel import OpinionStackFilter, OpinionStackModel, \
+    _AttributeHandler, _PrimMetadataHandler, _VariantSetHandler, \
+    _VariantSetsHandler
+from pxr.UsdQt.valueDelegate import ValueDelegate
 
 from ._Qt import QtCore, QtWidgets
+from . import treeView
 
 
 class OpinionStackWidget(QtWidgets.QWidget):
@@ -53,7 +53,7 @@ class OpinionStackWidget(QtWidgets.QWidget):
         self.__showAllAction.toggled.connect(self.__OnShowAllToggled)
         self.__closeAction.triggered.connect(self.__OnClose)
 
-        self.__opinionFilter = UsdQt.OpinionStackFilter()
+        self.__opinionFilter = OpinionStackFilter()
         self.__view = QtWidgets.QTreeView()
         self.__view.setModel(self.__opinionFilter)
 
@@ -97,7 +97,7 @@ class OpinionEditor(QtWidgets.QWidget):
         self.__filterLineEdit = QtWidgets.QLineEdit()
 
         self.__view = treeView.TreeView()
-        itemDelegate = delegate if delegate else UsdQt.ValueDelegate()
+        itemDelegate = delegate if delegate else ValueDelegate()
         self.__view.setItemDelegate(itemDelegate)
         self.__view.setEditTriggers(
             QtWidgets.QAbstractItemView.CurrentChanged |
@@ -136,7 +136,7 @@ class OpinionEditor(QtWidgets.QWidget):
         self.__splitter.addWidget(self.__opinionViewer)
 
     def LaunchOpinionViewer(self, prim, handler):
-        self.__opinionViewer.Launch(UsdQt.OpinionStackModel(prim, handler))
+        self.__opinionViewer.Launch(OpinionStackModel(prim, handler))
 
     def SetSourceModel(self, model):
         self.__view.setModel(model)
@@ -188,11 +188,13 @@ class OpinionController(QtCore.QObject):
 
 if __name__ == '__main__':
     import sys
+    from pxr.UsdQt.opinionModel import OpinionStandardModel
+
     app = QtWidgets.QApplication(sys.argv)
     stage = Usd.Stage.Open('../usdQt/testenv/testUsdQtOpinionModel/simple.usda')
     prim = stage.GetPrimAtPath('/MyPrim1/Child1')
 
-    model = UsdQt.OpinionStandardModel([prim])
+    model = OpinionStandardModel([prim])
     # modelComposition = compositionModel.CompositionStandardModel(prim)
     editor = OpinionEditor()
 
