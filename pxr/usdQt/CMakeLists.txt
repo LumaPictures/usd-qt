@@ -9,7 +9,6 @@ if (INSTALL_PURE_PYTHON)
         _Qt.py
         __init__.py
         _bindings.py
-        app.py
         common.py
         compatability.py
         hierarchyModel.py
@@ -17,7 +16,6 @@ if (INSTALL_PURE_PYTHON)
         layers.py
         opinionModel.py
         opinionStackModel.py
-        outliner.py
         roles.py
         stageCacheModel.py
         utils.py

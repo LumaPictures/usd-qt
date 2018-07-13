@@ -8,6 +8,7 @@ if (INSTALL_PURE_PYTHON)
         hierarchyEditor.py
         layerTextEditor.py
         opinionEditor.py
+        outliner.py
         treeView.py
     )
 else ()
