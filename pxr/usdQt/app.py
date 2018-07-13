@@ -24,16 +24,17 @@
 
 from __future__ import absolute_import
 
+from ._Qt import QtCore, QtGui, QtWidgets
 from pxr import Sdf, Usd
 
-from ._Qt import QtCore, QtGui, QtWidgets
-from .outliner import (OutlinerTreeView, OutlinerViewDelegate,
-                       OutlinerStageModel, OutlinerContextMenuBuilder)
+from .outliner import OutlinerTreeView, OutlinerViewDelegate, ActivatePrim, \
+    SelectVariants, RemovePrim
 from .layers import LayerTextViewDialog, SubLayerDialog
 from .variantSets import VariantEditorDialog
-from .common import MenuBarBuilder
+from .common import MenuAction, MenuBarBuilder, MenuSeparator, UsdQtUtilities
 
-from typing import *
+if False:
+    from typing import *
 
 
 class OutlinerUserRole(object):
@@ -233,7 +234,6 @@ class UsdOutliner(QtWidgets.QDialog):
         super(UsdOutliner, self).__init__(parent=parent)
 
         self.stage = stage
-        self.dataModel = self._GetModel()
 
         # instances of child dialogs
         self.layerTextDialogs = {}
@@ -252,51 +252,42 @@ class UsdOutliner(QtWidgets.QDialog):
                                              self.role.MenuBarMenus,
                                              self.role.MenuBarActions)
 
+
+        view = self._GetView(stage, self.role)
+        view.setColumnWidth(0, 360)
+        self.view = view
+
+        delegate = OutlinerViewDelegate(self.editTarget, parent=view)
+        view.setItemDelegate(delegate)
+        self.editTargetChanged.connect(delegate.SetActiveLayer)
+
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
         layout.setSpacing(2)
         layout.addWidget(self.menuBarBuilder._menuBar)
-        view = self._GetView(self.dataModel, self.role)
-        delegate = OutlinerViewDelegate(self.editTarget,
-                                        parent=self)
-        self.editTargetChanged.connect(delegate.SetActiveLayer)
-        self.editTargetChanged.connect(self.dataModel.ActiveLayerChanged)
-        view.setItemDelegate(delegate)
         layout.addWidget(view)
 
-        view.setColumnWidth(0, 360)
-        self.view = view
         self.resize(900, 600)
 
     @property
     def editTarget(self):
         return self.stage.GetEditTarget().GetLayer()
 
-    def _GetModel(self):
-        '''
-        Get the model for the outliner
-
-        Returns
-        -------
-        QtCore.QAbstractItemModel
-        '''
-        return OutlinerStageModel(self.stage, parent=self)
-
-    def _GetView(self, model, role):
+    def _GetView(self, stage, role):
         '''
         Get the view for the outliner
 
         Parameters
         ----------
-        model : QtCore.QAbstractItemModel
-        contextMenuBuilder : Optional[Type[ContextMenuBuilder]]
+        stage : Usd.Stage
+        role : Type[OutlinerUserRole]
 
         Returns
         -------
         QtWidgets.QTreeView
         '''
         return OutlinerTreeView(
-            model,
+            stage=stage,
             contextMenuActions=role.OutlinerViewContextActions,
             parent=self)
 
@@ -402,9 +393,8 @@ class UsdOutliner(QtWidgets.QDialog):
     def SetNewStage(self, stage):
         '''Reset the stage for this dlg and its views'''
         self.stage = stage
-        self.dataModel = self._GetModel()
 
-        self.view.setModel(self.dataModel)
+        self.view.ResetStage(stage)
         self.editTargetChanged.emit(self.editTarget)
         self.view.reset()
 

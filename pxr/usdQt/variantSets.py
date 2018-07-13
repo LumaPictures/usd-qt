@@ -3,24 +3,25 @@ Variant Set and Variant Editing Widget.
 
 TODO:
 - Expand selected variants initially
-- Possible: Only fetch variant children when requested by expansion for 
-  performance. Unfortunately this may mean we loose ui friendliness of the 
-  "expandable" indicator 
+- Possible: Only fetch variant children when requested by expansion for
+  performance. Unfortunately this may mean we loose ui friendliness of the
+  "expandable" indicator
 - Ability to Remove Variants?
 - Allow setting variant selections within nested variants?
 '''
-
 from __future__ import absolute_import
 
-from pxr import Sdf, Usd
 from ._Qt import QtCore, QtGui, QtWidgets
+from pxr import Sdf, Usd
+
 from treemodel.itemtree import TreeItem, LazyItemTree
 from treemodel.qt.base import AbstractTreeModelMixin
-from .common import NULL_INDEX, ContextMenuBuilder, ContextMenuMixin,\
-    passSingleSelection, passMultipleSelection, UsdQtUtilities
+from .common import NULL_INDEX, ContextMenuAction, ContextMenuBuilder, \
+    ContextMenuMixin, passSingleSelection, passMultipleSelection, UsdQtUtilities
 import usdlib.variants as varlib
 
-from typing import *
+if False:
+    from typing import *
 
 
 class VariantItem(TreeItem):

@@ -24,14 +24,17 @@
 
 from __future__ import absolute_import
 
-from pxr import Sdf, Usd, Tf
 from ._Qt import QtCore, QtGui, QtWidgets
+from pxr import Sdf, Usd, Tf
+from typing import NamedTuple, Optional
+
 from treemodel.itemtree import TreeItem, ItemTree
 from treemodel.qt.base import AbstractTreeModelMixin
-from .common import NULL_INDEX, CopyToClipboard, ContextMenuBuilder, \
-    ContextMenuMixin, passSingleSelection
+from .common import NULL_INDEX, CopyToClipboard, ContextMenuAction, \
+    ContextMenuBuilder, ContextMenuMixin, passSingleSelection
 
-from typing import *
+if False:
+    from typing import *
 
 
 def CopyLayerPath(layer):
