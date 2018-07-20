@@ -21,6 +21,7 @@ def loadAndImportALUsdMaya():
 
 
 def getProxyShape(error=True):
+    # type: (bool) -> Any
     '''Return a proxyShape to use for a ui given the current maya context
     
     Will first attempt to find the first proxy shape within the current
@@ -53,6 +54,7 @@ def getProxyShape(error=True):
 
 
 def getProxyShapeStage(proxyShape):
+    # type: (pm.nt.AL_usdmaya_ProxyShape) -> Usd.Stage
     '''
     Get the python stage used by a proxyShape.
 

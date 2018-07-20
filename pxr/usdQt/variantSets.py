@@ -27,6 +27,7 @@ if False:
 class VariantItem(TreeItem):
 
     def __init__(self, prim, parentVariants, variantSet, path, varSetKey):
+        # type: (Usd.Prim, List[varlib.PrimVariant], Usd.VariantSet, Sdf.Path, str) -> None
         '''
         Parameters
         ----------
@@ -46,6 +47,7 @@ class VariantItem(TreeItem):
 
     @property
     def selected(self):
+        # type: () -> bool
         '''
         Returns
         -------
@@ -55,6 +57,7 @@ class VariantItem(TreeItem):
 
     @property
     def variants(self):
+        # type: () -> List[varlib.PrimVariant]
         '''
         Returns
         -------
@@ -64,6 +67,7 @@ class VariantItem(TreeItem):
 
     @property
     def name(self):
+        # type: () -> str
         '''
         Returns
         -------
@@ -129,6 +133,7 @@ class VariantModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
     '''
 
     def __init__(self, stage, prims, parent=None):
+        # type: (Any, List[Usd.Prim], Optional[QtGui.QWidget]) -> None
         '''
         Parameters
         ----------
@@ -368,6 +373,7 @@ class VariantTreeView(ContextMenuMixin, QtWidgets.QTreeView):
 
 class VariantEditorDialog(QtWidgets.QDialog):
     def __init__(self, stage, prims, parent=None):
+        # type: (Usd.Stage, Any, Optional[QtGui.QWidget]) -> None
         '''
         Parameters
         ----------

@@ -46,6 +46,7 @@ class LayerTextViewDialog(QtWidgets.QDialog):
     layerEdited = QtCore.Signal(Sdf.Layer)
 
     def __init__(self, layer, parent=None):
+        # type: (Sdf.Layer, Optional[QtGui.QWidget]) -> None
         '''
         Parameters
         ----------
@@ -107,6 +108,7 @@ class LayerTextViewDialog(QtWidgets.QDialog):
 class LayerItem(TreeItem):
 
     def __init__(self, layer):
+        # type: (Sdf.Layer) -> None
         '''
         Parameters
         ----------
@@ -121,6 +123,7 @@ class SubLayerModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
     '''
 
     def __init__(self, stage, parent=None):
+        # type: (Usd.Stage, Optional[QtGui.QWidget]) -> None
         '''
         Parameters
         ----------
@@ -179,6 +182,7 @@ class SubLayerModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
 
     # Custom Methods -----------------------------------------------------------
     def PopulateUnder(self, layer, parent=None):
+        # type: (Sdf.Layer, Optional[LayerItem]) -> Any
         '''
         Parameters
         ----------
@@ -275,6 +279,7 @@ class SubLayerTreeView(ContextMenuMixin, QtWidgets.QTreeView):
 
 class SubLayerDialog(QtWidgets.QDialog):
     def __init__(self, stage, parent=None):
+        # type: (Usd.Stage, Optional[QtGui.QWidget]) -> None
         '''
         Parameters
         ----------
