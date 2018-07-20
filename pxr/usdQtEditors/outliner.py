@@ -28,8 +28,7 @@ import usdlib.utils
 import usdlib.variants
 from pxr import Sdf, Usd
 from pxr.UsdQt.common import DARK_ORANGE, ContextMenuAction, ContextMenuMixin, \
-    MenuAction, MenuBarBuilder, MenuSeparator, UsdQtUtilities, \
-    passMultipleSelection, passSingleSelection
+    MenuAction, MenuBarBuilder, MenuSeparator, UsdQtUtilities
 from pxr.UsdQt.hierarchyModel import HierarchyBaseModel
 from pxr.UsdQt.layers import LayerTextViewDialog, SubLayerDialog
 from pxr.UsdQt.variantSets import VariantEditorDialog
@@ -48,7 +47,6 @@ Selection = NamedTuple('Selection',
                         ('prim', Optional[Usd.Prim])])
 
 
-@passMultipleSelection
 class ActivatePrim(ContextMenuAction):
     def label(self, builder, selection):
         anyActive = any((s.prim.IsActive() for s in selection))
@@ -66,7 +64,6 @@ class ActivatePrim(ContextMenuAction):
                                                item=selection.item)
 
 
-@passSingleSelection
 class AddNewPrim(ContextMenuAction):
     def label(self, builder, selection):
         return 'Add Transform...'
@@ -93,7 +90,6 @@ class AddNewPrim(ContextMenuAction):
                                  item=selection.item)
 
 
-@passMultipleSelection
 class RemovePrim(ContextMenuAction):
     def label(self, builder, selections):
         label = 'Remove Prims' if len(selections) > 1 else 'Remove Prim'
@@ -134,7 +130,6 @@ class RemovePrim(ContextMenuAction):
                                                      item=selection.item)
 
 
-@passSingleSelection
 class SelectVariants(ContextMenuAction):
 
     def Build(self, builder, menu, selections):
@@ -165,7 +160,6 @@ class SelectVariants(ContextMenuAction):
         return len(selections) == 1
 
 
-@passSingleSelection
 class AddReference(ContextMenuAction):
     def label(self, builder, selections):
         return 'Add Reference...'

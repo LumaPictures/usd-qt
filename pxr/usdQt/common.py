@@ -61,42 +61,6 @@ def CopyToClipboard(text):
     cb.setText(text, QtGui.QClipboard.Clipboard)
 
 
-def passSingleSelection(cls):
-    # type: (MenuAction) -> MenuAction
-    '''
-    MenuAction decorator that will make it so the first context item
-     is passed to the action's do() method.
-
-    Parameters
-    ----------
-    cls : MenuAction
-
-    Returns
-    -------
-    MenuAction
-    '''
-    cls.supportsMultiSelection = False
-    return cls
-
-
-def passMultipleSelection(cls):
-    # type: (MenuAction) -> MenuAction
-    '''
-    MenuAction decorator that will make it so the full context list
-     is passed to the action's do() method.
-
-    Parameters
-    ----------
-    cls : MenuAction
-
-    Returns
-    -------
-    MenuAction
-    '''
-    cls.supportsMultiSelection = True
-    return cls
-
-
 class _MenuSeparator(object):
     '''Use with Actions to specify a separator when configuring menu actions'''
     _instance = None

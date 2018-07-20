@@ -17,7 +17,7 @@ from pxr import Sdf, Usd
 from treemodel.itemtree import TreeItem, LazyItemTree
 from treemodel.qt.base import AbstractTreeModelMixin
 from .common import NULL_INDEX, ContextMenuAction, ContextMenuBuilder, \
-    ContextMenuMixin, passSingleSelection, passMultipleSelection, UsdQtUtilities
+    ContextMenuMixin, UsdQtUtilities
 import usdlib.variants as varlib
 
 if False:
@@ -259,7 +259,6 @@ def hasVariantSelection(selections):
     return all(s.variant.variantName for s in selections)
 
 
-@passMultipleSelection
 class AddVariant(ContextMenuAction):
     def label(self, builder, selections):
         return 'Add "%s" Variant' % variantSetNames(selections)
@@ -289,7 +288,6 @@ def _GetVariantSetName(view):
     return name
 
 
-@passMultipleSelection
 class AddNestedVariant(ContextMenuAction):
     def enable(self, builder, selections):
         # for now only allow one nested variant set per variant
@@ -332,7 +330,6 @@ class AddVariantSet(ContextMenuAction):
         builder.view.model().Reset()  # TODO: Reload only necessary part
 
 
-@passSingleSelection
 class AddReference(ContextMenuAction):
     referenceAdded = QtCore.Signal()
 
