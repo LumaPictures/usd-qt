@@ -62,36 +62,36 @@ def CopyToClipboard(text):
 
 
 def passSingleSelection(cls):
-    # type: (ContextMenuAction) -> ContextMenuAction
+    # type: (MenuAction) -> MenuAction
     '''
-    ContextMenuAction decorator that will make it so the first selection item
+    MenuAction decorator that will make it so the first context item
      is passed to the action's do() method.
 
     Parameters
     ----------
-    cls : ContextMenuAction
+    cls : MenuAction
 
     Returns
     -------
-    ContextMenuAction
+    MenuAction
     '''
     cls.supportsMultiSelection = False
     return cls
 
 
 def passMultipleSelection(cls):
-    # type: (ContextMenuAction) -> ContextMenuAction
+    # type: (MenuAction) -> MenuAction
     '''
-    ContextMenuAction decorator that will make it so the full selection list
+    MenuAction decorator that will make it so the full context list
      is passed to the action's do() method.
 
     Parameters
     ----------
-    cls : ContextMenuAction
+    cls : MenuAction
 
     Returns
     -------
-    ContextMenuAction
+    MenuAction
     '''
     cls.supportsMultiSelection = True
     return cls
@@ -115,14 +115,14 @@ class Action(QtCore.QObject):
 
 class MenuAction(Action):
     '''
-    Base class for menu bar actions that can be added to views.
+    Base class for menu actions
     '''
-    def do(self, builder):
-        # type: (MenuBarBuilder) -> Any
+    def do(self, context):
+        # type: (Context) -> Any
         '''
         Parameters
         ----------
-        builder : MenuBarBuilder
+        context : Context
         '''
         if self._callable:
             self._callable()
@@ -131,13 +131,13 @@ class MenuAction(Action):
                                       'implemented for %s'
                                       % self.__class__.__name__)
 
-    def shouldShow(self, builder):
-        # type: (MenuBarBuilder) -> bool
+    def shouldShow(self, context):
+        # type: (Context) -> bool
         '''Return whether the menu item should be shown.
 
         Parameters
         ----------
-        builder : MenuBarBuilder
+        context : Context
 
         Returns
         -------
@@ -145,13 +145,13 @@ class MenuAction(Action):
         '''
         return True
 
-    def enable(self, builder):
-        # type: (MenuBarBuilder) -> bool
+    def enable(self, context):
+        # type: (Context) -> bool
         '''Return whether the menu item should be enabled.
 
         Parameters
         ----------
-        builder : MenuBarBuilder
+        context : Context
 
         Returns
         -------
@@ -159,58 +159,24 @@ class MenuAction(Action):
         '''
         return True
 
-    def label(self, builder):
+    def label(self, context):
         raise NotImplementedError
 
-    def Build(self, builder, menu):
-        # type: (MenuBarBuilder, QtGui.QMenu) -> Any
+    def Build(self, context, menu):
+        # type: (Context, QtGui.QMenu) -> Any
         '''Add action to menu bar
 
         Override this for dynamically generated menus
 
         Parameters
         ----------
-        builder : MenuBarBuilder
+        context : Context
         menu : QtGui.QMenu
         '''
-        a = menu.addAction(self.label(builder))
-        enable = self.enable(builder)
+        a = menu.addAction(self.label(context))
+        enable = self.enable(context)
         if enable:
-            a.triggered.connect(lambda: self.do(builder))
-        a.setEnabled(enable)
-
-
-class ContextMenuAction(Action):
-    '''
-    Base class for Context menu actions that can be added to views.
-    '''
-    def do(self, builder, selection):
-        raise NotImplementedError
-
-    def shouldShow(self, builder, selections):
-        return bool(selections)
-
-    def enable(self, builder, selections):
-        '''Returns whether the menu item should be enabled based on selection'''
-        return len(selections) == 1 or self.supportsMultiSelection
-
-    def label(self, builder, selection):
-        raise NotImplementedError
-
-    def Build(self, builder, menu, selection):
-        # type: (ContextMenuBuilder, QtGui.QMenu, List[Selection]) -> Any
-        '''Add action to menu, override this for dynamically generated menus
-
-        Parameters
-        ----------
-        builder : ContextMenuBuilder
-        menu : QtGui.QMenu
-        selection : List[Selection]
-        '''
-        a = menu.addAction(self.label(builder, selection))
-        enable = self.enable(builder, selection)
-        if enable:
-            a.triggered.connect(lambda: builder.CallAction(self))
+            a.triggered.connect(lambda: self.do(context))
         a.setEnabled(enable)
 
 
@@ -219,81 +185,61 @@ class ContextMenuBuilder(QtCore.QObject):
     Class to customize the building of right-click context menus for
     selected view items.
     '''
-    def __init__(self, view, actions):
-        # type: (ContextMenuMixin, List[ContextMenuAction]) -> None
+    def __init__(self, owner, actions):
+        # type: (ContextMenuMixin, List[MenuAction]) -> None
         '''
         Parameters
         ----------
-        view : ContextMenuMixin
-        actions : List[ContextMenuAction]
+        owner : ContextMenuMixin
+            A QWidget sub-class that meets the 
+        actions : List[MenuAction]
         '''
         super(ContextMenuBuilder, self).__init__()
-        self.view = view
+        self.owner = owner
         self.actions = actions
         # add any actions here if you want to use their signals
-        self.nonMenuActions = []  # type: List[ContextMenuAction]
-
-    @property
-    def model(self):
-        return self.view.model()
+        self.nonMenuActions = []  # type: List[MenuAction]
 
     def DoIt(self, event):
         '''Build and show the menu based on the current event.
 
         Views should call this from their contextMenuEvent.
         '''
-        # Inspect view selection and create context menu
-        selection = self.view.GetSelection()
-        menu = QtWidgets.QMenu(self.view)
+        context = self.owner.GetContext()
+        menu = QtWidgets.QMenu(self.owner)
         for action in self.actions:
-            self.AddAction(menu, action, selection)
+            self.AddAction(menu, action, context)
         if menu.isEmpty():
             return
         menu.exec_(event.globalPos())
         event.accept()
 
-    def CallAction(self, action):
-        # type: (ContextMenuAction) -> Any
-        '''Execute an action and provide it with the current view selection.
-
-        Parameters
-        ----------
-        action : ContextMenuAction
-        '''
-        selection = self.view.GetSelection()
-        if selection:
-            if action.supportsMultiSelection:
-                return action.do(self, selection)
-            return action.do(self, selection[0])
-        else:
-            return action.do(self)
-
-    def AddAction(self, menu, action, selection):
-        # type: (QtGui.QMenu, ContextMenuAction, List[Selection]) -> Any
+    def AddAction(self, menu, action, context):
+        # type: (QtGui.QMenu, MenuAction, Context) -> Any
         '''Add action to the context menu if it should be displayed.
 
         Parameters
         ----------
         menu : QtGui.QMenu
-        action : ContextMenuAction
-        selection : List[Selection]
+        action : MenuAction
+        context : Context
         '''
         if isinstance(action, MenuSeparator):
             menu.addSeparator()
             return
-        if not action.shouldShow(self, selection):
+        if not action.shouldShow(context):
             return
-        action.Build(self, menu, selection)
+        action.Build(menu, context)
 
     def AddNonMenuAction(self, action):
-        # type: (ContextMenuAction) -> Callable[[], None]
+        # type: (MenuAction) -> Callable[[], None]
         '''
         Register an action that doesnt need to be built or added to a menu
         (Example: double click).
 
         Parameters
         ----------
-        action : ContextMenuAction
+        action : MenuAction
 
         Returns
         -------
@@ -303,30 +249,23 @@ class ContextMenuBuilder(QtCore.QObject):
         self.nonMenuActions.append(action)
 
         def func():
+            # FIXME
             self.CallAction(action)
 
         return func
-
-    # deprecated
-    def GetSelection(self):
-        '''
-        Get the Selection list that should be handed to the actions (Uses
-        the view's configured selection method by default)
-        '''
-        return self.view.GetSelection()
 
 
 class ContextMenuMixin(object):
     '''Mix this class in with a view to bind a menu to a view'''
     def __init__(self, parent=None, contextMenuBuilder=None,
                  contextMenuActions=None):
-        # type: (Any, Optional[ContextMenuBuilder], Optional[Callable[[QtGui.QView], List[ContextMenuAction]]]) -> None
+        # type: (Any, Optional[ContextMenuBuilder], Optional[Callable[[QtGui.QView], List[MenuAction]]]) -> None
         '''
         Parameters
         ----------
         parent
         contextMenuBuilder : Optional[ContextMenuBuilder]
-        contextMenuActions : Optional[Callable[[QtGui.QView], List[ContextMenuAction]]]
+        contextMenuActions : Optional[Callable[[QtGui.QView], List[MenuAction]]]
         '''
         if not contextMenuBuilder:
             contextMenuBuilder = ContextMenuBuilder
@@ -366,7 +305,7 @@ class ContextMenuMixin(object):
             name, ', '.join([x.__class__.__name__ for x in toSearch])))
 
     def defaultContextMenuActions(self, view):
-        # type: (QtGui.QView) -> List[ContextMenuAction]
+        # type: (QtGui.QView) -> List[MenuAction]
         '''Override with default context menu actions
 
         Parameters
@@ -375,7 +314,7 @@ class ContextMenuMixin(object):
 
         Returns
         -------
-        List[ContextMenuAction]
+        List[MenuAction]
         '''
         raise ValueError('must provide context menu actions for this class')
 
@@ -383,6 +322,19 @@ class ContextMenuMixin(object):
     def menuBuilder(self):
         return self._menuBuilder
 
+    def GetContext(self):
+        # type: () -> Context
+        '''
+        Override this to return useful context objects to your actions.
+
+        Returns
+        -------
+        Context
+        '''
+        raise NotImplementedError
+
+
+class SelectionContextMenuMixin(ContextMenuMixin):
     def GetSelectedRowItems(self):
         # type: () -> List[T]
         '''
@@ -393,36 +345,30 @@ class ContextMenuMixin(object):
         indexes = self.selectionModel().selectedRows()
         return [index.internalPointer() for index in indexes]
 
-    def GetSelection(self):
-        # type: () -> List
-        '''
-        Override this to return useful selection objects to your actions.
-
-        Returns
-        -------
-        List
-        '''
+    def GetContext(self):
+        # type: () -> Context
+        # FIXME: create a Context here that includes self, selection, etc
         return self.GetSelectedRowItems()
 
 
 class MenuBarBuilder(object):
     '''Attach a menu bar to a dialog'''
-    def __init__(self, dlg, roleGetMenuNames, roleGetMenuActions):
+    def __init__(self, dialog, roleGetMenuNames, roleGetMenuActions):
         # type: (QtGui.QDialog, Callable[[QtGui.QDialog], Iterable[Tuple[str, Optional[str]]]], Callable[[QtGui.QDialog], Dict[str, Iterable[MenuAction]]]) -> None
         '''
         Parameters
         ----------
-        dlg : QtGui.QDialog
+        dialog : QtGui.QDialog
         roleGetMenuNames : Callable[[QtGui.QDialog], Iterable[Tuple[str, Optional[str]]]]
             Role method that will return menu bar names
         roleGetMenuActions : Callable[[QtGui.QDialog], Dict[str, Iterable[MenuAction]]]
             Role method that will return menu bar actions
         '''
-        self.dlg = dlg
-        self._menuBar = QtWidgets.QMenuBar(dlg)
+        self.dialog = dialog
+        self._menuBar = QtWidgets.QMenuBar(dialog)
         self._menus = {}  # type: Dict[str, QtWidgets.QMenu]
-        self.AddMenus(roleGetMenuNames(dlg))
-        self.actions = roleGetMenuActions(dlg)
+        self.AddMenus(roleGetMenuNames(dialog))
+        self.actions = roleGetMenuActions(dialog)
         self.PopulateMenus(self.actions)
 
     def AddMenu(self, name, label=None):
