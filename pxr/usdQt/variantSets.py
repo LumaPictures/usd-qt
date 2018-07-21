@@ -357,7 +357,6 @@ class VariantTreeView(ContextMenuMixin, QtWidgets.QTreeView):
     def __init__(self, parent=None, contextMenuActions=None):
         super(VariantTreeView, self).__init__(
             parent=parent,
-            contextMenuBuilder=ContextMenuBuilder,
             contextMenuActions=contextMenuActions)
         self.setSelectionMode(self.ExtendedSelection)
 

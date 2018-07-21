@@ -249,11 +249,9 @@ class SelectLayer(ContextMenuAction):
 
 
 class SubLayerTreeView(ContextMenuMixin, QtWidgets.QTreeView):
-    def __init__(self, parent=None, contextMenuActions=None,
-                 contextMenuBuilder=None):
+    def __init__(self, parent=None, contextMenuActions=None):
         super(SubLayerTreeView, self).__init__(
             parent=parent,
-            contextMenuBuilder=contextMenuBuilder,
             contextMenuActions=contextMenuActions)
 
         self.doubleClicked.connect(
