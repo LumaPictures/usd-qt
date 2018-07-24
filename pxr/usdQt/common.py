@@ -213,21 +213,18 @@ class MenuBuilder(object):
 
 class ContextMenuMixin(object):
     '''Mix this class in with a widget to bind a context menu to it.'''
-    def __init__(self, contextMenuActions=None, contextProvider=None, parent=None):
+    def __init__(self, contextMenuActions, contextProvider=None, parent=None):
         '''
         Parameters
         ----------
-        contextMenuActions : Optional[Callable[[QtGui.QView], List[MenuAction]]]
+        contextMenuActions : List[MenuAction]
         contextProvider : Optional[Any]
             Object which implements a `GetMenuContext` method. If None,
             `self.GetMenuContext` must be reimplemented.
         parent : Optional[QtWidgets.QWidget]
         '''
-        if not contextMenuActions:
-            contextMenuActions = self.defaultContextMenuActions
         super(ContextMenuMixin, self).__init__(parent=parent)
         assert isinstance(self, QtWidgets.QWidget)
-        contextMenuActions = contextMenuActions(self)
         self._contextProvider = contextProvider
         self._contextMenuBuilder = MenuBuilder('_context_', contextMenuActions)
 

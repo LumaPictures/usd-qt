@@ -46,10 +46,10 @@ NO_VARIANT_SELECTION = '<No Variant Selected>'
 
 
 OutlinerContext = NamedTuple('OutlinerContext',
-                             [('stage', Usd.Stage),
+                             [('outliner', QtWidgets.QWidget),
+                              ('stage', Usd.Stage),
                               ('selectedPrim', Optional[Usd.Prim]),
-                              ('selectedPrims', List[Usd.Prim]),
-                              ('activeWindow', QtWidgets.QWidget)])
+                              ('selectedPrims', List[Usd.Prim])])
 
 
 class ActivatePrims(MenuAction):
@@ -85,13 +85,13 @@ class AddTransform(MenuAction):
     def Do(self, context):
         # TODO: Right now this only produces Xforms. May need to support the
         # ability to specify types for new prims eventually.
-        name, _ = QtWidgets.QInputDialog.getText(context.activeWindow,
+        name, _ = QtWidgets.QInputDialog.getText(context.outliner,
                                                  'Add New Transform',
                                                  'Transform Name:')
         if not name:
             return
         if not Sdf.Path.IsValidIdentifier(name):
-            QtWidgets.QMessageBox.warning(context.activeWindow,
+            QtWidgets.QMessageBox.warning(context.outliner,
                                           'Invalid Prim Name',
                                           '{0!r} is not a valid prim '
                                           'name'.format(name))
@@ -99,7 +99,7 @@ class AddTransform(MenuAction):
 
         newPath = context.selectedPrim.GetPath().AppendChild(name)
         if context.stage.GetEditTarget().GetPrimSpecForScenePath(newPath):
-            QtWidgets.QMessageBox.warning(context.activeWindow,
+            QtWidgets.QMessageBox.warning(context.outliner,
                                           'Duplicate Prim Path',
                                           'A prim already exists at '
                                           '{0!r}'.format(newPath))
@@ -126,7 +126,7 @@ class RemovePrim(MenuAction):
             primPath = prim.GetPath()
             if ask:
                 answer = QtWidgets.QMessageBox.question(
-                    context.activeWindow,
+                    context.outliner,
                     'Confirm Prim Removal',
                     'Remove prim (and any children) at {0}?'.format(primPath),
                     buttons=(QtWidgets.QMessageBox.Yes |
@@ -158,7 +158,7 @@ class SelectVariants(MenuAction):
         if not prim.HasVariantSets():
             return
 
-        menu = QtWidgets.QMenu('Variants', context.activeWindow)
+        menu = QtWidgets.QMenu('Variants', context.outliner)
         for setName, currentValue in usdlib.variants.getPrimVariants(prim):
             setMenu = menu.addMenu(setName)
             variantSet = prim.GetVariantSet(setName)
@@ -414,61 +414,39 @@ class OutlinerViewDelegate(QtWidgets.QStyledItemDelegate):
         self._activeLayer = layer
 
 
-class OutlinerUserRole(object):
-    '''
-    Base implementation for a customized outliner app that manages which
-    menu actions are available.
-
-    Views and dialogs will support getting their menu actions from calling one
-    of these methods with themselves as an argument.
+class OutlinerRole(object):
+    '''Helper which provides standard hooks for defining the context menu
+    actions and menu bar menus that should be added to an outliner.
     '''
     @classmethod
-    def OutlinerViewContextActions(cls, view):
+    def GetContextMenuActions(cls, outliner):
         '''
         Parameters
         ----------
-        view : OutlinerTreeView
+        outliner : UsdOutliner
 
         Returns
         -------
-        List[ContextMenuAction]
+        List[Union[MenuAction, Type[MenuAction]]]
         '''
-        return [ActivatePrim(),
-                SelectVariants(),
-                MenuSeparator(),
-                RemovePrim()]
+        return [ActivatePrims, DeactivatePrims, SelectVariants, MenuSeparator,
+                RemovePrim]
 
     @classmethod
-    def MenuBarMenus(cls, dlg):
+    def GetMenuBarMenuBuilders(cls, outliner):
         '''
         Parameters
         ----------
-        dlg : UsdOutliner
+        outliner : UsdOutliner
 
         Returns
         -------
-        List[Tuple[str, str]]
+        List[MenuBuilder]
         '''
-        return [('file', '&File'),
-                ('tools', '&Tools')]
-
-    @classmethod
-    def MenuBarActions(cls, dlg):
-        '''
-        Parameters
-        ----------
-        dlg : UsdOutliner
-
-        Returns
-        -------
-        List[MenuAction]
-        '''
-        saveState = SaveState(dlg)
-
-        return {'file': [SaveEditLayer(saveState)],
-                'tools': [ShowEditTargetLayerText(),
-                          ChangeEditTarget(),
-                          ShowVariantEditor()]}
+        saveState = SaveState(outliner)
+        return [MenuBuilder('&File', [SaveEditLayer(saveState)]),
+                MenuBuilder('&Tools', [ShowEditTargetLayerText,
+                                       ChangeEditTarget, ShowVariantEditor])]
 
 
 class UsdOutliner(QtWidgets.QDialog):
@@ -481,9 +459,7 @@ class UsdOutliner(QtWidgets.QDialog):
         Parameters
         ----------
         stage : Usd.Stage
-        role : Any
-            Optionally provide an object with methods for getting custom
-            menu action configurations.
+        role : Optional[Union[Type[OutlinerRole], OutlinerRole]]
         parent : Optional[QtGui.QWidget]
         '''
         assert isinstance(stage, Usd.Stage), 'A Stage instance is required'
@@ -502,12 +478,13 @@ class UsdOutliner(QtWidgets.QDialog):
         self.UpdateTitle()
 
         if role is None:
-            role = OutlinerUserRole
+            role = OutlinerRole
         self.role = role
-        # populate menu bar
-        self.menuBarBuilder = MenuBarBuilder(self,
-                                             self.role.MenuBarMenus,
-                                             self.role.MenuBarActions)
+
+        self.menuBarBuilder = MenuBarBuilder(
+            self,
+            menuBuilders=role.GetMenuBarMenuBuilders(),
+            parent=self)
 
         view = self._CreateView(stage, self.role)
         view.setColumnWidth(0, 360)
@@ -521,7 +498,7 @@ class UsdOutliner(QtWidgets.QDialog):
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
         layout.setSpacing(2)
-        layout.addWidget(self.menuBarBuilder._menuBar)
+        layout.addWidget(self.menuBarBuilder.menuBar)
         layout.addWidget(view)
 
         self.resize(900, 600)
@@ -534,21 +511,20 @@ class UsdOutliner(QtWidgets.QDialog):
         Parameters
         ----------
         stage : Usd.Stage
-        role : Type[OutlinerUserRole]
+        role : Union[Type[OutlinerRole], OutlinerRole]
 
         Returns
         -------
-        QtWidgets.QTreeView
+        QtWidgets.QAbstractItemView
         '''
-        return OutlinerTreeView(
-            contextMenuActions=role.OutlinerViewContextActions,
-            contextProvider=self,
-            parent=self)
+        return OutlinerTreeView(contextMenuActions=role.GetContextMenuActions(),
+                                contextProvider=self, parent=self)
 
     def GetMenuContext(self):
         selectedPrims = self.view.SelectedPrims()
-        return OutlinerContext(stage=self.stage, selectedPrim=selectedPrims[0],
-                               selectedPrims=selectedPrims, activeWindow=self)
+        return OutlinerContext(outliner=self, stage=self.stage,
+                               selectedPrim=selectedPrims[0],
+                               selectedPrims=selectedPrims)
 
     def ResetStage(self, stage=None):
         if stage is None:
