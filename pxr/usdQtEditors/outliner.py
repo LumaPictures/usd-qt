@@ -24,11 +24,13 @@
 
 from __future__ import absolute_import
 
+from functools import partial
+
 import usdlib.utils
 import usdlib.variants
 from pxr import Sdf, Usd
-from pxr.UsdQt.common import DARK_ORANGE, ContextMenuAction, ContextMenuMixin, \
-    MenuAction, MenuBarBuilder, MenuSeparator, UsdQtUtilities
+from pxr.UsdQt.common import DARK_ORANGE, MenuAction, MenuSeparator, \
+    MenuBuilder, MenuBarBuilder, UsdQtUtilities
 from pxr.UsdQt.hierarchyModel import HierarchyBaseModel
 from pxr.UsdQt.layers import LayerTextViewDialog, SubLayerDialog
 from pxr.UsdQt.variantSets import VariantEditorDialog
@@ -42,81 +44,91 @@ if False:
 
 NO_VARIANT_SELECTION = '<No Variant Selected>'
 
-Selection = NamedTuple('Selection',
-                       [('index', Optional[QtCore.QModelIndex]),
-                        ('prim', Optional[Usd.Prim])])
+
+OutlinerContext = NamedTuple('OutlinerContext',
+                             [('stage', Usd.Stage),
+                              ('selectedPrim', Optional[Usd.Prim]),
+                              ('selectedPrims', List[Usd.Prim]),
+                              ('activeWindow', QtWidgets.QWidget)])
 
 
-class ActivatePrim(ContextMenuAction):
-    def label(self, builder, selection):
-        anyActive = any((s.prim.IsActive() for s in selection))
-        return 'Deactivate' if anyActive else 'Activate'
+class ActivatePrims(MenuAction):
+    defaultText = 'Activate'
 
-    def do(self, builder, multiSelection):
-        print 'doing!'
-        anyActive = any((s.prim.IsActive() for s in multiSelection))
-        for selection in multiSelection:
-            if not selection.prim.IsValid():
-                continue
-            if selection.prim.IsActive() == anyActive:
-                builder.model.TogglePrimActive(selection.index,
-                                               selection.prim,
-                                               item=selection.item)
+    def Update(self, action, context):
+        action.setEnabled(bool(context.selectedPrims))
+
+    def Do(self, context):
+        with Sdf.ChangeBlock():
+            for prim in context.selectedPrims:
+                prim.SetActive(True)
 
 
-class AddNewPrim(ContextMenuAction):
-    def label(self, builder, selection):
-        return 'Add Transform...'
+class DeactivatePrims(MenuAction):
+    defaultText = 'Dectivate'
 
-    def do(self, builder, selection):
-        # TODO: Right now, this doesn't override the primType passed to the
-        # model's AddNewPrim method, so this only produces Xforms. May need to
-        # support the ability to specify types for new prims eventually.
-        name, _ = QtWidgets.QInputDialog.getText(builder.view,
-                                                 'Enter Prim Name',
-                                                 'Name for the new transform:')
+    def Update(self, action, context):
+        action.setEnabled(bool(context.selectedPrims))
+
+    def Do(self, context):
+        with Sdf.ChangeBlock():
+            for prim in context.selectedPrims:
+                prim.SetActive(False)
+
+
+class AddTransform(MenuAction):
+    defaultText = 'Add Transform...'
+
+    def Update(self, action, context):
+        action.setEnabled(bool(context.selectedPrim))
+
+    def Do(self, context):
+        # TODO: Right now this only produces Xforms. May need to support the
+        # ability to specify types for new prims eventually.
+        name, _ = QtWidgets.QInputDialog.getText(context.activeWindow,
+                                                 'Add New Transform',
+                                                 'Transform Name:')
         if not name:
             return
-        newPath = selection.prim.GetPath().AppendChild(name)
-        if builder.model.GetPrimSpecAtEditTarget(newPath):
-            QtWidgets.QMessageBox.warning(builder.view,
+        if not Sdf.Path.IsValidIdentifier(name):
+            QtWidgets.QMessageBox.warning(context.activeWindow,
+                                          'Invalid Prim Name',
+                                          '{0!r} is not a valid prim '
+                                          'name'.format(name))
+            return
+
+        newPath = context.selectedPrim.GetPath().AppendChild(name)
+        if context.stage.GetEditTarget().GetPrimSpecForScenePath(newPath):
+            QtWidgets.QMessageBox.warning(context.activeWindow,
                                           'Duplicate Prim Path',
                                           'A prim already exists at '
-                                          '{0}'.format(newPath))
+                                          '{0!r}'.format(newPath))
             return
-        builder.model.AddNewPrim(selection.index,
-                                 selection.prim,
-                                 name,
-                                 item=selection.item)
+        context.stage.DefinePrim(newPath, 'Xform')
 
 
-class RemovePrim(ContextMenuAction):
-    def label(self, builder, selections):
-        label = 'Remove Prims' if len(selections) > 1 else 'Remove Prim'
-        for selection in selections:
-            spec = builder.model.GetPrimSpecAtEditTarget(selection.prim)
-            if spec:
-                if spec.specifier == Sdf.SpecifierOver:
-                    return 'Remove Prim Edits'
-        return label
+class RemovePrim(MenuAction):
+    def Update(self, action, context):
+        prims = context.selectedPrims
+        action.setEnabled(bool(prims))
+        text = 'Remove Prims' if len(prims) > 1 else 'Remove Prim'
+        editTarget = context.stage.GetEditTarget()
+        for prim in prims:
+            spec = editTarget.GetPrimSpecForScenePath(prim.GetPath())
+            if spec and spec.specifier == Sdf.SpecifierOver:
+                text = 'Remove Prim Edits'
+                break
+        action.setText(text)
 
-    def enable(self, builder, selections):
-        for selection in selections:
-            spec = builder.model.GetPrimSpecAtEditTarget(selection.prim)
-            if spec:
-                if (spec.specifier == Sdf.SpecifierDef or
-                        spec.specifier == Sdf.SpecifierOver):
-                    return True
-        return False
-
-    def do(self, builder, multiSelection):
+    def Do(self, context):
         ask = True
-        for selection in multiSelection:
+        for prim in context.selectedPrims:
+            primPath = prim.GetPath()
             if ask:
                 answer = QtWidgets.QMessageBox.question(
-                    builder.view, 'Confirm Prim Removal',
-                    'Remove prim (and any children) at {0}?'.format(
-                        selection.prim.GetPath()),
+                    context.activeWindow,
+                    'Confirm Prim Removal',
+                    'Remove prim (and any children) at {0}?'.format(primPath),
                     buttons=(QtWidgets.QMessageBox.Yes |
                              QtWidgets.QMessageBox.Cancel |
                              QtWidgets.QMessageBox.YesToAll),
@@ -125,53 +137,67 @@ class RemovePrim(ContextMenuAction):
                     return
                 elif answer == QtWidgets.QMessageBox.YesToAll:
                     ask = False
-            builder.model.RemovePrimFromCurrentLayer(selection.index,
-                                                     selection.prim,
-                                                     item=selection.item)
+            context.stage.RemovePrim(primPath)
 
 
-class SelectVariants(ContextMenuAction):
+class SelectVariants(MenuAction):
+    @staticmethod
+    def _ApplyVariant(prim, variantSetName, variantValue):
+        if prim:
+            variantSet = prim.GetVariantSet(variantSetName)
+            if variantValue == NO_VARIANT_SELECTION:
+                variantSet.ClearVariantSelection()
+            else:
+                variantSet.SetVariantSelection(variantValue)
 
-    def Build(self, builder, menu, selections):
-        selection = selections[0]
-        if selection.prim.HasVariantSets():
-            variantMenu = menu.addMenu('Variants')
-            for setName, currentValue in usdlib.variants.getPrimVariants(
-                    selection.prim):
-                setMenu = variantMenu.addMenu(setName)
-                variantSet = selection.prim.GetVariantSet(setName)
-                for setValue in [NO_VARIANT_SELECTION] + \
-                        variantSet.GetVariantNames():
-                    a = setMenu.addAction(setValue)
-                    a.setCheckable(True)
-                    if setValue == currentValue or \
-                            (setValue == NO_VARIANT_SELECTION
-                             and currentValue == ''):
-                        a.setChecked(True)
+    def Build(self, context):
+        prims = context.selectedPrims
+        if len(prims) != 1:
+            return
+        prim = prims[0]
+        if not prim.HasVariantSets():
+            return
 
-                    # Note: This is currently only valid for PySide. PyQt
-                    # always passes the action's `checked` value.
-                    a.triggered.connect(
-                        lambda n=setName, v=setValue:
-                            builder.model.PrimVariantChanged(
-                                selection.index, n, v, item=selection.item))
+        menu = QtWidgets.QMenu('Variants', context.activeWindow)
+        for setName, currentValue in usdlib.variants.getPrimVariants(prim):
+            setMenu = menu.addMenu(setName)
+            variantSet = prim.GetVariantSet(setName)
+            for setValue in [NO_VARIANT_SELECTION] + \
+                    variantSet.GetVariantNames():
+                a = setMenu.addAction(setValue)
+                a.setCheckable(True)
+                if setValue == currentValue or \
+                        (setValue == NO_VARIANT_SELECTION
+                         and currentValue == ''):
+                    a.setChecked(True)
 
-    def shouldShow(self, builder, selections):
-        return len(selections) == 1
+                # Note: This is currently only valid for PySide. PyQt
+                # always passes the action's `checked` value.
+                a.triggered.connect(partial(self._ApplyVariant,
+                                            prim, setName, setValue))
+        return menu.menuAction()
 
 
-class AddReference(ContextMenuAction):
-    def label(self, builder, selections):
-        return 'Add Reference...'
+class AddReference(MenuAction):
+    defaultText = 'Add Reference...'
 
-    def _GetNewReferencePath(self):
-        return UsdQtUtilities.exec_('GetReferencePath',
-                                    stage=self.model.stage)
+    def Update(self, action, context):
+        action.setEnabled(bool(context.selectedPrim))
 
-    def do(self, builder, selection):
-        '''Add a reference directly to an existing prim'''
-        refPath = self._GetNewReferencePath()
-        builder.model.AddNewReference(selection.index, selection.prim, refPath)
+    def Do(self, context):
+        refPath = UsdQtUtilities.exec_('GetReferencePath', stage=context.stage)
+        if refPath:
+            stage = context.stage
+            prim = context.selectedPrim
+            editLayer = stage.GetEditTarget().GetLayer()
+            if not stage.HasLocalLayer(editLayer):
+                # We use a temporary stage here to get around the local layer
+                # restriction for variant edit contexts.
+                editTargetStage = Usd.Stage.Open(editLayer)
+                # this assumes prim path is the same in edit target
+                prim = editTargetStage.GetPrimAtPath(prim.GetPath())
+
+            prim.GetReferences().SetReferences([Sdf.Reference(refPath)])
 
 
 class SaveState(object):
@@ -212,7 +238,7 @@ class SaveState(object):
         if diskContents != currentContents:
             layer.ImportFromString(currentContents)
         # reset stage to avoid any problems with references to stale prims
-        self.dlg.dataModel.ResetStage()
+        self.dlg._dataModel.ResetStage()
         return diskContents
 
     def CheckOriginalContents(self, editLayer):
@@ -226,16 +252,14 @@ class SaveState(object):
                                         fromfile="original",
                                         tofile="on disk",
                                         n=10)
-            dlg = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning,
-                                        'Contents changed!',
-                                        'The contents on disk have changed '
-                                        'since your began editing them. '
-                                        '\n\t%s\n '
-                                        'Save Anyway and risk overwriting '
-                                        'changes?' % editLayer.identifier,
-                                        buttons=(QtWidgets.QMessageBox.Cancel |
-                                                 QtWidgets.QMessageBox.Yes),
-                                        detailedText='\n'.join(diff))
+            dlg = QtWidgets.QMessageBox(
+                QtWidgets.QMessageBox.Warning,
+                'Layer Contents Changed!',
+                'Layer contents have changed on disk since you started '
+                'editing.\n    %s\n'
+                'Save anyway and risk overwriting changes?' % editLayer.identifier,
+                buttons=QtWidgets.QMessageBox.No | QtWidgets.QMessageBox.Yes,
+                detailedText='\n'.join(diff))
             if dlg.exec_() != QtWidgets.QMessageBox.Yes:
                 return False
         return True
@@ -245,20 +269,19 @@ class SaveState(object):
 
 
 class SaveEditLayer(MenuAction):
+    __slots__ = ('state',)
 
-    def __init__(self, state, label=None, enable=None, func=None):
-        super(SaveEditLayer, self).__init__(label=label, enable=enable, func=None)
+    defaultText = 'Save Current Edit Layer'
+
+    def __init__(self, state):
         self.state = state
 
-    def label(self, builder):
-        return 'Save Current Edit Layer'
-
-    def do(self, builder):
+    def Do(self, context):
         '''
         Save the current edit target to the appropriate place.
         '''
-        editTarget = builder.dlg.editTarget
-        if not builder.dlg.editTarget.dirty:
+        editTarget = context.stage.GetEditTarget().GetLayer()
+        if not editTarget.dirty:
             print 'Nothing to save'
             return
         if not self.state.CheckOriginalContents(editTarget):
