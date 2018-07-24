@@ -213,11 +213,14 @@ class MenuBuilder(object):
 
 class ContextMenuMixin(object):
     '''Mix this class in with a widget to bind a context menu to it.'''
-    def __init__(self, contextMenuActions=None, parent=None):
+    def __init__(self, contextMenuActions=None, contextProvider=None, parent=None):
         '''
         Parameters
         ----------
         contextMenuActions : Optional[Callable[[QtGui.QView], List[MenuAction]]]
+        contextProvider : Optional[Any]
+            Object which implements a `GetMenuContext` method. If None,
+            `self.GetMenuContext` must be reimplemented.
         parent : Optional[QtWidgets.QWidget]
         '''
         if not contextMenuActions:
@@ -225,6 +228,7 @@ class ContextMenuMixin(object):
         super(ContextMenuMixin, self).__init__(parent=parent)
         assert isinstance(self, QtWidgets.QWidget)
         contextMenuActions = contextMenuActions(self)
+        self._contextProvider = contextProvider
         self._contextMenuBuilder = MenuBuilder('_context_', contextMenuActions)
 
     # Qt methods ---------------------------------------------------------------
@@ -282,7 +286,10 @@ class ContextMenuMixin(object):
         -------
         Context
         '''
-        raise NotImplementedError
+        if self._contextProvider is not None:
+            return self._contextProvider.GetMenuContext()
+        raise NotImplementedError('No context provider set and GetMenuContext '
+                                  'not reimplemented')
 
 
 # class SelectionContextMenuMixin(ContextMenuMixin):
@@ -302,8 +309,6 @@ class ContextMenuMixin(object):
 #         return self.GetSelectedRowItems()
 
 
-
-# FIXME: Don't pass role stuff to this
 class MenuBarBuilder(object):
     '''Creates a menu bar that can be added to UIs'''
     def __init__(self, contextProvider, menuBuilders=None, parent=None):
@@ -318,7 +323,7 @@ class MenuBarBuilder(object):
         parent : Optional[QtWidgets.QWidget]
             Optional parent for the created `QMenuBar`.
         '''
-        self.contextProvider = contextProvider
+        self._contextProvider = contextProvider
         self._menus = {}  # type: Dict[str, QtWidgets.QMenu]
         self._menuBuilders = {}  # type: Dict[str, MenuBuilder]
         self._menuBar = QtWidgets.QMenuBar(parent=parent)
@@ -331,8 +336,12 @@ class MenuBarBuilder(object):
         return self._menuBar
 
     def _menuAboutToShow(self, menuName):
+        '''Slot function called when an owned menu is about to be shown. This
+        dispatches `Update` calls to each `QAction`'s associated `MenuAction`
+        instance.
+        '''
         menu = self._menus[menuName]
-        context = self.contextProvider.GetMenuContext()
+        context = self._contextProvider.GetMenuContext()
         for action in menu.actions():
             if action.isSeparator():
                 continue
@@ -355,7 +364,7 @@ class MenuBarBuilder(object):
         name = menuBuilder.name
         if name in self._menus:
             raise ValueError('A menu named %s already exists' % name)
-        context = self.contextProvider.GetMenuContext()
+        context = self._contextProvider.GetMenuContext()
         menu = menuBuilder.Build(context, parent=self._menuBar)
         if menu:
             self._menuBar.addMenu(menu)

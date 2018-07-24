@@ -322,20 +322,12 @@ class OutlinerTreeView(ContextMenuMixin, QtWidgets.QTreeView):
     # Emitted with lists of selected and deselected prims
     primSelectionChanged = QtCore.Signal(list, list)
 
-    def __init__(self, stage=None, contextMenuActions=None,
-                 contextMenuBuilder=None, parent=None):
-        '''
-        Parameters
-        ----------
-        stage : Optional[Usd.Stage]
-        contextMenuActions : Optional[Callable[[OutlinerTreeView], List[ContextMenuAction]]]
-        contextMenuBuilder : Optional[Type[ContextMenuBuilder]]
-        parent : Optional[QtGui.QWidget]
-        '''
+    def __init__(self, contextMenuActions=None, contextProvider=None,
+                 parent=None):
         super(OutlinerTreeView, self).__init__(
-            parent=parent,
-            contextMenuBuilder=contextMenuBuilder,
-            contextMenuActions=contextMenuActions)
+            contextMenuActions=contextMenuActions,
+            contextProvider=contextProvider,
+            parent=parent)
 
         self.setAlternatingRowColors(True)
         self.setSelectionBehavior(self.SelectRows)
@@ -345,17 +337,12 @@ class OutlinerTreeView(ContextMenuMixin, QtWidgets.QTreeView):
         self.setUniformRowHeights(True)
         self.header().setStretchLastSection(True)
 
-        self._dataModel = HierarchyBaseModel(stage=stage, parent=self)
-        self.setModel(self._dataModel)
-
         # This can't be a one-liner because of a PySide refcount bug.
         selectionModel = self.selectionModel()
         selectionModel.selectionChanged.connect(self._SelectionChanged)
 
     # Custom methods -----------------------------------------------------------
-    def ResetStage(self, stage):
-        self._dataModel.ResetStage(stage)
-
+    @QtCore.Slot(QtCore.QItemSelection, QtCore.QItemSelection)
     def _SelectionChanged(self, selected, deselected):
         '''Connected to selectionChanged'''
         model = self._dataModel
@@ -378,27 +365,11 @@ class OutlinerTreeView(ContextMenuMixin, QtWidgets.QTreeView):
                 result.append(prim)
         return result
 
-    def GetSelection(self):
-        '''
-        Returns
-        -------
-        List[Selection]
-        '''
-        model = self._dataModel
-        indexes = self.selectionModel().selectedRows()
-        result = []
-        for index in indexes:
-            prim = model._GetPrimForIndex(index)
-            if prim:
-                result.append(Selection(index, prim))
-        return result
-
 
 class OutlinerViewDelegate(QtWidgets.QStyledItemDelegate):
     '''
     Item delegate class assigned to an ``OutlinerTreeView``.
     '''
-
     def __init__(self, activeLayer, parent=None):
         '''
         Parameters
@@ -519,6 +490,7 @@ class UsdOutliner(QtWidgets.QDialog):
         super(UsdOutliner, self).__init__(parent=parent)
 
         self.stage = stage
+        self._dataModel = HierarchyBaseModel(stage=stage, parent=self)
 
         # instances of child dialogs
         self.layerTextDialogs = {}
@@ -537,8 +509,9 @@ class UsdOutliner(QtWidgets.QDialog):
                                              self.role.MenuBarMenus,
                                              self.role.MenuBarActions)
 
-        view = self._GetView(stage, self.role)
+        view = self._CreateView(stage, self.role)
         view.setColumnWidth(0, 360)
+        view.setModel(self._dataModel)
         self.view = view
 
         delegate = OutlinerViewDelegate(self.editTarget, parent=view)
@@ -553,13 +526,10 @@ class UsdOutliner(QtWidgets.QDialog):
 
         self.resize(900, 600)
 
-    @property
-    def editTarget(self):
-        return self.stage.GetEditTarget().GetLayer()
+    def _CreateView(self, stage, role):
+        '''Create the hierarchy view for the outliner.
 
-    def _GetView(self, stage, role):
-        '''
-        Get the view for the outliner
+        This is provided as a convenience for subclass implementations.
 
         Parameters
         ----------
@@ -571,9 +541,19 @@ class UsdOutliner(QtWidgets.QDialog):
         QtWidgets.QTreeView
         '''
         return OutlinerTreeView(
-            stage=stage,
             contextMenuActions=role.OutlinerViewContextActions,
+            contextProvider=self,
             parent=self)
+
+    def GetMenuContext(self):
+        selectedPrims = self.view.SelectedPrims()
+        return OutlinerContext(stage=self.stage, selectedPrim=selectedPrims[0],
+                               selectedPrims=selectedPrims, activeWindow=self)
+
+    def ResetStage(self, stage=None):
+        if stage is None:
+            stage = self.stage
+        self._dataModel.ResetStage(stage)
 
     def UpdateTitle(self, identifier=None):
         '''
