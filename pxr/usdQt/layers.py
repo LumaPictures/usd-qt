@@ -30,8 +30,7 @@ from typing import NamedTuple, Optional
 
 from treemodel.itemtree import TreeItem, ItemTree
 from treemodel.qt.base import AbstractTreeModelMixin
-from .common import NULL_INDEX, CopyToClipboard, ContextMenuAction, \
-    ContextMenuBuilder, ContextMenuMixin
+from .common import NULL_INDEX, CopyToClipboard, MenuAction, ContextMenuMixin
 
 if False:
     from typing import *
@@ -204,7 +203,7 @@ LayerSelection = NamedTuple('LayerSelection', [
 ])
 
 
-class ShowLayerContents(ContextMenuAction):
+class ShowLayerContents(MenuAction):
     # emitted when menu option is selected to show layer contents
     showLayerContents = QtCore.Signal(Sdf.Layer)
 
@@ -215,7 +214,7 @@ class ShowLayerContents(ContextMenuAction):
         self.showLayerContents.emit(selection.layer)
 
 
-class CopyLayerPathAction(ContextMenuAction):
+class CopyLayerPathAction(MenuAction):
     def label(self, builder, selection):
         return 'Copy Layer Path'
 
@@ -223,7 +222,7 @@ class CopyLayerPathAction(ContextMenuAction):
         CopyLayerPath(selection.layer)
 
 
-class OpenLayer(ContextMenuAction):
+class OpenLayer(MenuAction):
     # emitted when menu option is selected to show layer contents
     openLayer = QtCore.Signal(Sdf.Layer)
 
@@ -234,7 +233,7 @@ class OpenLayer(ContextMenuAction):
         self.openLayer.emit(selection.layer)
 
 
-class SelectLayer(ContextMenuAction):
+class SelectLayer(MenuAction):
     # emitted with the new edit layer when the edit target is changed
     editTargetChanged = QtCore.Signal(Sdf.Layer)
 

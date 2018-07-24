@@ -180,14 +180,15 @@ class MenuBuilder(object):
         self.name = name
         actionInstances = []
         for action in actions:
-            if isinstance(action, MenuAction):
+            if isinstance(action, (MenuAction, _MenuSeparator)):
                 actionInstances.append(action)
-            elif isclass(action) and issubclass(action, MenuAction):
+            elif isclass(action) and \
+                    (action is _MenuSeparator or issubclass(action, MenuAction)):
                 actionInstances.append(action())
             else:
-                raise TypeError('Actions must be instances or subclasses of '
-                                'MenuAction.')
-        self.actions = actions
+                raise TypeError('Invalid action {0!r}: an instance or subclass '
+                                'of MenuAction is required'.format(action))
+        self.actions = actionInstances
 
     def Build(self, context, parent=None):
         '''Build and return a new `QMenu` instance using the current list of
@@ -260,20 +261,6 @@ class ContextMenuMixin(object):
                 return signal
         raise ValueError('Signal not found: {} in any of {}'.format(
             name, ', '.join([x.__class__.__name__ for x in toSearch])))
-# TODO: Get rid of view
-    def defaultContextMenuActions(self, view):
-        # type: (QtGui.QView) -> List[MenuAction]
-        '''Override with default context menu actions
-
-        Parameters
-        ----------
-        view : QtGui.QView
-
-        Returns
-        -------
-        List[MenuAction]
-        '''
-        raise ValueError('must provide context menu actions for this class')
 
     def GetMenuContext(self):
         # type: () -> Context

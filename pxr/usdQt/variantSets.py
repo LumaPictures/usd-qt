@@ -16,8 +16,7 @@ from pxr import Sdf, Usd
 
 from treemodel.itemtree import TreeItem, LazyItemTree
 from treemodel.qt.base import AbstractTreeModelMixin
-from .common import NULL_INDEX, ContextMenuAction, ContextMenuBuilder, \
-    ContextMenuMixin, UsdQtUtilities
+from .common import NULL_INDEX, MenuAction, ContextMenuMixin, UsdQtUtilities
 import usdlib.variants as varlib
 
 if False:
@@ -236,13 +235,6 @@ class VariantModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         return self._stage.GetEditTarget().GetLayer()
 
 
-class VariantContextMenuBuilder(ContextMenuBuilder):
-    '''
-    Class to customize the building of right-click context menus for selected
-    variants.
-    '''
-
-
 def _summary(strings):
     return '/'.join(set(strings))
 
@@ -259,7 +251,7 @@ def hasVariantSelection(selections):
     return all(s.variant.variantName for s in selections)
 
 
-class AddVariant(ContextMenuAction):
+class AddVariant(MenuAction):
     def label(self, builder, selections):
         return 'Add "%s" Variant' % variantSetNames(selections)
 
@@ -288,7 +280,7 @@ def _GetVariantSetName(view):
     return name
 
 
-class AddNestedVariant(ContextMenuAction):
+class AddNestedVariant(MenuAction):
     def enable(self, builder, selections):
         # for now only allow one nested variant set per variant
         allowAdding = not any(builder.view.model().itemTree.childCount(parent=s)
@@ -312,7 +304,7 @@ class AddNestedVariant(ContextMenuAction):
         builder.view.model().Reset()  # TODO: Reload only necessary part
 
 
-class AddVariantSet(ContextMenuAction):
+class AddVariantSet(MenuAction):
     def label(self, builder, selection):
         return 'Add Top Level Variant Set'
 
@@ -330,7 +322,7 @@ class AddVariantSet(ContextMenuAction):
         builder.view.model().Reset()  # TODO: Reload only necessary part
 
 
-class AddReference(ContextMenuAction):
+class AddReference(MenuAction):
     referenceAdded = QtCore.Signal()
 
     def label(self, builder, selections):

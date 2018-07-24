@@ -30,11 +30,11 @@ import usdlib.utils
 import usdlib.variants
 from pxr import Sdf, Usd
 from pxr.UsdQt.common import DARK_ORANGE, MenuAction, MenuSeparator, \
-    MenuBuilder, MenuBarBuilder, UsdQtUtilities
+    MenuBuilder, ContextMenuMixin, MenuBarBuilder, UsdQtUtilities
 from pxr.UsdQt.hierarchyModel import HierarchyBaseModel
 from pxr.UsdQt.layers import LayerTextViewDialog, SubLayerDialog
 from pxr.UsdQt.variantSets import VariantEditorDialog
-from typing import NamedTuple, Optional
+from typing import List, NamedTuple, Optional
 
 from ._Qt import QtCore, QtGui, QtWidgets
 
@@ -48,6 +48,7 @@ NO_VARIANT_SELECTION = '<No Variant Selected>'
 OutlinerContext = NamedTuple('OutlinerContext',
                              [('outliner', QtWidgets.QWidget),
                               ('stage', Usd.Stage),
+                              ('editTargetLayer', Sdf.Layer),
                               ('selectedPrim', Optional[Usd.Prim]),
                               ('selectedPrims', List[Usd.Prim])])
 
@@ -189,7 +190,7 @@ class AddReference(MenuAction):
         if refPath:
             stage = context.stage
             prim = context.selectedPrim
-            editLayer = stage.GetEditTarget().GetLayer()
+            editLayer = context.editTargetLayer
             if not stage.HasLocalLayer(editLayer):
                 # We use a temporary stage here to get around the local layer
                 # restriction for variant edit contexts.
@@ -280,7 +281,7 @@ class SaveEditLayer(MenuAction):
         '''
         Save the current edit target to the appropriate place.
         '''
-        editTarget = context.stage.GetEditTarget().GetLayer()
+        editTarget = context.editTargetLayer
         if not editTarget.dirty:
             print 'Nothing to save'
             return
@@ -295,35 +296,40 @@ class SaveEditLayer(MenuAction):
 
 
 class ShowEditTargetLayerText(MenuAction):
-    def label(self, builder):
-        return 'Show Current Layer Text'
+    defaultText = 'Show Current Layer Text'
 
-    def do(self, builder):
-        return builder.dlg.ShowEditTargetLayerText()
+    def Do(self, context):
+        context.outliner.ShowEditTargetLayerText()
 
 
 class ChangeEditTarget(MenuAction):
-    def label(self, builder):
-        return 'Change Edit Target'
+    defaultText = 'Change Edit Target'
 
-    def do(self, builder):
-        return builder.dlg.ChangeEditTarget()
+    def Do(self, context):
+        context.outliner.ChangeEditTarget()
 
 
 class ShowVariantEditor(MenuAction):
-    def label(self, builder):
-        return 'Edit Variants'
+    defaultText = 'Edit Variants'
 
-    def do(self, builder):
-        return builder.dlg.ShowVariantEditor()
+    def Do(self, context):
+        context.outliner.ShowVariantEditor()
 
 
 class OutlinerTreeView(ContextMenuMixin, QtWidgets.QTreeView):
     # Emitted with lists of selected and deselected prims
     primSelectionChanged = QtCore.Signal(list, list)
 
-    def __init__(self, contextMenuActions=None, contextProvider=None,
+    def __init__(self, dataModel, contextMenuActions, contextProvider=None,
                  parent=None):
+        '''
+        Parameters
+        ----------
+        dataModel : QtCore.QAbstractItemModel
+        contextMenuActions : List[MenuAction]
+        contextProvider : Optional[Any]
+        parent : Optional[QtWidgets.QWidget]
+        '''
         super(OutlinerTreeView, self).__init__(
             contextMenuActions=contextMenuActions,
             contextProvider=contextProvider,
@@ -336,6 +342,9 @@ class OutlinerTreeView(ContextMenuMixin, QtWidgets.QTreeView):
 
         self.setUniformRowHeights(True)
         self.header().setStretchLastSection(True)
+
+        self._dataModel = dataModel
+        self.setModel(dataModel)
 
         # This can't be a one-liner because of a PySide refcount bug.
         selectionModel = self.selectionModel()
@@ -481,19 +490,19 @@ class UsdOutliner(QtWidgets.QDialog):
             role = OutlinerRole
         self.role = role
 
-        self.menuBarBuilder = MenuBarBuilder(
-            self,
-            menuBuilders=role.GetMenuBarMenuBuilders(),
-            parent=self)
-
         view = self._CreateView(stage, self.role)
         view.setColumnWidth(0, 360)
         view.setModel(self._dataModel)
         self.view = view
 
-        delegate = OutlinerViewDelegate(self.editTarget, parent=view)
+        delegate = OutlinerViewDelegate(self.GetEditTargetLayer(), parent=view)
         view.setItemDelegate(delegate)
         self.editTargetChanged.connect(delegate.SetActiveLayer)
+
+        self.menuBarBuilder = MenuBarBuilder(
+            self,
+            menuBuilders=role.GetMenuBarMenuBuilders(self),
+            parent=self)
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
@@ -517,14 +526,22 @@ class UsdOutliner(QtWidgets.QDialog):
         -------
         QtWidgets.QAbstractItemView
         '''
-        return OutlinerTreeView(contextMenuActions=role.GetContextMenuActions(),
-                                contextProvider=self, parent=self)
+        return OutlinerTreeView(
+            self._dataModel,
+            contextMenuActions=role.GetContextMenuActions(self),
+            contextProvider=self,
+            parent=self)
 
     def GetMenuContext(self):
         selectedPrims = self.view.SelectedPrims()
+        selectedPrim = selectedPrims[0] if selectedPrims else None
         return OutlinerContext(outliner=self, stage=self.stage,
-                               selectedPrim=selectedPrims[0],
+                               editTargetLayer=self.GetEditTargetLayer(),
+                               selectedPrim=selectedPrim,
                                selectedPrims=selectedPrims)
+
+    def GetEditTargetLayer(self):
+        return self.stage.GetEditTarget().GetLayer()
 
     def ResetStage(self, stage=None):
         if stage is None:
@@ -539,7 +556,7 @@ class UsdOutliner(QtWidgets.QDialog):
             If not provided, acquired from the curent edit target
         '''
         if not identifier:
-            identifier = self.editTarget.identifier
+            identifier = self.GetEditTargetLayer().identifier
         self.setWindowTitle('Outliner - %s' % identifier)
 
     def UpdateEditTarget(self, layer):
