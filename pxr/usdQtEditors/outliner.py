@@ -28,7 +28,7 @@ from functools import partial
 
 import usdlib.utils
 import usdlib.variants
-from pxr import Sdf, Usd
+from pxr import Sdf, Tf, Usd
 from pxr.UsdQt.common import DARK_ORANGE, MenuAction, MenuSeparator, \
     MenuBuilder, ContextMenuMixin, MenuBarBuilder, UsdQtUtilities
 from pxr.UsdQt.hierarchyModel import HierarchyBaseModel
@@ -200,27 +200,31 @@ class AddReference(MenuAction):
 
             prim.GetReferences().SetReferences([Sdf.Reference(refPath)])
 
-
 class SaveState(object):
     '''State tracker for layer contents in an outliner app'''
+    def __init__(self, outliner):
+        self.outliner = outliner
+        editTarget = outliner.GetEditTargetLayer()
+        self.origLayerContents = \
+            {self.GetId(editTarget): self._GetDiskContents(editTarget)}
+        self._listener = Tf.Notice.Register(Usd.Notice.StageEditTargetChanged,
+                                            self._OnEditTargetChanged,
+                                            outliner.stage)
 
-    def __init__(self, dlg):
-        self.dlg = dlg
-        self.editTargetOriginalContents = \
-            {self.GetId(dlg.editTarget): self._GetDiskContents(dlg.editTarget)}
-        dlg.editTargetChanged.connect(self.EditTargetChanged)
 
-    def EditTargetChanged(self, layer):
-        self.editTargetOriginalContents.setdefault(self.GetId(layer),
-                                                   layer.ExportToString())
+
+    def _OnEditTargetChanged(self, notice, stage):
+        layer = stage.GetEditTarget().GetLayer()
+        self.origLayerContents.setdefault(self.GetId(layer),
+                                          layer.ExportToString())
 
     def GetOriginalContents(self, layer):
-        return self.editTargetOriginalContents[self.GetId(layer)]
+        return self.origLayerContents[self.GetId(layer)]
 
     def SaveOriginalContents(self, layer, contents=None):
         if not contents:
             contents = layer.ExportToString()
-        self.editTargetOriginalContents[self.GetId(layer)] = contents
+        self.origLayerContents[self.GetId(layer)] = contents
 
     def _GetDiskContents(self, layer):
         '''Fetch the usd layer's contents on disk.'''
@@ -239,7 +243,7 @@ class SaveState(object):
         if diskContents != currentContents:
             layer.ImportFromString(currentContents)
         # reset stage to avoid any problems with references to stale prims
-        self.dlg._dataModel.ResetStage()
+        self.outliner.ResetStage()
         return diskContents
 
     def CheckOriginalContents(self, editLayer):
@@ -302,11 +306,11 @@ class ShowEditTargetLayerText(MenuAction):
         context.outliner.ShowEditTargetLayerText()
 
 
-class ChangeEditTarget(MenuAction):
+class ShowEditTargetDialog(MenuAction):
     defaultText = 'Change Edit Target'
 
     def Do(self, context):
-        context.outliner.ChangeEditTarget()
+        context.outliner.ShowEditTargetDialog()
 
 
 class ShowVariantEditor(MenuAction):
@@ -379,15 +383,17 @@ class OutlinerViewDelegate(QtWidgets.QStyledItemDelegate):
     '''
     Item delegate class assigned to an ``OutlinerTreeView``.
     '''
-    def __init__(self, activeLayer, parent=None):
+    def __init__(self, stage, parent=None):
         '''
         Parameters
         ----------
-        activeLayer : Sdf.Layer
+        stage : Usd.Stage
         parent : Optional[QtGui.QWidget]
         '''
         super(OutlinerViewDelegate, self).__init__(parent=parent)
-        self._activeLayer = activeLayer
+        self._activeLayer = stage.GetEditTarget().GetLayer()
+        self._listener = Tf.Notice.Register(Usd.Notice.StageEditTargetChanged,
+                                            self._OnEditTargetChanged, stage)
 
     # Qt methods ---------------------------------------------------------------
     def paint(self, painter, options, modelIndex):
@@ -414,6 +420,9 @@ class OutlinerViewDelegate(QtWidgets.QStyledItemDelegate):
                                                    modelIndex)
 
     # Custom methods -----------------------------------------------------------
+    def _OnEditTargetChanged(self, notice, stage):
+        self.SetActiveLayer(stage.GetEditTarget().GetLayer())
+
     def SetActiveLayer(self, layer):
         '''
         Parameters
@@ -455,7 +464,7 @@ class OutlinerRole(object):
         saveState = SaveState(outliner)
         return [MenuBuilder('&File', [SaveEditLayer(saveState)]),
                 MenuBuilder('&Tools', [ShowEditTargetLayerText,
-                                       ChangeEditTarget, ShowVariantEditor])]
+                                       ShowEditTargetDialog, ShowVariantEditor])]
 
 
 class UsdOutliner(QtWidgets.QDialog):
@@ -474,13 +483,10 @@ class UsdOutliner(QtWidgets.QDialog):
         assert isinstance(stage, Usd.Stage), 'A Stage instance is required'
         super(UsdOutliner, self).__init__(parent=parent)
 
-        self.stage = stage
+        self._stage = stage
         self._dataModel = HierarchyBaseModel(stage=stage, parent=self)
-
-        # instances of child dialogs
-        self.layerTextDialogs = {}
-        self.editTargetDlg = None
-        self.variantEditorDlg = None
+        self._listener = Tf.Notice.Register(Usd.Notice.StageEditTargetChanged,
+                                            self._OnEditTargetChanged, stage)
 
         # Widget and other Qt setup
         self.setModal(False)
@@ -495,9 +501,8 @@ class UsdOutliner(QtWidgets.QDialog):
         view.setModel(self._dataModel)
         self.view = view
 
-        delegate = OutlinerViewDelegate(self.GetEditTargetLayer(), parent=view)
+        delegate = OutlinerViewDelegate(stage, parent=view)
         view.setItemDelegate(delegate)
-        self.editTargetChanged.connect(delegate.SetActiveLayer)
 
         self.menuBarBuilder = MenuBarBuilder(
             self,
@@ -511,6 +516,11 @@ class UsdOutliner(QtWidgets.QDialog):
         layout.addWidget(view)
 
         self.resize(900, 600)
+
+        # Instances of child dialogs (for reference-counting purposes)
+        self.layerTextDialogs = {}
+        self.editTargetDialog = None
+        self.variantEditorDialog = None
 
     def _CreateView(self, stage, role):
         '''Create the hierarchy view for the outliner.
@@ -532,21 +542,42 @@ class UsdOutliner(QtWidgets.QDialog):
             contextProvider=self,
             parent=self)
 
+    @property
+    def stage(self):
+        return self._stage
+
+    def _OnEditTargetChanged(self, notice, stage):
+        self.UpdateTitle()
+
+    def _LayerDialogEditTargetChangeCallback(self, newLayer):
+        currentLayer = self.GetEditTargetLayer()
+        if newLayer == currentLayer or not newLayer.permissionToEdit:
+            return False
+
+        if currentLayer.dirty:
+            box = QtWidgets.QMessageBox(
+                QtWidgets.QMessageBox.Warning,
+                "Unsaved Layer Changes",
+                "You have unsaved layer edits which you cant access from "
+                "another layer. Are you sure you want to change edit targets?",
+                buttons=QtWidgets.QMessageBox.No | QtWidgets.QMessageBox.Yes)
+            if box.exec_() != QtWidgets.QMessageBox.Yes:
+                return False
+        return True
+
     def GetMenuContext(self):
         selectedPrims = self.view.SelectedPrims()
         selectedPrim = selectedPrims[0] if selectedPrims else None
-        return OutlinerContext(outliner=self, stage=self.stage,
+        return OutlinerContext(outliner=self, stage=self._stage,
                                editTargetLayer=self.GetEditTargetLayer(),
                                selectedPrim=selectedPrim,
                                selectedPrims=selectedPrims)
 
     def GetEditTargetLayer(self):
-        return self.stage.GetEditTarget().GetLayer()
+        return self._stage.GetEditTarget().GetLayer()
 
-    def ResetStage(self, stage=None):
-        if stage is None:
-            stage = self.stage
-        self._dataModel.ResetStage(stage)
+    def ResetStage(self):
+        self._dataModel.ResetStage(self._stage)
 
     def UpdateTitle(self, identifier=None):
         '''
@@ -559,33 +590,6 @@ class UsdOutliner(QtWidgets.QDialog):
             identifier = self.GetEditTargetLayer().identifier
         self.setWindowTitle('Outliner - %s' % identifier)
 
-    def UpdateEditTarget(self, layer):
-        '''
-        Parameters
-        ----------
-        layer : Sdf.Layer
-        '''
-        currentLayer = self.stage.GetEditTarget().GetLayer()
-        if layer == currentLayer or not layer.permissionToEdit:
-            return
-
-        if currentLayer.dirty:
-            box = QtWidgets.QMessageBox(
-                QtWidgets.QMessageBox.Warning,
-                "Unsaved Changes",
-                "You have unsaved layer edits which you cant access from "
-                "another layer. Continue?",
-                buttons=(QtWidgets.QMessageBox.Cancel |
-                         QtWidgets.QMessageBox.Yes))
-            if box.exec_() != QtWidgets.QMessageBox.Yes:
-                return
-            # FIXME: Should we blow away changes or allow them to
-            # persist on the old edit target?
-
-        self.stage.SetEditTarget(layer)
-        self.editTargetChanged.emit(layer)
-        self.UpdateTitle()
-
     def ShowEditTargetLayerText(self, layer=None):
         # only allow one window per layer
         # may need to hook this bookkeeping up to hideEvent
@@ -594,7 +598,7 @@ class UsdOutliner(QtWidgets.QDialog):
                   for lyr, dlg in self.layerTextDialogs.iteritems()
                   if dlg.isVisible()))
         if not isinstance(layer, Sdf.Layer):
-            layer = self.stage.GetEditTarget().GetLayer()
+            layer = self._stage.GetEditTarget().GetLayer()
         try:
             dlg = self.layerTextDialogs[layer]
         except KeyError:
@@ -606,22 +610,23 @@ class UsdOutliner(QtWidgets.QDialog):
         dlg.raise_()
         dlg.activateWindow()
 
-    def ChangeEditTarget(self):
-        # only allow one window
-        if not self.editTargetDlg:
-            dlg = SubLayerDialog(self.stage, parent=self)
-            dlg.view.GetSignal('editTargetChanged').connect(self.UpdateEditTarget)
-            dlg.view.GetSignal('showLayerContents').connect(self.ShowEditTargetLayerText)
-            dlg.view.GetSignal('openLayer').connect(self.OpenLayerInOutliner)
-            self.editTargetDlg = dlg
-        self.editTargetDlg.show()
-        self.editTargetDlg.raise_()
-        self.editTargetDlg.activateWindow()
+    def ShowEditTargetDialog(self):
+        if not self.editTargetDialog:
+            dialog = SubLayerDialog(
+                self._stage,
+                editTargetChangeCallback=self._LayerDialogEditTargetChangeCallback,
+                parent=self)
+            # dlg.view.GetSignal('showLayerContents').connect(self.ShowEditTargetLayerText)
+            # dlg.view.GetSignal('openLayer').connect(self.OpenLayerInOutliner)
+            self.editTargetDialog = dialog
+        self.editTargetDialog.show()
+        self.editTargetDialog.raise_()
+        self.editTargetDialog.activateWindow()
 
     def ShowVariantEditor(self):
         # only allow one window
         if not self.variantEditorDlg:
-            dlg = VariantEditorDialog(self.stage,
+            dlg = VariantEditorDialog(self._stage,
                                       self.view.SelectedPrims(),
                                       parent=self)
             self.view.GetSignal('primSelectionChanged').connect(dlg.dataModel.PrimSelectionChanged)

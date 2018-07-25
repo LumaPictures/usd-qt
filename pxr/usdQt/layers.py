@@ -30,14 +30,13 @@ from typing import NamedTuple, Optional
 
 from treemodel.itemtree import TreeItem, ItemTree
 from treemodel.qt.base import AbstractTreeModelMixin
-from .common import NULL_INDEX, CopyToClipboard, MenuAction, ContextMenuMixin
+from .common import CopyToClipboard, MenuAction, ContextMenuMixin
 
 if False:
     from typing import *
 
 
-def CopyLayerPath(layer):
-    CopyToClipboard(layer.identifier)
+NULL_INDEX = QtCore.QModelIndex()
 
 
 class LayerTextViewDialog(QtWidgets.QDialog):
@@ -130,13 +129,15 @@ class SubLayerModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         parent : Optional[QtGui.QWidget]
         '''
         assert isinstance(stage, Usd.Stage)
-        self._stage = stage
         super(SubLayerModel, self).__init__(parent=parent)
-        sessionLayer = self._stage.GetSessionLayer()
+
+        self._stage = stage
+        sessionLayer = stage.GetSessionLayer()
         if sessionLayer:
             self.PopulateUnder(sessionLayer)
-
         self.PopulateUnder(stage.GetRootLayer())
+        self._listener = Tf.Notice.Register(Usd.Notice.StageEditTargetChanged,
+                                            self._OnEditTargetChanged, stage)
 
     # Qt methods ---------------------------------------------------------------
     def columnCount(self, parentIndex):
@@ -180,6 +181,10 @@ class SubLayerModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
                 return font
 
     # Custom Methods -----------------------------------------------------------
+    def _OnEditTargetChanged(self, notice, stage):
+        self.dataChanged[QtCore.QModelIndex, QtCore.QModelIndex].emit(
+            NULL_INDEX, NULL_INDEX)
+
     def PopulateUnder(self, layer, parent=None):
         # type: (Sdf.Layer, Optional[LayerItem]) -> Any
         '''
@@ -195,14 +200,7 @@ class SubLayerModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
             subLayer = Sdf.Layer.FindOrOpen(subLayerPath)
             self.PopulateUnder(subLayer, parent=layerItem)
 
-
-LayerSelection = NamedTuple('LayerSelection', [
-    ('index', Optional[QtCore.QModelIndex]),
-    ('item', Optional[LayerItem]),
-    ('layer', Optional[Sdf.Layer]),
-])
-
-
+# FIXME
 class ShowLayerContents(MenuAction):
     # emitted when menu option is selected to show layer contents
     showLayerContents = QtCore.Signal(Sdf.Layer)
@@ -219,7 +217,7 @@ class CopyLayerPathAction(MenuAction):
         return 'Copy Layer Path'
 
     def do(self, builder, selection):
-        CopyLayerPath(selection.layer)
+        CopyToClipboard(selection.layer.identifier)
 
 
 class OpenLayer(MenuAction):
@@ -233,70 +231,64 @@ class OpenLayer(MenuAction):
         self.openLayer.emit(selection.layer)
 
 
-class SelectLayer(MenuAction):
-    # emitted with the new edit layer when the edit target is changed
-    editTargetChanged = QtCore.Signal(Sdf.Layer)
-
-    def label(self, builder, selection):
-        return 'Make Layer Edit Target'
-
-    def do(self, builder, selection):
-        self.editTargetChanged.emit(selection.layer)
-        # Explicitly get two arg version of signal for Qt4/Qt5
-        builder.view.model().dataChanged[QtCore.QModelIndex, QtCore.QModelIndex].emit(
-            NULL_INDEX, NULL_INDEX)
-
-
 class SubLayerTreeView(ContextMenuMixin, QtWidgets.QTreeView):
-    def __init__(self, parent=None, contextMenuActions=None):
+    def __init__(self, contextProvider, parent=None):
+        contextMenuActions = [ShowLayerContents, CopyLayerPathAction, OpenLayer]
         super(SubLayerTreeView, self).__init__(
-            parent=parent,
-            contextMenuActions=contextMenuActions)
-
-        self.doubleClicked.connect(
-            self._menuBuilder.AddNonMenuAction(SelectLayer()))
-
-    def defaultContextMenuActions(self, view):
-        return [ShowLayerContents(),
-                CopyLayerPathAction(),
-                OpenLayer()]
-
-    def GetSelection(self):
-        indexes = self.selectionModel().selectedRows()
-        selection = []
-        for index in indexes:
-            item = index.internalPointer()
-            selection.append(LayerSelection(index, item, item.layer))
-        return selection
+            contextMenuActions=contextMenuActions,
+            contextProvider=contextProvider,
+            parent=parent)
 
 
 class SubLayerDialog(QtWidgets.QDialog):
-    def __init__(self, stage, parent=None):
+    def __init__(self, stage, editTargetChangeCallback=None, parent=None):
         # type: (Usd.Stage, Optional[QtGui.QWidget]) -> None
         '''
         Parameters
         ----------
         stage : Usd.Stage
+        editTargetChangeCallback : Callable[[], bool]
+            Optional validation callback that will be called when the user
+            attempts to change the current edit target (by double-clicking a
+            layer). If this is provided and returns False, the edit target will
+            not be changed.
         parent : Optional[QtGui.QWidget]
         '''
         super(SubLayerDialog, self).__init__(parent=parent)
-        self.stage = stage
-        self.dataModel = SubLayerModel(stage, parent=self)
+        self._stage = stage
+        self._dataModel = SubLayerModel(stage, parent=self)
+        self._editTargetChangeCallback = editTargetChangeCallback
 
         # Widget and other Qt setup
         self.setModal(False)
         self.setWindowTitle('Select Edit Target')
 
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.setContentsMargins(4, 4, 4, 4)
-        layout.setSpacing(2)
-        self.view = SubLayerTreeView(parent=self)
-        self.view.setModel(self.dataModel)
-        layout.addWidget(self.view)
+        self.view = SubLayerTreeView(self, parent=self)
+        self.view.setModel(self._dataModel)
+        self.view.doubleClicked.connect(self.ChangeEditTarget)
         self.view.setColumnWidth(0, 160)
         self.view.setColumnWidth(1, 300)
         self.view.setColumnWidth(2, 100)
         self.view.setExpandsOnDoubleClick(False)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(2)
+        layout.addWidget(self.view)
         self.view.expandAll()
 
         self.resize(700, 200)
+
+    def GetMenuContext(self):
+        raise NotImplementedError('Gimme a menu context')
+
+    @QtCore.Slot(QtCore.QModelIndex)
+    def ChangeEditTarget(self, modelIndex):
+        if not modelIndex.isValid():
+            return
+        item = modelIndex.internalPointer()
+        newLayer = item.layer
+
+        if self._editTargetChangeCallback is None \
+                or self._editTargetChangeCallback(newLayer):
+            self._stage.SetEditTarget(newLayer)
