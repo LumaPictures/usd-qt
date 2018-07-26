@@ -41,63 +41,69 @@ if False:
 NULL_INDEX = QtCore.QModelIndex()
 
 
-class LayerTextViewDialog(QtWidgets.QDialog):
+class LayerTextEditor(QtWidgets.QWidget):
     # Emitted when the layer is saved by this dialog.
-    layerEdited = QtCore.Signal(Sdf.Layer)
+    layerSaved = QtCore.Signal(Sdf.Layer)
 
-    # Used for keeping shared instances alive.
-    _sharedInstances = {}
-
-    def __init__(self, layer, parent=None):
-        # type: (Sdf.Layer, Optional[QtGui.QWidget]) -> None
+    def __init__(self, layer, readOnly=False, parent=None):
+        # type: (Sdf.Layer, bool, Optional[QtGui.QWidget]) -> None
         '''
         Parameters
         ----------
         layer : Sdf.Layer
+        readOnly : bool
         parent : Optional[QtGui.QWidget]
         '''
-        super(LayerTextViewDialog, self).__init__(parent=parent)
+        super(LayerTextEditor, self).__init__(parent=parent)
+
         self._layer = layer
-        self.setWindowTitle('Layer: %s' % layer.identifier)
+        self.readOnly = readOnly
 
         self.textArea = QtWidgets.QPlainTextEdit(self)
-        editableCheck = QtWidgets.QCheckBox('Unlock for Editing', parent=self)
-        editableCheck.setChecked(False)
-        editableCheck.stateChanged.connect(self.SetEditable)
-
         refreshButton = QtWidgets.QPushButton('Reload', parent=self)
         refreshButton.clicked.connect(self.Refresh)
 
-        self.saveButton = QtWidgets.QPushButton('Apply', parent=self)
-        self.saveButton.clicked.connect(self.Save)
-
+        layout = QtWidgets.QVBoxLayout(self)
         buttonLayout = QtWidgets.QHBoxLayout()
         buttonLayout.addWidget(refreshButton)
-        buttonLayout.addWidget(self.saveButton)
 
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.addWidget(editableCheck)
+        if not readOnly:
+            editableCheck = QtWidgets.QCheckBox('Unlock for Editing',
+                                                parent=self)
+            editableCheck.setChecked(False)
+            editableCheck.stateChanged.connect(self.SetEditable)
+            layout.addWidget(editableCheck)
+            self.saveButton = QtWidgets.QPushButton('Apply', parent=self)
+            self.saveButton.clicked.connect(self.Save)
+            buttonLayout.addWidget(self.saveButton)
+
         layout.addWidget(self.textArea)
         layout.addLayout(buttonLayout)
 
+        self.setWindowTitle('Layer: %s' % layer.identifier)
         self.SetEditable(False)
         self.Refresh()
         self.resize(800, 600)
 
     def SetEditable(self, editable):
         if editable:
+            if self.readOnly:
+                return
             self.textArea.setUndoRedoEnabled(True)
             self.textArea.setReadOnly(False)
             self.saveButton.setEnabled(True)
         else:
             self.textArea.setUndoRedoEnabled(False)
             self.textArea.setReadOnly(True)
-            self.saveButton.setEnabled(False)
+            if not self.readOnly:
+                self.saveButton.setEnabled(False)
 
     def Refresh(self):
         self.textArea.setPlainText(self._layer.ExportToString())
 
     def Save(self):
+        if self.readOnly:
+            raise RuntimeError('Cannot save layer when readOnly is set')
         try:
             success = self._layer.ImportFromString(self.textArea.toPlainText())
         except Tf.ErrorException as e:
@@ -106,8 +112,13 @@ class LayerTextViewDialog(QtWidgets.QDialog):
                                           'contents:\n\n{0}'.format(e.message))
         else:
             if success:
-                self.layerEdited.emit(self._layer)
+                self.layerSaved.emit(self._layer)
                 self.Refresh()  # To standardize formatting
+
+
+class LayerTextEditorDialog(QtWidgets.QDialog, LayerTextEditor):
+    # Used for keeping shared instances alive.
+    _sharedInstances = {}
 
     @classmethod
     def _OnSharedInstanceFinished(cls, layer):
@@ -116,16 +127,17 @@ class LayerTextViewDialog(QtWidgets.QDialog):
             dialog.deleteLater()
 
     @classmethod
-    def GetSharedInstance(cls, layer, parent=None):
+    def GetSharedInstance(cls, layer, readOnly=False, parent=None):
         dialog = cls._sharedInstances.get(layer)
         if dialog is None:
-            dialog = cls(layer, parent=parent)
+            dialog = cls(layer, readOnly=readOnly, parent=parent)
             cls._sharedInstances[layer] = dialog
         dialog.finished.connect(partial(cls._OnSharedInstanceFinished, layer))
         return dialog
 
 
 class LayerItem(TreeItem):
+    __slots__ = ('layer',)
 
     def __init__(self, layer):
         # type: (Sdf.Layer) -> None
@@ -235,7 +247,7 @@ class ShowLayerContents(MenuAction):
 
     def Do(self, context):
         if context.selectedLayer:
-            dialog = LayerTextViewDialog.GetSharedInstance(
+            dialog = LayerTextEditorDialog.GetSharedInstance(
                 context.selectedLayer,
                 parent=context.layerDialog.parent())
             dialog.show()

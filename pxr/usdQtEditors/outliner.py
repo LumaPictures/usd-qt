@@ -32,7 +32,7 @@ from pxr import Sdf, Tf, Usd
 from pxr.UsdQt.common import DARK_ORANGE, MenuAction, MenuSeparator, \
     MenuBuilder, ContextMenuMixin, MenuBarBuilder, UsdQtUtilities
 from pxr.UsdQt.hierarchyModel import HierarchyBaseModel
-from pxr.UsdQt.layers import LayerTextViewDialog, SubLayerDialog
+from pxr.UsdQt.layers import LayerTextEditorDialog, SubLayerDialog
 from pxr.UsdQt.variantSets import VariantEditorDialog
 from typing import List, NamedTuple, Optional
 
@@ -593,8 +593,7 @@ class UsdOutliner(QtWidgets.QDialog):
     def ShowLayerTextDialog(self, layer=None):
         if not isinstance(layer, Sdf.Layer):
             layer = self.GetEditTargetLayer()
-
-        dialog = LayerTextViewDialog.GetSharedInstance(layer, parent=self)
+        dialog = LayerTextEditorDialog.GetSharedInstance(layer, parent=self)
         dialog.show()
         dialog.raise_()
         dialog.activateWindow()
