@@ -24,8 +24,6 @@
 
 from __future__ import absolute_import
 
-from functools import partial
-
 from ._Qt import QtCore, QtGui, QtWidgets
 from pxr import Sdf, Usd, Tf
 from typing import NamedTuple, Optional
@@ -39,101 +37,6 @@ if False:
 
 
 NULL_INDEX = QtCore.QModelIndex()
-
-
-class LayerTextEditor(QtWidgets.QWidget):
-    # Emitted when the layer is saved by this dialog.
-    layerSaved = QtCore.Signal(Sdf.Layer)
-
-    def __init__(self, layer, readOnly=False, parent=None):
-        # type: (Sdf.Layer, bool, Optional[QtGui.QWidget]) -> None
-        '''
-        Parameters
-        ----------
-        layer : Sdf.Layer
-        readOnly : bool
-        parent : Optional[QtGui.QWidget]
-        '''
-        super(LayerTextEditor, self).__init__(parent=parent)
-
-        self._layer = layer
-        self.readOnly = readOnly
-
-        self.textArea = QtWidgets.QPlainTextEdit(self)
-        refreshButton = QtWidgets.QPushButton('Reload', parent=self)
-        refreshButton.clicked.connect(self.Refresh)
-
-        layout = QtWidgets.QVBoxLayout(self)
-        buttonLayout = QtWidgets.QHBoxLayout()
-        buttonLayout.addWidget(refreshButton)
-
-        if not readOnly:
-            editableCheck = QtWidgets.QCheckBox('Unlock for Editing',
-                                                parent=self)
-            editableCheck.setChecked(False)
-            editableCheck.stateChanged.connect(self.SetEditable)
-            layout.addWidget(editableCheck)
-            self.saveButton = QtWidgets.QPushButton('Apply', parent=self)
-            self.saveButton.clicked.connect(self.Save)
-            buttonLayout.addWidget(self.saveButton)
-
-        layout.addWidget(self.textArea)
-        layout.addLayout(buttonLayout)
-
-        self.setWindowTitle('Layer: %s' % layer.identifier)
-        self.SetEditable(False)
-        self.Refresh()
-        self.resize(800, 600)
-
-    def SetEditable(self, editable):
-        if editable:
-            if self.readOnly:
-                return
-            self.textArea.setUndoRedoEnabled(True)
-            self.textArea.setReadOnly(False)
-            self.saveButton.setEnabled(True)
-        else:
-            self.textArea.setUndoRedoEnabled(False)
-            self.textArea.setReadOnly(True)
-            if not self.readOnly:
-                self.saveButton.setEnabled(False)
-
-    def Refresh(self):
-        self.textArea.setPlainText(self._layer.ExportToString())
-
-    def Save(self):
-        if self.readOnly:
-            raise RuntimeError('Cannot save layer when readOnly is set')
-        try:
-            success = self._layer.ImportFromString(self.textArea.toPlainText())
-        except Tf.ErrorException as e:
-            QtWidgets.QMessageBox.warning(self, 'Layer Syntax Error',
-                                          'Failed to apply modified layer '
-                                          'contents:\n\n{0}'.format(e.message))
-        else:
-            if success:
-                self.layerSaved.emit(self._layer)
-                self.Refresh()  # To standardize formatting
-
-
-class LayerTextEditorDialog(QtWidgets.QDialog, LayerTextEditor):
-    # Used for keeping shared instances alive.
-    _sharedInstances = {}
-
-    @classmethod
-    def _OnSharedInstanceFinished(cls, layer):
-        dialog = cls._sharedInstances.pop(layer, None)
-        if dialog:
-            dialog.deleteLater()
-
-    @classmethod
-    def GetSharedInstance(cls, layer, readOnly=False, parent=None):
-        dialog = cls._sharedInstances.get(layer)
-        if dialog is None:
-            dialog = cls(layer, readOnly=readOnly, parent=parent)
-            cls._sharedInstances[layer] = dialog
-        dialog.finished.connect(partial(cls._OnSharedInstanceFinished, layer))
-        return dialog
 
 
 class LayerItem(TreeItem):
@@ -246,6 +149,8 @@ class ShowLayerContents(MenuAction):
     defaultText = 'Show Layer Text'
 
     def Do(self, context):
+        from pxr.UsdQtEditors.layerTextEditor import LayerTextEditorDialog
+
         if context.selectedLayer:
             dialog = LayerTextEditorDialog.GetSharedInstance(
                 context.selectedLayer,

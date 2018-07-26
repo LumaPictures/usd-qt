@@ -23,53 +23,112 @@
 #
 
 from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-from pxr import Usd
+from functools import partial
 
-from ._Qt import QtCore, QtGui, QtWidgets
+from ._Qt import QtCore, QtWidgets
+from pxr import Sdf, Tf, Usd
 
 
 class LayerTextEditor(QtWidgets.QWidget):
-    """A simple editor allowing for browsing the ascii for a Usd Layer"""
+    '''A basic text widget for viewing/editing the contents of a layer.'''
+    # Emitted when the layer is saved by this editor.
+    layerSaved = QtCore.Signal(Sdf.Layer)
 
-    def __init__(self, parent=None):
-        super(LayerTextEditor, self).__init__(parent)
-        self.__refreshButton = QtWidgets.QPushButton("Refresh")
-        self.__textEdit = QtWidgets.QPlainTextEdit(parent)
-        self.__textEdit.setFont(QtGui.QFont("monospace"))
-        self.__textEdit.setReadOnly(True)
-        self.__layout = QtWidgets.QVBoxLayout()
-        self.__headerLayout = QtWidgets.QHBoxLayout()
-        self.__headerLayout.addWidget(self.__refreshButton)
-        self.__layout.addLayout(self.__headerLayout)
-        self.__layout.addWidget(self.__textEdit)
-        self.setLayout(self.__layout)
-        self.__refreshButton.clicked.connect(self.__OnRefreshButtonClicked)
+    def __init__(self, layer, readOnly=False, parent=None):
+        # type: (Sdf.Layer, bool, Optional[QtWidgets.QWidget]) -> None
+        '''
+        Parameters
+        ----------
+        layer : Sdf.Layer
+        readOnly : bool
+        parent : Optional[QtWidgets.QWidget]
+        '''
+        super(LayerTextEditor, self).__init__(parent=parent)
 
-        self.__layer = None
+        self._layer = layer
+        self.readOnly = readOnly
 
-    def SetLayer(self, layer):
-        self.__layer = layer
+        self.textArea = QtWidgets.QPlainTextEdit(self)
+        refreshButton = QtWidgets.QPushButton('Reload', parent=self)
+        refreshButton.clicked.connect(self.Refresh)
 
-    @QtCore.Slot(Usd.EditTarget)
-    def OnEditTargetChanged(self, editTarget):
-        """Slot for changing the layer whenever the edit target changes."""
-        self.__layer = editTarget.GetLayer()
+        layout = QtWidgets.QVBoxLayout(self)
+        buttonLayout = QtWidgets.QHBoxLayout()
+        buttonLayout.addWidget(refreshButton)
 
-    @QtCore.Slot()
-    def __OnRefreshButtonClicked(self):
-        if self.__layer:
-            self.__textEdit.document().setPlainText(
-                self.__layer.ExportToString())
+        if not readOnly:
+            editableCheck = QtWidgets.QCheckBox('Unlock for Editing',
+                                                parent=self)
+            editableCheck.setChecked(False)
+            editableCheck.stateChanged.connect(self.SetEditable)
+            layout.addWidget(editableCheck)
+            self.saveButton = QtWidgets.QPushButton('Apply', parent=self)
+            self.saveButton.clicked.connect(self.Save)
+            buttonLayout.addWidget(self.saveButton)
+
+        layout.addWidget(self.textArea)
+        layout.addLayout(buttonLayout)
+
+        self.setWindowTitle('Layer: %s' % layer.identifier)
+        self.SetEditable(False)
+        self.Refresh()
+        self.resize(800, 600)
+
+    def SetEditable(self, editable):
+        if editable:
+            if self.readOnly:
+                return
+            self.textArea.setUndoRedoEnabled(True)
+            self.textArea.setReadOnly(False)
+            self.saveButton.setEnabled(True)
         else:
-            self.__textEdit.document().setPlainText("Invalid layer")
+            self.textArea.setUndoRedoEnabled(False)
+            self.textArea.setReadOnly(True)
+            if not self.readOnly:
+                self.saveButton.setEnabled(False)
+
+    def Refresh(self):
+        self.textArea.setPlainText(self._layer.ExportToString())
+
+    def Save(self):
+        if self.readOnly:
+            raise RuntimeError('Cannot save layer when readOnly is set')
+        try:
+            success = self._layer.ImportFromString(self.textArea.toPlainText())
+        except Tf.ErrorException as e:
+            QtWidgets.QMessageBox.warning(self, 'Layer Syntax Error',
+                                          'Failed to apply modified layer '
+                                          'contents:\n\n{0}'.format(e.message))
+        else:
+            if success:
+                self.layerSaved.emit(self._layer)
+                self.Refresh()  # To standardize formatting
+
+
+class LayerTextEditorDialog(QtWidgets.QDialog, LayerTextEditor):
+    '''Dialog version of LayerTextEditor that enables easy sharing of instances.
+    '''
+    _sharedInstances = {}
+
+    @classmethod
+    def _OnSharedInstanceFinished(cls, layer):
+        dialog = cls._sharedInstances.pop(layer, None)
+        if dialog:
+            dialog.deleteLater()
+
+    @classmethod
+    def GetSharedInstance(cls, layer, readOnly=False, parent=None):
+        dialog = cls._sharedInstances.get(layer)
+        if dialog is None:
+            dialog = cls(layer, readOnly=readOnly, parent=parent)
+            cls._sharedInstances[layer] = dialog
+        dialog.finished.connect(partial(cls._OnSharedInstanceFinished, layer))
+        return dialog
 
 
 if __name__ == "__main__":
     import sys
-    from pxr import Usd
 
     stage = Usd.Stage.Open(
         '../usdQt/testenv/testUsdQtOpinionModel/simple.usda')
@@ -77,8 +136,6 @@ if __name__ == "__main__":
 
     app = QtWidgets.QApplication(sys.argv)
 
-    e = LayerTextEditor()
-    e.SetLayer(layer)
+    e = LayerTextEditorDialog(layer, readOnly=True)
     e.show()
-
     sys.exit(app.exec_())

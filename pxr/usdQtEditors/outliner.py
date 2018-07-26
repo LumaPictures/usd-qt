@@ -32,8 +32,9 @@ from pxr import Sdf, Tf, Usd
 from pxr.UsdQt.common import DARK_ORANGE, MenuAction, MenuSeparator, \
     MenuBuilder, ContextMenuMixin, MenuBarBuilder, UsdQtUtilities
 from pxr.UsdQt.hierarchyModel import HierarchyBaseModel
-from pxr.UsdQt.layers import LayerTextEditorDialog, SubLayerDialog
+from pxr.UsdQt.layers import SubLayerDialog
 from pxr.UsdQt.variantSets import VariantEditorDialog
+from pxr.UsdQtEditors.layerTextEditor import LayerTextEditorDialog
 from typing import List, NamedTuple, Optional
 
 from ._Qt import QtCore, QtGui, QtWidgets
