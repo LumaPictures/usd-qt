@@ -298,12 +298,11 @@ class SaveEditLayer(MenuAction):
         layer.Save()
         self.state.SaveOriginalContents(layer)
 
-
 class ShowEditTargetLayerText(MenuAction):
     defaultText = 'Show Current Layer Text'
 
     def Do(self, context):
-        context.outliner.ShowEditTargetLayerText()
+        context.outliner.ShowLayerTextDialog()
 
 
 class ShowEditTargetDialog(MenuAction):
@@ -518,7 +517,6 @@ class UsdOutliner(QtWidgets.QDialog):
         self.resize(900, 600)
 
         # Instances of child dialogs (for reference-counting purposes)
-        self.layerTextDialogs = {}
         self.editTargetDialog = None
         self.variantEditorDialog = None
 
@@ -557,10 +555,12 @@ class UsdOutliner(QtWidgets.QDialog):
         if currentLayer.dirty:
             box = QtWidgets.QMessageBox(
                 QtWidgets.QMessageBox.Warning,
-                "Unsaved Layer Changes",
-                "You have unsaved layer edits which you cant access from "
-                "another layer. Are you sure you want to change edit targets?",
-                buttons=QtWidgets.QMessageBox.No | QtWidgets.QMessageBox.Yes)
+                'Unsaved Layer Changes',
+                'The current edit target layer contains unsaved edits which '
+                'will not be accessible after changing edit targets. Are you '
+                'sure you want to switch?',
+                buttons=QtWidgets.QMessageBox.No | QtWidgets.QMessageBox.Yes,
+                parent=self)
             if box.exec_() != QtWidgets.QMessageBox.Yes:
                 return False
         return True
@@ -590,25 +590,14 @@ class UsdOutliner(QtWidgets.QDialog):
             identifier = self.GetEditTargetLayer().identifier
         self.setWindowTitle('Outliner - %s' % identifier)
 
-    def ShowEditTargetLayerText(self, layer=None):
-        # only allow one window per layer
-        # may need to hook this bookkeeping up to hideEvent
-        self.layerTextDialogs = \
-            dict(((lyr, dlg)
-                  for lyr, dlg in self.layerTextDialogs.iteritems()
-                  if dlg.isVisible()))
+    def ShowLayerTextDialog(self, layer=None):
         if not isinstance(layer, Sdf.Layer):
-            layer = self._stage.GetEditTarget().GetLayer()
-        try:
-            dlg = self.layerTextDialogs[layer]
-        except KeyError:
-            dlg = LayerTextViewDialog(layer, parent=self)
-            dlg.layerEdited.connect(self.dataModel.ResetStage)
-            self.layerTextDialogs[layer] = dlg
-        dlg.Refresh()
-        dlg.show()
-        dlg.raise_()
-        dlg.activateWindow()
+            layer = self.GetEditTargetLayer()
+
+        dialog = LayerTextViewDialog.GetSharedInstance(layer, parent=self)
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
 
     def ShowEditTargetDialog(self):
         if not self.editTargetDialog:
@@ -616,7 +605,6 @@ class UsdOutliner(QtWidgets.QDialog):
                 self._stage,
                 editTargetChangeCallback=self._LayerDialogEditTargetChangeCallback,
                 parent=self)
-            # dlg.view.GetSignal('showLayerContents').connect(self.ShowEditTargetLayerText)
             # dlg.view.GetSignal('openLayer').connect(self.OpenLayerInOutliner)
             self.editTargetDialog = dialog
         self.editTargetDialog.show()

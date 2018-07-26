@@ -24,11 +24,13 @@
 
 from __future__ import absolute_import
 
+from functools import partial
+
 from ._Qt import QtCore, QtGui, QtWidgets
 from pxr import Sdf, Usd, Tf
 from typing import NamedTuple, Optional
 
-from treemodel.itemtree import TreeItem, ItemTree
+from treemodel.itemtree import TreeItem
 from treemodel.qt.base import AbstractTreeModelMixin
 from .common import CopyToClipboard, MenuAction, ContextMenuMixin
 
@@ -40,8 +42,11 @@ NULL_INDEX = QtCore.QModelIndex()
 
 
 class LayerTextViewDialog(QtWidgets.QDialog):
-    # emitted when a layer changes
+    # Emitted when the layer is saved by this dialog.
     layerEdited = QtCore.Signal(Sdf.Layer)
+
+    # Used for keeping shared instances alive.
+    _sharedInstances = {}
 
     def __init__(self, layer, parent=None):
         # type: (Sdf.Layer, Optional[QtGui.QWidget]) -> None
@@ -52,31 +57,35 @@ class LayerTextViewDialog(QtWidgets.QDialog):
         parent : Optional[QtGui.QWidget]
         '''
         super(LayerTextViewDialog, self).__init__(parent=parent)
-        self.layer = layer
+        self._layer = layer
         self.setWindowTitle('Layer: %s' % layer.identifier)
 
-        layout = QtWidgets.QVBoxLayout(self)
         self.textArea = QtWidgets.QPlainTextEdit(self)
-        self.editableCheckBox = QtWidgets.QCheckBox('Unlock for Editing')
-        self.editableCheckBox.stateChanged.connect(self.SetEditable)
-        layout.addWidget(self.editableCheckBox)
-        layout.addWidget(self.textArea)
+        editableCheck = QtWidgets.QCheckBox('Unlock for Editing', parent=self)
+        editableCheck.setChecked(False)
+        editableCheck.stateChanged.connect(self.SetEditable)
 
-        buttonLayout = QtWidgets.QHBoxLayout()
         refreshButton = QtWidgets.QPushButton('Reload', parent=self)
         refreshButton.clicked.connect(self.Refresh)
-        buttonLayout.addWidget(refreshButton)
+
         self.saveButton = QtWidgets.QPushButton('Apply', parent=self)
         self.saveButton.clicked.connect(self.Save)
+
+        buttonLayout = QtWidgets.QHBoxLayout()
+        buttonLayout.addWidget(refreshButton)
         buttonLayout.addWidget(self.saveButton)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(editableCheck)
+        layout.addWidget(self.textArea)
         layout.addLayout(buttonLayout)
 
-        self.editableCheckBox.setChecked(False)
         self.SetEditable(False)
+        self.Refresh()
         self.resize(800, 600)
 
-    def SetEditable(self, checkState):
-        if checkState == QtCore.Qt.Checked:
+    def SetEditable(self, editable):
+        if editable:
             self.textArea.setUndoRedoEnabled(True)
             self.textArea.setReadOnly(False)
             self.saveButton.setEnabled(True)
@@ -86,21 +95,34 @@ class LayerTextViewDialog(QtWidgets.QDialog):
             self.saveButton.setEnabled(False)
 
     def Refresh(self):
-        self.textArea.setPlainText(self.layer.ExportToString())
+        self.textArea.setPlainText(self._layer.ExportToString())
 
     def Save(self):
         try:
-            self.layer.ImportFromString(self.textArea.toPlainText())
-        except Tf.ErrorException as err:
-            box = QtWidgets.QMessageBox(
-                QtWidgets.QMessageBox.Warning,
-                "Syntax Error",
-                "Problem parsing your changes:\n\n{0}".format(err.message))
-            box.exec_()
+            success = self._layer.ImportFromString(self.textArea.toPlainText())
+        except Tf.ErrorException as e:
+            QtWidgets.QMessageBox.warning(self, 'Layer Syntax Error',
+                                          'Failed to apply modified layer '
+                                          'contents:\n\n{0}'.format(e.message))
         else:
-            self.layerEdited.emit(self.layer)
-            # refresh so that formatting will get standardized
-            self.Refresh()
+            if success:
+                self.layerEdited.emit(self._layer)
+                self.Refresh()  # To standardize formatting
+
+    @classmethod
+    def _OnSharedInstanceFinished(cls, layer):
+        dialog = cls._sharedInstances.pop(layer, None)
+        if dialog:
+            dialog.deleteLater()
+
+    @classmethod
+    def GetSharedInstance(cls, layer, parent=None):
+        dialog = cls._sharedInstances.get(layer)
+        if dialog is None:
+            dialog = cls(layer, parent=parent)
+            cls._sharedInstances[layer] = dialog
+        dialog.finished.connect(partial(cls._OnSharedInstanceFinished, layer))
+        return dialog
 
 
 class LayerItem(TreeItem):
@@ -200,25 +222,33 @@ class SubLayerModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
             subLayer = Sdf.Layer.FindOrOpen(subLayerPath)
             self.PopulateUnder(subLayer, parent=layerItem)
 
-# FIXME
+
+SublayerDialogContext = NamedTuple('SublayerDialogContext',
+                                   [('layerDialog', QtWidgets.QWidget),
+                                    ('stage', Usd.Stage),
+                                    ('selectedLayer', Optional[Sdf.Layer]),
+                                    ('editTargetLayer', Sdf.Layer)])
+
+
 class ShowLayerContents(MenuAction):
-    # emitted when menu option is selected to show layer contents
-    showLayerContents = QtCore.Signal(Sdf.Layer)
+    defaultText = 'Show Layer Text'
 
-    def label(self, builder, selection):
-        return 'Display Layer Text'
+    def Do(self, context):
+        if context.selectedLayer:
+            dialog = LayerTextViewDialog.GetSharedInstance(
+                context.selectedLayer,
+                parent=context.layerDialog.parent())
+            dialog.show()
+            dialog.raise_()
+            dialog.activateWindow()
 
-    def do(self, builder, selection):
-        self.showLayerContents.emit(selection.layer)
 
+class CopyLayerPath(MenuAction):
+    defaultText = 'Copy Layer Identifier'
 
-class CopyLayerPathAction(MenuAction):
-    def label(self, builder, selection):
-        return 'Copy Layer Path'
-
-    def do(self, builder, selection):
-        CopyToClipboard(selection.layer.identifier)
-
+    def Do(self, context):
+        if context.selectedLayer:
+            CopyToClipboard(context.selectedLayer.identifier)
 
 class OpenLayer(MenuAction):
     # emitted when menu option is selected to show layer contents
@@ -233,11 +263,24 @@ class OpenLayer(MenuAction):
 
 class SubLayerTreeView(ContextMenuMixin, QtWidgets.QTreeView):
     def __init__(self, contextProvider, parent=None):
-        contextMenuActions = [ShowLayerContents, CopyLayerPathAction, OpenLayer]
+        contextMenuActions = [ShowLayerContents, CopyLayerPath, OpenLayer]
         super(SubLayerTreeView, self).__init__(
             contextMenuActions=contextMenuActions,
             contextProvider=contextProvider,
             parent=parent)
+
+    def GetSelectedLayer(self):
+        '''
+        Returns
+        -------
+        Optional[Sdf.Layer]
+        '''
+        selectionModel = self.selectionModel()
+        indexes = selectionModel.selectedRows()
+        if indexes:
+            index = indexes[0]
+            if index.isValid():
+                return index.internalPointer().layer
 
 
 class SubLayerDialog(QtWidgets.QDialog):
@@ -280,7 +323,12 @@ class SubLayerDialog(QtWidgets.QDialog):
         self.resize(700, 200)
 
     def GetMenuContext(self):
-        raise NotImplementedError('Gimme a menu context')
+        stage = self._stage
+        return SublayerDialogContext(
+            layerDialog=self,
+            stage=stage,
+            selectedLayer=self.view.GetSelectedLayer(),
+            editTargetLayer=stage.GetEditTarget().GetLayer())
 
     @QtCore.Slot(QtCore.QModelIndex)
     def ChangeEditTarget(self, modelIndex):
