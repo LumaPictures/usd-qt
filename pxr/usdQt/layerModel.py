@@ -1,8 +1,8 @@
 #
-# Copyright 2016 Pixar
+# Copyright 2017 Luma Pictures
 #
 # Licensed under the Apache License, Version 2.0 (the "Apache License")
-# with the following modification; you may not use this file except in
+# with the following modification you may not use this file except in
 # compliance with the Apache License and the following modification to it:
 # Section 6. Trademarks. is deleted and replaced with:
 #
@@ -13,7 +13,7 @@
 #
 # You may obtain a copy of the Apache License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     http:#www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the Apache License with the above modification is
@@ -23,185 +23,115 @@
 #
 
 from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-import os.path
-from ._Qt import QtCore, QtWidgets, QtGui
+from ._Qt import QtCore
+from pxr import Sdf, Usd
 
-from pxr import Sdf
+from treemodel.itemtree import ItemTree, TreeItem
+from treemodel.qt.base import AbstractTreeModelMixin
 
-from . import roles
+if False:
+    from typing import *
 
 
-class LayerBaseModel(QtCore.QAbstractTableModel):
-    """Base model for exposing a Usd Stage's layer stack to a Qt item view.
+class LayerItem(TreeItem):
+    __slots__ = ('layer',)
 
-    For all but the simplest examples, you'll likely need to subclass
-    this to add either additional columns, flags, or functionality.
+    def __init__(self, layer):
+        # type: (Sdf.Layer) -> None
+        '''
+        Parameters
+        ----------
+        layer : Sdf.Layer
+        '''
+        super(LayerItem, self).__init__(key=layer.identifier)
+        self.layer = layer
 
-    If you're interested in filtering out layers, consider using a custom
-    subclass of QSortFilterProxyModel.
 
-    WARNING.  There is currently no support for change notification for
-    adding and removing sublayers.
-    """
+class LayerStackBaseModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
+    '''Basic tree model that exposes a Stage's layer stack.'''
+    headerLabels = ('Name', 'Path')
 
-    def __init__(self, stage=None,
-                 includeSessionLayers=True,
-                 parent=None):
-        super(LayerBaseModel, self).__init__(parent=parent)
-        self.__includeSessionLayers = includeSessionLayers
-        self.__stage = None
+    def __init__(self, stage, includeSessionLayers=True, parent=None):
+        # type: (Usd.Stage, bool, Optional[QtCore.QObject]) -> None
+        '''
+        Parameters
+        ----------
+        stage : Usd.Stage
+        includeSessionLayers : bool
+        parent : Optional[QtCore.QObject]
+        '''
+        super(LayerStackBaseModel, self).__init__(parent=parent)
+
+        self._stage = None
+        self._includeSessionLayers = includeSessionLayers
         self.ResetStage(stage)
 
-    def ResetStage(self, stage):
-        """Apply the model to new stage"""
-        if stage == self.__stage:
+    # Qt methods ---------------------------------------------------------------
+    def columnCount(self, parentIndex):
+        return 2
+
+    def headerData(self, section, orientation, role=QtCore.Qt.DisplayRole):
+        if orientation == QtCore.Qt.Horizontal and role == QtCore.Qt.DisplayRole:
+            return self.headerLabels[section]
+
+    def data(self, modelIndex, role=QtCore.Qt.DisplayRole):
+        if not modelIndex.isValid():
             return
-        self.beginResetModel()
-        self.__stage = stage
-        if not self.__IsStageValid():
-            self.__layers = None
-        else:
-            self.__layers = []
-            if self.__includeSessionLayers:
-                self.__layers.append((stage.GetSessionLayer(), 0))
-                for subLayerPath in stage.GetSessionLayer().subLayerPaths:
-                    self.__layers.append((Sdf.Layer.FindOrOpen(subLayerPath), 1))
-            self.__WalkSublayers(0, self.__stage.GetPseudoRoot(
-            ).GetPrimIndex().rootNode.layerStack.layerTree)
-        self.endResetModel()
-
-    def __WalkSublayers(self, depth, layerTree):
-        self.__layers.append((layerTree.layer, depth))
-        for childTree in layerTree.childTrees:
-            self.__WalkSublayers(depth + 1, childTree)
-
-    def __IsStageValid(self):
-        return self.__stage and self.__stage.GetPseudoRoot()
-
-    def rowCount(self, parent=QtCore.QModelIndex()):
-        if not self.__IsStageValid():
-            return 0
-        return len(self.__layers)
-
-    def columnCount(self, parent=QtCore.QModelIndex()):
-        return 1
-
-    def data(self, index, role=QtCore.Qt.DisplayRole):
-        if not index.isValid():
-            return None
-
         if role == QtCore.Qt.DisplayRole:
-            if self.GetLayerFromIndex(index) == self.__stage.GetSessionLayer():
-                return "session"
-            identifier = self.GetIdentifierFromIndex(index)
-            return os.path.splitext(os.path.split(identifier)[1])[0]
+            column = modelIndex.column()
+            item = modelIndex.internalPointer()
+            if column == 0:
+                if item.layer.anonymous:
+                    return '<anonymous>'
+                return item.layer.identifier.rsplit('/', 1)[-1]
+            elif column == 1:
+                return item.layer.identifier
 
-        if role == QtCore.Qt.ToolTipRole:
-            return self.GetLayerPathFromIndex(index)
+    # Custom methods -----------------------------------------------------------
+    def LayerCount(self):
+        '''Return the number of layers in the current stage's layer stack.'''
+        return self.itemTree.itemCount()
 
-        if role == roles.LayerStackDepthRole:
-            return self.GetLayerDepthFromIndex(index)
+    def ResetStage(self, stage):
+        '''Reset the model from a new stage.
 
-    def GetIdentifierFromIndex(self, index):
-        """Returns the unique path identifier to the layer"""
-        if not self.__IsStageValid():
-            raise Exception("Requesting layer from closed stage.")
-        return self.__layers[index.row()][0].identifier
+        Parameters
+        ----------
+        stage : Usd.Stage
+        '''
+        if stage == self._stage:
+            return
 
-    def GetLayerPathFromIndex(self, index):
-        """Returns the unique path identifier to the layer """
-        if not self.__IsStageValid():
-            raise Exception("Requesting layer from closed stage.")
-        return self.__layers[index.row()][0].realPath
+        self.beginResetModel()
+        itemTree = self.itemTree = ItemTree()
 
-    def GetLayerDepthFromIndex(self, index):
-        """Returns the layer's depth in the layer tree hierarchy"""
-        if not self.__IsStageValid():
-            raise Exception("Requesting layer from closed stage.")
-        return self.__layers[index.row()][1]
+        def addLayer(layer, parent=None):
+            layerItem = LayerItem(layer)
+            itemTree.addItems(layerItem, parent=parent)
+            return layerItem
 
-    def GetLayerFromIndex(self, index):
-        """Returns an Sdf.Layer for the given index"""
-        if not self.__IsStageValid():
-            raise Exception("Requesting layer from closed stage.")
-        return self.__layers[index.row()][0]
+        def addLayerTree(layerTree, parent=None):
+            item = addLayer(layerTree.layer, parent=parent)
+            for childTree in layerTree.childTrees:
+                addLayerTree(childTree, parent=item)
 
+        self._stage = None
+        if stage:
+            root = stage.GetPseudoRoot()
+            if root:
+                self._stage = stage
+                if self._includeSessionLayers:
+                    sessionLayer = stage.GetSessionLayer()
+                    if sessionLayer:
+                        sessionLayerItem = addLayer(sessionLayer)
+                        for path in sessionLayer.subLayerPaths:
+                            addLayer(Sdf.Layer.FindOrOpen(path),
+                                     parent=sessionLayerItem)
+                layerTree = root.GetPrimIndex().rootNode.layerStack.layerTree
+                addLayerTree(layerTree)
 
-class LayerStandardModel(LayerBaseModel):
-    """Configurable model for common options for displaying sublayers
-
-    The standard model supports additional various masking operations. The masks
-    are bitwise anded with the default implementation of flags.
-    """
-
-    def __init__(self, stage=None,
-                 includeSessionLayers=True,
-                 parent=None):
-        super(LayerStandardModel, self).__init__(
-            stage, includeSessionLayers=includeSessionLayers, parent=parent)
-
-        self.__unsaveableFlagMask = None
-        self.__uneditableFlagMask = None
-        self.__fileFormatFlagMask = {}
-
-    def flags(self, index):
-        parentFlags = super(LayerStandardModel, self).flags(index)
-
-        layer = self.GetLayerFromIndex(index)
-
-        if not layer:
-            parentFlags &= ~QtCore.Qt.ItemIsEnabled
-        else:
-            fileFormat = layer.GetFileFormat()
-            if fileFormat in self.__fileFormatFlagMask:
-                parentFlags &= self.__fileFormatFlagMask[fileFormat]
-            if self.__uneditableFlagMask is not None:
-                parentFlags &= self.__uneditableFlagMask
-            if self.__unsaveableFlagMask is not None:
-                parentFlags &= self.__unsaveableFlagMask
-
-        return parentFlags
-
-    def SetFileFormatFlagMask(self, fileFormat, flags):
-        if not issubclass(type(fileFormat), Sdf.FileFormat):
-            raise Exception("fileFormat must be of type Sdf.FileFormat")
-        if flags is None and fileFormat in self.__fileFormatFlagMask:
-            del self.__fileFormatFlagMask[fileFormat]
-        self.__fileFormatFlagMask[fileFormat] = flags
-
-    def SetUneditableFlagMask(self, flags):
-        self.__uneditableFlagMask = flags
-
-    def SetUnsaveableFlagMask(self, flags):
-        self.__unsaveableFlagMask = flags
-
-
-class LayerStackStyledDelegate(QtWidgets.QStyledItemDelegate):
-    """Style delegate to handle indentation of layers """
-
-    def __init__(self, parent=None):
-        super(LayerStackStyledDelegate, self).__init__(parent)
-        self.maxDepth = None
-
-    def paint(self, painter, option, index):
-        # indentation snippet from http://www.mimec.org/node/305
-        depth = index.data(roles.LayerStackDepthRole)
-        if depth == -1:
-            super(LayerStackStyledDelegate, self).paint(painter, option, index)
-            middle = (option.rect.top() + option.rect.bottom()) / 2.0
-            painter.setPen(option.palette.color(
-                QtGui.QPalette.Active, QtGui.QPalette.Dark))
-            painter.drawLine(option.rect.left(), middle,
-                             option.rect.right(), middle)
-        else:
-            indentedOption = QtWidgets.QStyleOptionViewItem(option)
-            indentedationSize = option.fontMetrics.width('    ') * depth
-            indentedOption.rect.adjust(indentedationSize, 0, 0, 0)
-            super(LayerStackStyledDelegate, self).paint(
-                painter, indentedOption, index)
+        self.endResetModel()
 
 
 if __name__ == '__main__':
@@ -210,28 +140,20 @@ if __name__ == '__main__':
     from ._Qt import QtWidgets
     import sys
     import os
-    app = QtWidgets.QApplication([])
 
-    dir = os.path.split(__file__)[0]
-    path = os.path.join(
-        dir, 'testenv', 'testUsdQtLayerModel', 'simpleLayerStack.usda')
+    app = QtWidgets.QApplication([])
+    path = os.path.join(os.path.dirname(__file__), 'testenv',
+                        'testUsdQtLayerModel', 'simpleLayerStack.usda')
     stage = Usd.Stage.Open(path)
 
-    comboBox = QtWidgets.QComboBox()
-    delegate = LayerStackStyledDelegate()
-    model = LayerStandardModel(stage)
+    model = LayerStackBaseModel(stage)
+    view = QtWidgets.QTreeView()
+    view.setModel(model)
 
-    # disallow users from interacting with 'usdc' files
-    model.SetFileFormatFlagMask(Sdf.FileFormat.FindById('usdc'),
-                                ~QtCore.Qt.ItemIsEnabled)
+    def OnDoubleClicked(modelIndex):
+        print modelIndex.data()
 
-    comboBox.setModel(model)
-    comboBox.setItemDelegate(delegate)
-
-    def OnActivated(index):
-        print(model.data(model.createIndex(index, 0)))
-
-    comboBox.activated.connect(OnActivated)
-    comboBox.show()
+    view.doubleClicked.connect(OnDoubleClicked)
+    view.show()
 
     sys.exit(app.exec_())
