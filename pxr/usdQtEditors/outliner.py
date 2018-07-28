@@ -30,9 +30,9 @@ import usdlib.utils
 import usdlib.variants
 from pxr import Sdf, Tf, Usd
 from pxr.UsdQt.common import DARK_ORANGE, MenuAction, MenuSeparator, \
-    MenuBuilder, ContextMenuMixin, MenuBarBuilder, UsdQtUtilities
+    MenuBuilder, ContextMenuMixin, MenuBarBuilder, CopyToClipboard, UsdQtUtilities
 from pxr.UsdQt.hierarchyModel import HierarchyBaseModel
-from pxr.UsdQt.layers import SubLayerDialog
+from pxr.UsdQt.layers import LayerStackBaseModel
 from pxr.UsdQt.variantSets import VariantEditorDialog
 from pxr.UsdQtEditors.layerTextEditor import LayerTextEditorDialog
 from typing import List, NamedTuple, Optional
@@ -45,9 +45,192 @@ if False:
 
 NO_VARIANT_SELECTION = '<No Variant Selected>'
 
+NULL_INDEX = QtCore.QModelIndex()
+
+FONT_BOLD = QtGui.QFont()
+FONT_BOLD.setBold(True)
+
+
+class LayerStackModel(LayerStackBaseModel):
+    '''Layer stack model for the outliner's edit target selection dialog.'''
+    headerLabels = ('Name', 'Path', 'Resolved Path')
+
+    def __init__(self, stage, includeSessionLayers=True, parent=None):
+        super(LayerStackModel, self).__init__(
+            stage,
+            includeSessionLayers=includeSessionLayers,
+            parent=parent)
+        self._listener = Tf.Notice.Register(Usd.Notice.StageEditTargetChanged,
+                                            self._OnEditTargetChanged, stage)
+
+    # Qt methods ---------------------------------------------------------------
+    def columnCount(self, parentIndex):
+        return 3
+
+    def flags(self, modelIndex):
+        if modelIndex.isValid():
+            item = modelIndex.internalPointer()
+            if item.layer.permissionToEdit:
+                return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
+        return QtCore.Qt.NoItemFlags
+
+    def data(self, modelIndex, role=QtCore.Qt.DisplayRole):
+        if not modelIndex.isValid():
+            return
+        if role == QtCore.Qt.DisplayRole:
+            column = modelIndex.column()
+            item = modelIndex.internalPointer()
+            if column == 0:
+                if item.layer.anonymous:
+                    return '<anonymous>'
+                return item.layer.identifier.split('/')[-1]
+            elif column == 1:
+                return item.layer.identifier
+            elif column == 2:
+                return item.layer.realPath
+        elif role == QtCore.Qt.FontRole:
+            item = modelIndex.internalPointer()
+            if item.layer == self._stage.GetEditTarget().GetLayer():
+                return FONT_BOLD
+
+    # Custom Methods -----------------------------------------------------------
+    def ResetStage(self, stage):
+        super(LayerStackModel, self).ResetStage(stage)
+        if self._stage:
+            self._listener = Tf.Notice.Register(Usd.Notice.StageEditTargetChanged,
+                                                self._OnEditTargetChanged, stage)
+        else:
+            self._listener = None
+
+    def _OnEditTargetChanged(self, notice, stage):
+        self.dataChanged[QtCore.QModelIndex, QtCore.QModelIndex].emit(
+            NULL_INDEX, NULL_INDEX)
+
+
+LayerStackDialogContext = NamedTuple('SublayerDialogContext',
+                                     [('qtParent', QtWidgets.QWidget),
+                                      ('layerDialog', QtWidgets.QWidget),
+                                      ('stage', Usd.Stage),
+                                      ('selectedLayer', Optional[Sdf.Layer]),
+                                      ('editTargetLayer', Sdf.Layer)])
+
+# FIXME: Reconcile with outliner action
+class ShowLayerText(MenuAction):
+    defaultText = 'Show Layer Text'
+
+    def Do(self, context):
+        if context.selectedLayer:
+            dialog = LayerTextEditorDialog.GetSharedInstance(
+                context.selectedLayer,
+                parent=context.qtParent or context.layerDialog)
+            dialog.show()
+            dialog.raise_()
+            dialog.activateWindow()
+
+
+class CopyLayerPath(MenuAction):
+    defaultText = 'Copy Layer Identifier'
+
+    def Do(self, context):
+        if context.selectedLayer:
+            CopyToClipboard(context.selectedLayer.identifier)
+
+# FIXME: Get this working again
+class OpenLayer(MenuAction):
+    defaultText = 'Open Layer in Outliner'
+
+    # emitted when menu option is selected to show layer contents
+    openLayer = QtCore.Signal(Sdf.Layer)
+
+    def Do(self, context):
+        self.openLayer.emit(selection.layer)
+
+
+class LayerStackTreeView(ContextMenuMixin, QtWidgets.QTreeView):
+    def __init__(self, contextProvider, parent=None):
+        contextMenuActions = [ShowLayerText, CopyLayerPath, OpenLayer]
+        super(LayerStackTreeView, self).__init__(
+            contextMenuActions=contextMenuActions,
+            contextProvider=contextProvider,
+            parent=parent)
+
+    def GetSelectedLayer(self):
+        '''
+        Returns
+        -------
+        Optional[Sdf.Layer]
+        '''
+        selectionModel = self.selectionModel()
+        indexes = selectionModel.selectedRows()
+        if indexes:
+            index = indexes[0]
+            if index.isValid():
+                return index.internalPointer().layer
+
+
+class EditTargetDialog(QtWidgets.QDialog):
+    def __init__(self, stage, editTargetChangeCallback=None, parent=None):
+        # type: (Usd.Stage, Optional[QtWidgets.QWidget]) -> None
+        '''
+        Parameters
+        ----------
+        stage : Usd.Stage
+        editTargetChangeCallback : Callable[[], bool]
+            Optional validation callback that will be called when the user
+            attempts to change the current edit target (by double-clicking a
+            layer). If this is provided and returns False, the edit target will
+            not be changed.
+        parent : Optional[QtWidgets.QWidget]
+        '''
+        super(EditTargetDialog, self).__init__(parent=parent)
+        self._stage = stage
+        self._dataModel = LayerStackModel(stage, parent=self)
+        self._editTargetChangeCallback = editTargetChangeCallback
+
+        # Widget and other Qt setup
+        self.setModal(False)
+        self.setWindowTitle('Select Edit Target')
+
+        self.view = LayerStackTreeView(self, parent=self)
+        self.view.setModel(self._dataModel)
+        self.view.doubleClicked.connect(self.ChangeEditTarget)
+        self.view.setColumnWidth(0, 160)
+        self.view.setColumnWidth(1, 300)
+        self.view.setColumnWidth(2, 100)
+        self.view.setExpandsOnDoubleClick(False)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(2)
+        layout.addWidget(self.view)
+        self.view.expandAll()
+
+        self.resize(700, 200)
+
+    def GetMenuContext(self):
+        stage = self._stage
+        return LayerStackDialogContext(
+            qtParent=self.parent() or self,
+            layerDialog=self,
+            stage=stage,
+            selectedLayer=self.view.GetSelectedLayer(),
+            editTargetLayer=stage.GetEditTarget().GetLayer())
+
+    @QtCore.Slot(QtCore.QModelIndex)
+    def ChangeEditTarget(self, modelIndex):
+        if not modelIndex.isValid():
+            return
+        item = modelIndex.internalPointer()
+        newLayer = item.layer
+
+        if self._editTargetChangeCallback is None \
+                or self._editTargetChangeCallback(newLayer):
+            self._stage.SetEditTarget(newLayer)
+
 
 OutlinerContext = NamedTuple('OutlinerContext',
-                             [('outliner', QtWidgets.QWidget),
+                             [('qtParent', QtWidgets.QWidget),
+                              ('outliner', QtWidgets.QWidget),
                               ('stage', Usd.Stage),
                               ('editTargetLayer', Sdf.Layer),
                               ('selectedPrim', Optional[Usd.Prim]),
@@ -87,13 +270,13 @@ class AddTransform(MenuAction):
     def Do(self, context):
         # TODO: Right now this only produces Xforms. May need to support the
         # ability to specify types for new prims eventually.
-        name, _ = QtWidgets.QInputDialog.getText(context.outliner,
+        name, _ = QtWidgets.QInputDialog.getText(context.qtParent,
                                                  'Add New Transform',
                                                  'Transform Name:')
         if not name:
             return
         if not Sdf.Path.IsValidIdentifier(name):
-            QtWidgets.QMessageBox.warning(context.outliner,
+            QtWidgets.QMessageBox.warning(context.qtParent,
                                           'Invalid Prim Name',
                                           '{0!r} is not a valid prim '
                                           'name'.format(name))
@@ -101,7 +284,7 @@ class AddTransform(MenuAction):
 
         newPath = context.selectedPrim.GetPath().AppendChild(name)
         if context.stage.GetEditTarget().GetPrimSpecForScenePath(newPath):
-            QtWidgets.QMessageBox.warning(context.outliner,
+            QtWidgets.QMessageBox.warning(context.qtParent,
                                           'Duplicate Prim Path',
                                           'A prim already exists at '
                                           '{0!r}'.format(newPath))
@@ -160,7 +343,7 @@ class SelectVariants(MenuAction):
         if not prim.HasVariantSets():
             return
 
-        menu = QtWidgets.QMenu('Variants', context.outliner)
+        menu = QtWidgets.QMenu('Variants', context.qtParent)
         for setName, currentValue in usdlib.variants.getPrimVariants(prim):
             setMenu = menu.addMenu(setName)
             variantSet = prim.GetVariantSet(setName)
@@ -469,8 +652,6 @@ class OutlinerRole(object):
 
 class UsdOutliner(QtWidgets.QDialog):
     '''UsdStage editing application which displays the hierarchy of a stage.'''
-    # emitted with the new edit layer when the edit target is changed
-    editTargetChanged = QtCore.Signal(Sdf.Layer)
 
     def __init__(self, stage, role=None, parent=None):
         '''
@@ -569,7 +750,7 @@ class UsdOutliner(QtWidgets.QDialog):
     def GetMenuContext(self):
         selectedPrims = self.view.SelectedPrims()
         selectedPrim = selectedPrims[0] if selectedPrims else None
-        return OutlinerContext(outliner=self, stage=self._stage,
+        return OutlinerContext(qtParent=self, outliner=self, stage=self._stage,
                                editTargetLayer=self.GetEditTargetLayer(),
                                selectedPrim=selectedPrim,
                                selectedPrims=selectedPrims)
@@ -601,7 +782,7 @@ class UsdOutliner(QtWidgets.QDialog):
 
     def ShowEditTargetDialog(self):
         if not self.editTargetDialog:
-            dialog = SubLayerDialog(
+            dialog = EditTargetDialog(
                 self._stage,
                 editTargetChangeCallback=self._LayerDialogEditTargetChangeCallback,
                 parent=self)

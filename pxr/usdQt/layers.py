@@ -26,17 +26,12 @@ from __future__ import absolute_import
 
 from ._Qt import QtCore, QtGui, QtWidgets
 from pxr import Sdf, Usd, Tf
-from typing import NamedTuple, Optional
 
-from treemodel.itemtree import TreeItem
+from treemodel.itemtree import ItemTree, TreeItem
 from treemodel.qt.base import AbstractTreeModelMixin
-from .common import CopyToClipboard, MenuAction, ContextMenuMixin
 
 if False:
     from typing import *
-
-
-NULL_INDEX = QtCore.QModelIndex()
 
 
 class LayerItem(TreeItem):
@@ -53,48 +48,32 @@ class LayerItem(TreeItem):
         self.layer = layer
 
 
-class SubLayerModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
-    '''Holds a hierarchy of usd layers and their sublayers
-    '''
+class LayerStackBaseModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
+    '''Basic tree model that exposes a Stage's layer stack.'''
+    headerLabels = ('Name', 'Path')
 
-    def __init__(self, stage, parent=None):
-        # type: (Usd.Stage, Optional[QtGui.QWidget]) -> None
+    def __init__(self, stage, includeSessionLayers=True, parent=None):
+        # type: (Usd.Stage, bool, Optional[QtCore.QObject]) -> None
         '''
         Parameters
         ----------
         stage : Usd.Stage
-        parent : Optional[QtGui.QWidget]
+        includeSessionLayers : bool
+        parent : Optional[QtCore.QObject]
         '''
-        assert isinstance(stage, Usd.Stage)
-        super(SubLayerModel, self).__init__(parent=parent)
+        super(LayerStackBaseModel, self).__init__(parent=parent)
 
-        self._stage = stage
-        sessionLayer = stage.GetSessionLayer()
-        if sessionLayer:
-            self.PopulateUnder(sessionLayer)
-        self.PopulateUnder(stage.GetRootLayer())
-        self._listener = Tf.Notice.Register(Usd.Notice.StageEditTargetChanged,
-                                            self._OnEditTargetChanged, stage)
+        self._stage = None
+        self._includeSessionLayers = includeSessionLayers
+        self.ResetStage(stage)
 
     # Qt methods ---------------------------------------------------------------
     def columnCount(self, parentIndex):
-        return 3
-
-    def flags(self, modelIndex):
-        if modelIndex.isValid():
-            item = modelIndex.internalPointer()
-            if item.layer.permissionToEdit:
-                return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
-        return QtCore.Qt.NoItemFlags
+        return 2
 
     def headerData(self, section, orientation, role=QtCore.Qt.DisplayRole):
         if orientation == QtCore.Qt.Horizontal and role == QtCore.Qt.DisplayRole:
-            if section == 0:
-                return 'Name'
-            elif section == 1:
-                return 'Path'
-            elif section == 2:
-                return 'Resolved Path'
+            return self.headerLabels[section]
 
     def data(self, modelIndex, role=QtCore.Qt.DisplayRole):
         if not modelIndex.isValid():
@@ -104,156 +83,52 @@ class SubLayerModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
             item = modelIndex.internalPointer()
             if column == 0:
                 if item.layer.anonymous:
-                    return 'anonymous.usd'
-                return item.layer.identifier.split('/')[-1]
+                    return '<anonymous>'
+                return item.layer.identifier.rsplit('/', 1)[-1]
             elif column == 1:
                 return item.layer.identifier
-            elif column == 2:
-                return item.layer.realPath
-        elif role == QtCore.Qt.FontRole:
-            item = modelIndex.internalPointer()
-            if item.layer == self._stage.GetEditTarget().GetLayer():
-                font = QtGui.QFont()
-                font.setBold(True)
-                return font
 
-    # Custom Methods -----------------------------------------------------------
-    def _OnEditTargetChanged(self, notice, stage):
-        self.dataChanged[QtCore.QModelIndex, QtCore.QModelIndex].emit(
-            NULL_INDEX, NULL_INDEX)
+    # Custom methods -----------------------------------------------------------
+    def LayerCount(self):
+        '''Return the number of layers in the current stage's layer stack.'''
+        return self.itemTree.itemCount()
 
-    def PopulateUnder(self, layer, parent=None):
-        # type: (Sdf.Layer, Optional[LayerItem]) -> Any
-        '''
-        Parameters
-        ----------
-        layer : Sdf.Layer
-        parent : Optional[LayerItem]
-        '''
-        layerItem = LayerItem(layer)
-        self.itemTree.addItems(layerItem, parent=parent)
+    def ResetStage(self, stage):
+        '''Reset the model from a new stage.
 
-        for subLayerPath in layer.subLayerPaths:
-            subLayer = Sdf.Layer.FindOrOpen(subLayerPath)
-            self.PopulateUnder(subLayer, parent=layerItem)
-
-
-SublayerDialogContext = NamedTuple('SublayerDialogContext',
-                                   [('layerDialog', QtWidgets.QWidget),
-                                    ('stage', Usd.Stage),
-                                    ('selectedLayer', Optional[Sdf.Layer]),
-                                    ('editTargetLayer', Sdf.Layer)])
-
-
-class ShowLayerContents(MenuAction):
-    defaultText = 'Show Layer Text'
-
-    def Do(self, context):
-        from pxr.UsdQtEditors.layerTextEditor import LayerTextEditorDialog
-
-        if context.selectedLayer:
-            dialog = LayerTextEditorDialog.GetSharedInstance(
-                context.selectedLayer,
-                parent=context.layerDialog.parent())
-            dialog.show()
-            dialog.raise_()
-            dialog.activateWindow()
-
-
-class CopyLayerPath(MenuAction):
-    defaultText = 'Copy Layer Identifier'
-
-    def Do(self, context):
-        if context.selectedLayer:
-            CopyToClipboard(context.selectedLayer.identifier)
-
-class OpenLayer(MenuAction):
-    # emitted when menu option is selected to show layer contents
-    openLayer = QtCore.Signal(Sdf.Layer)
-
-    def label(self, builder, selection):
-        return 'Open Layer in a new Outliner'
-
-    def do(self, builder, selection):
-        self.openLayer.emit(selection.layer)
-
-
-class SubLayerTreeView(ContextMenuMixin, QtWidgets.QTreeView):
-    def __init__(self, contextProvider, parent=None):
-        contextMenuActions = [ShowLayerContents, CopyLayerPath, OpenLayer]
-        super(SubLayerTreeView, self).__init__(
-            contextMenuActions=contextMenuActions,
-            contextProvider=contextProvider,
-            parent=parent)
-
-    def GetSelectedLayer(self):
-        '''
-        Returns
-        -------
-        Optional[Sdf.Layer]
-        '''
-        selectionModel = self.selectionModel()
-        indexes = selectionModel.selectedRows()
-        if indexes:
-            index = indexes[0]
-            if index.isValid():
-                return index.internalPointer().layer
-
-
-class SubLayerDialog(QtWidgets.QDialog):
-    def __init__(self, stage, editTargetChangeCallback=None, parent=None):
-        # type: (Usd.Stage, Optional[QtGui.QWidget]) -> None
-        '''
         Parameters
         ----------
         stage : Usd.Stage
-        editTargetChangeCallback : Callable[[], bool]
-            Optional validation callback that will be called when the user
-            attempts to change the current edit target (by double-clicking a
-            layer). If this is provided and returns False, the edit target will
-            not be changed.
-        parent : Optional[QtGui.QWidget]
         '''
-        super(SubLayerDialog, self).__init__(parent=parent)
-        self._stage = stage
-        self._dataModel = SubLayerModel(stage, parent=self)
-        self._editTargetChangeCallback = editTargetChangeCallback
-
-        # Widget and other Qt setup
-        self.setModal(False)
-        self.setWindowTitle('Select Edit Target')
-
-        self.view = SubLayerTreeView(self, parent=self)
-        self.view.setModel(self._dataModel)
-        self.view.doubleClicked.connect(self.ChangeEditTarget)
-        self.view.setColumnWidth(0, 160)
-        self.view.setColumnWidth(1, 300)
-        self.view.setColumnWidth(2, 100)
-        self.view.setExpandsOnDoubleClick(False)
-
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.setContentsMargins(4, 4, 4, 4)
-        layout.setSpacing(2)
-        layout.addWidget(self.view)
-        self.view.expandAll()
-
-        self.resize(700, 200)
-
-    def GetMenuContext(self):
-        stage = self._stage
-        return SublayerDialogContext(
-            layerDialog=self,
-            stage=stage,
-            selectedLayer=self.view.GetSelectedLayer(),
-            editTargetLayer=stage.GetEditTarget().GetLayer())
-
-    @QtCore.Slot(QtCore.QModelIndex)
-    def ChangeEditTarget(self, modelIndex):
-        if not modelIndex.isValid():
+        if stage == self._stage:
             return
-        item = modelIndex.internalPointer()
-        newLayer = item.layer
 
-        if self._editTargetChangeCallback is None \
-                or self._editTargetChangeCallback(newLayer):
-            self._stage.SetEditTarget(newLayer)
+        self.beginResetModel()
+        itemTree = self.itemTree = ItemTree()
+
+        def addLayer(layer, parent=None):
+            layerItem = LayerItem(layer)
+            itemTree.addItems(layerItem, parent=parent)
+            return layerItem
+
+        def addLayerTree(layerTree, parent=None):
+            item = addLayer(layerTree.layer, parent=parent)
+            for childTree in layerTree.childTrees:
+                addLayerTree(childTree, parent=item)
+
+        self._stage = None
+        if stage:
+            root = stage.GetPseudoRoot()
+            if root:
+                self._stage = stage
+                if self._includeSessionLayers:
+                    sessionLayer = stage.GetSessionLayer()
+                    if sessionLayer:
+                        sessionLayerItem = addLayer(sessionLayer)
+                        for path in sessionLayer.subLayerPaths:
+                            addLayer(Sdf.Layer.FindOrOpen(path),
+                                     parent=sessionLayerItem)
+                layerTree = root.GetPrimIndex().rootNode.layerStack.layerTree
+                addLayerTree(layerTree)
+
+        self.endResetModel()
