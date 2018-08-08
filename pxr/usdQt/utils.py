@@ -21,15 +21,15 @@
 # KIND, either express or implied. See the Apache License for the specific
 # language governing permissions and limitations under the Apache License.
 #
+
 from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import os
 
-from ._Qt import QtCore, QtWidgets, QtGui
+from ._Qt import QtGui
 
-from pxr import Sdf
+from pxr import Pcp, Sdf
+
 
 ICONSPATH = os.path.dirname(os.path.realpath(__file__))
 
@@ -54,3 +54,74 @@ def SpecifierToString(specifier):
         return "class"
     else:
         raise Exception("Unknown specifier.")
+
+
+class EditTargetContext(object):
+    '''A context manager that changes a stage's edit target on entry, and then
+    returns it to  its previous value on exit.
+    '''
+    __slots__ = ('stage', 'target', 'originalEditTarget')
+
+    def __init__(self, stage, target):
+        self.stage = stage
+        self.target = target
+        self.originalEditTarget = None
+
+    def __enter__(self):
+        self.originalEditTarget = self.stage.GetEditTarget()
+        self.stage.SetEditTarget(self.target)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.stage.SetEditTarget(self.originalEditTarget)
+
+
+def getPrimVariants(prim):
+    '''Returns a list of tuples representing a prim's variant set names and
+    active values.
+
+    The results are ordered "depth-first" by variant opinion strength in the
+    prim's index.
+
+    Parameters
+    ----------
+    prim : Usd.Prim
+
+    Returns
+    -------
+    List[Tuple[str, str]]
+        (variantSetName, variantName) pairs
+    '''
+    # FIXME: We might need a strategy for duplicate variant sets that are nested
+    # under different variant hierarchies. These aren't very practical though,
+    # since the selection on the composed stage is the same.
+
+    def walkVariantNodes(node):
+        if node.arcType == Pcp.ArcTypeVariant and not node.IsDueToAncestor():
+            yield node.path.GetVariantSelection()
+
+        for childNode in node.children:
+            for childSelection in walkVariantNodes(childNode):
+                yield childSelection
+
+    results = []
+    primIndex = prim.GetPrimIndex()
+    setNames = set(prim.GetVariantSets().GetNames())
+    for variantSetName, variantSetValue in walkVariantNodes(primIndex.rootNode):
+        try:
+            setNames.remove(variantSetName)
+        except KeyError:
+            pass
+        else:
+            results.append((variantSetName, variantSetValue))
+
+    # If a variant is not selected, it won't be included in the prim index, so
+    # we need a way to get those variants. `Prim.ComputeExpandedPrimIndex()`
+    # seems unstable and slow so far. We can easily get variant names using the
+    # main API methods. The problem is they are not ordered hierarchically...
+    # Variants with no selection hide subsequent variants so missing ones are
+    # usually top level variants.
+    for setName in setNames:
+        setValue = prim.GetVariantSet(setName).GetVariantSelection()
+        results.append((setName, setValue))
+
+    return results

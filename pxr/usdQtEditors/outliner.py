@@ -26,14 +26,12 @@ from __future__ import absolute_import
 
 from functools import partial
 
-import usdlib.utils
-import usdlib.variants
 from pxr import Sdf, Tf, Usd
 from pxr.UsdQt.common import DARK_ORANGE, MenuAction, MenuSeparator, \
     MenuBuilder, ContextMenuMixin, MenuBarBuilder, CopyToClipboard, UsdQtUtilities
 from pxr.UsdQt.hierarchyModel import HierarchyBaseModel
 from pxr.UsdQt.layers import LayerStackBaseModel
-from pxr.UsdQt.variantSets import VariantEditorDialog
+from pxr.UsdQt.utils import getPrimVariants
 from pxr.UsdQtEditors.layerTextEditor import LayerTextEditorDialog
 from typing import List, NamedTuple, Optional
 
@@ -344,7 +342,7 @@ class SelectVariants(MenuAction):
             return
 
         menu = QtWidgets.QMenu('Variants', context.qtParent)
-        for setName, currentValue in usdlib.variants.getPrimVariants(prim):
+        for setName, currentValue in getPrimVariants(prim):
             setMenu = menu.addMenu(setName)
             variantSet = prim.GetVariantSet(setName)
             for setValue in [NO_VARIANT_SELECTION] + \
@@ -496,13 +494,6 @@ class ShowEditTargetDialog(MenuAction):
         context.outliner.ShowEditTargetDialog()
 
 
-class ShowVariantEditor(MenuAction):
-    defaultText = 'Edit Variants'
-
-    def Do(self, context):
-        context.outliner.ShowVariantEditor()
-
-
 class OutlinerTreeView(ContextMenuMixin, QtWidgets.QTreeView):
     # Emitted with lists of selected and deselected prims
     primSelectionChanged = QtCore.Signal(list, list)
@@ -647,7 +638,7 @@ class OutlinerRole(object):
         saveState = SaveState(outliner)
         return [MenuBuilder('&File', [SaveEditLayer(saveState)]),
                 MenuBuilder('&Tools', [ShowEditTargetLayerText,
-                                       ShowEditTargetDialog, ShowVariantEditor])]
+                                       ShowEditTargetDialog])]
 
 
 class UsdOutliner(QtWidgets.QDialog):
@@ -791,20 +782,6 @@ class UsdOutliner(QtWidgets.QDialog):
         self.editTargetDialog.show()
         self.editTargetDialog.raise_()
         self.editTargetDialog.activateWindow()
-
-    def ShowVariantEditor(self):
-        # only allow one window
-        if not self.variantEditorDlg:
-            dlg = VariantEditorDialog(self._stage,
-                                      self.view.SelectedPrims(),
-                                      parent=self)
-            self.view.GetSignal('primSelectionChanged').connect(dlg.dataModel.PrimSelectionChanged)
-            self.editTargetChanged.connect(dlg.dataModel.EditTargetChanged)
-            self.variantEditorDlg = dlg
-        self.variantEditorDlg.show()
-        self.variantEditorDlg.raise_()
-        self.variantEditorDlg.activateWindow()
-        self.dataModel.ResetStage()
 
     @classmethod
     def FromUsdFile(cls, usdFile, parent=None):
