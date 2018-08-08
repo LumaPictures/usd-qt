@@ -93,6 +93,13 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
     def PaintColor(self, painter, option, index):
         super(ValueDelegate, self).paint(
             painter, option, QtCore.QModelIndex())
+
+        vecData = index.model().data(index, QtCore.Qt.EditRole)
+        if not vecData:
+            return
+        if len(vecData) not in (3, 4):
+            raise Exception("Paint color only supports color3f and color4f.")
+
         vecOption = QtWidgets.QStyleOptionViewItem(option)
         self.initStyleOption(vecOption, index)
         style = QtWidgets.QApplication.style()
@@ -100,18 +107,11 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
         top = vecOption.rect.top()
         width = vecOption.rect.width()
         height = vecOption.rect.height()
-
-        vecData = compatability.GetEditRole(index)
-        if not vecData:
-            return
-
         colorWidth = 20
         pad = 5
         columns = vecData.dimension
         cellWidth = (width - colorWidth) / columns
 
-        if len(vecData) not in (3, 4):
-            raise Exception("Paint color only supports color3f and color4f.")
         displayVecData = Gf.ConvertLinearToDisplay(vecData)
         with self._PainterContext(painter):
             painter.setBrush(QtGui.QColor(*[c * 255 for c in displayVecData]))
@@ -128,6 +128,11 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
     def PaintVec(self, painter, option, index):
         super(ValueDelegate, self).paint(
             painter, option, QtCore.QModelIndex())
+
+        vecData = index.model().data(index, QtCore.Qt.EditRole)
+        if not vecData:
+            return
+
         vecOption = QtWidgets.QStyleOptionViewItem(option)
         self.initStyleOption(vecOption, index)
         style = QtWidgets.QApplication.style()
@@ -135,11 +140,6 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
         top = vecOption.rect.top()
         width = vecOption.rect.width()
         height = vecOption.rect.height()
-
-        vecData = compatability.GetEditRole(index)
-        if not vecData:
-            return
-
         columns = vecData.dimension
         cellWidth = width / columns
 
@@ -153,6 +153,11 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
     def PaintMatrix(self, painter, option, index):
         super(ValueDelegate, self).paint(
             painter, option, QtCore.QModelIndex())
+
+        matrixData = index.model().data(index, QtCore.Qt.EditRole)
+        if not matrixData:
+            return
+
         matrixOption = QtWidgets.QStyleOptionViewItem(option)
         self.initStyleOption(matrixOption, index)
         style = QtWidgets.QApplication.style()
@@ -160,11 +165,6 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
         top = matrixOption.rect.top()
         width = matrixOption.rect.width()
         height = matrixOption.rect.height()
-
-        matrixData = compatability.GetEditRole(index)
-        if not matrixData:
-            return
-
         rows = matrixData.dimension[0]
         columns = matrixData.dimension[1]
         cellWidth = width / columns
