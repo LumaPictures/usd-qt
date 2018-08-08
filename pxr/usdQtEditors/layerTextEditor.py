@@ -24,8 +24,6 @@
 
 from __future__ import absolute_import
 
-from functools import partial
-
 from ._Qt import QtCore, QtWidgets
 from pxr import Sdf, Tf, Usd
 
@@ -70,10 +68,8 @@ class LayerTextEditor(QtWidgets.QWidget):
         layout.addWidget(self.textArea)
         layout.addLayout(buttonLayout)
 
-        self.setWindowTitle('Layer: %s' % layer.identifier)
         self.SetEditable(False)
         self.Refresh()
-        self.resize(800, 600)
 
     def SetEditable(self, editable):
         if editable:
@@ -106,10 +102,20 @@ class LayerTextEditor(QtWidgets.QWidget):
                 self.Refresh()  # To standardize formatting
 
 
-class LayerTextEditorDialog(QtWidgets.QDialog, LayerTextEditor):
+class LayerTextEditorDialog(QtWidgets.QDialog):
     '''Dialog version of LayerTextEditor that enables easy sharing of instances.
     '''
     _sharedInstances = {}
+
+    def __init__(self, layer, readOnly=False, parent=None):
+        super(LayerTextEditorDialog, self).__init__(parent=parent)
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        editor = LayerTextEditor(layer, readOnly=readOnly, parent=self)
+        layout.addWidget(editor)
+
+        self.setWindowTitle('Layer: %s' % layer.identifier)
+        self.resize(800, 600)
 
     @classmethod
     def _OnSharedInstanceFinished(cls, layer):
@@ -123,7 +129,8 @@ class LayerTextEditorDialog(QtWidgets.QDialog, LayerTextEditor):
         if dialog is None:
             dialog = cls(layer, readOnly=readOnly, parent=parent)
             cls._sharedInstances[layer] = dialog
-        dialog.finished.connect(partial(cls._OnSharedInstanceFinished, layer))
+            dialog.finished.connect(
+                lambda result: cls._OnSharedInstanceFinished(layer))
         return dialog
 
 
