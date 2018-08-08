@@ -305,16 +305,17 @@ class RemovePrim(MenuAction):
 
     def Do(self, context):
         ask = True
+        buttons = QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.Cancel
+        if len(context.selectedPrims) > 1:
+            buttons |= QtWidgets.QMessageBox.YesToAll
         for prim in context.selectedPrims:
             primPath = prim.GetPath()
             if ask:
                 answer = QtWidgets.QMessageBox.question(
-                    context.outliner,
+                    context.qtParent,
                     'Confirm Prim Removal',
-                    'Remove prim (and any children) at {0}?'.format(primPath),
-                    buttons=(QtWidgets.QMessageBox.Yes |
-                             QtWidgets.QMessageBox.Cancel |
-                             QtWidgets.QMessageBox.YesToAll),
+                    'Remove prim/prim edits (and any children) at {0}?'.format(primPath),
+                    buttons=buttons,
                     defaultButton=QtWidgets.QMessageBox.Yes)
                 if answer == QtWidgets.QMessageBox.Cancel:
                     return
@@ -353,9 +354,6 @@ class SelectVariants(MenuAction):
                         (setValue == NO_VARIANT_SELECTION
                          and currentValue == ''):
                     a.setChecked(True)
-
-                # Note: This is currently only valid for PySide. PyQt
-                # always passes the action's `checked` value.
                 a.triggered.connect(partial(self._ApplyVariant,
                                             prim, setName, setValue))
         return menu.menuAction()
