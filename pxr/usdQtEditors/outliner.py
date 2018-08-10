@@ -133,15 +133,17 @@ class CopyLayerPath(MenuAction):
         if context.selectedLayer:
             CopyToClipboard(context.selectedLayer.identifier)
 
-# FIXME: Get this working again
+
 class OpenLayer(MenuAction):
     defaultText = 'Open Layer in Outliner'
 
-    # emitted when menu option is selected to show layer contents
-    openLayer = QtCore.Signal(Sdf.Layer)
-
     def Do(self, context):
-        self.openLayer.emit(selection.layer)
+        if context.selectedLayer:
+            # Role is currently lost
+            dlg = UsdOutliner.FromUsdFile(context.selectedLayer.identifier)
+            dlg.show()
+            dlg.raise_()
+            dlg.activateWindow()
 
 
 class LayerStackTreeView(ContextMenuMixin, QtWidgets.QTreeView):
@@ -775,49 +777,18 @@ class UsdOutliner(QtWidgets.QDialog):
                 self._stage,
                 editTargetChangeCallback=self._LayerDialogEditTargetChangeCallback,
                 parent=self)
-            # dlg.view.GetSignal('openLayer').connect(self.OpenLayerInOutliner)
             self.editTargetDialog = dialog
         self.editTargetDialog.show()
         self.editTargetDialog.raise_()
         self.editTargetDialog.activateWindow()
 
     @classmethod
-    def FromUsdFile(cls, usdFile, parent=None):
+    def FromUsdFile(cls, usdFile, role=None, parent=None):
         with Usd.StageCacheContext(Usd.BlockStageCaches):
             stage = Usd.Stage.Open(usdFile, Usd.Stage.LoadNone)
-            assert stage
+            assert stage, 'Failed to open stage'
             stage.SetEditTarget(stage.GetSessionLayer())
-        return cls(stage, parent=parent)
-
-    def OpenLayerInOutliner(self, layer):
-        dlg = self.FromUsdFile(layer.identifier)
-        dlg.show()
-        dlg.raise_()
-        dlg.activateWindow()
-        dlg.exec_()
-
-    def SetNewStage(self, stage):
-        '''Reset the stage for this dlg and its views'''
-        self.stage = stage
-
-        self.view.ResetStage(stage)
-        self.editTargetChanged.emit(self.editTarget)
-        self.view.reset()
-
-        # close instances of child dialogs
-        def close(dlg):
-            if dlg:
-                dlg.close()
-
-        for layerTextDlg in self.layerTextDialogs.values():
-            close(layerTextDlg)
-        self.layerTextDialogs = {}
-        close(self.editTargetDlg)
-        self.editTargetDlg = None
-        close(self.variantEditorDlg)
-        self.variantEditorDlg = None
-
-        self.UpdateTitle()
+        return cls(stage, role=role, parent=parent)
 
 
 if __name__ == '__main__':
