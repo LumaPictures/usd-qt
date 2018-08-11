@@ -26,10 +26,11 @@ from __future__ import absolute_import
 
 from treemodel.itemtree import ItemTree, TreeItem
 
-from typing import (Any, Dict, Generic, Iterable, Iterator, List, Optional,
-                    Tuple, Union, TYPE_CHECKING)
-
 from pxr.UsdQt._Qt import QtCore, QtGui
+
+if False:
+    from typing import *
+
 
 NULL_INDEX = QtCore.QModelIndex()
 
@@ -171,5 +172,4 @@ class Column(object):
 
     @property
     def name(self):
-        # name is read-only
         return self._name

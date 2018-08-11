@@ -24,6 +24,7 @@
 
 from __future__ import absolute_import
 
+from collections import namedtuple
 from functools import partial
 
 from ._Qt import QtCore, QtGui, QtWidgets
@@ -36,7 +37,6 @@ from pxr.UsdQt.qtUtils import DARK_ORANGE, MenuAction, MenuSeparator, \
     MenuBuilder, ContextMenuMixin, MenuBarBuilder, CopyToClipboard
 from pxr.UsdQt.usdUtils import GetPrimVariants
 from pxr.UsdQtEditors.layerTextEditor import LayerTextEditorDialog
-from typing import List, NamedTuple, Optional
 
 if False:
     from typing import *
@@ -106,12 +106,9 @@ class LayerStackModel(LayerStackBaseModel):
             NULL_INDEX, NULL_INDEX)
 
 
-LayerStackDialogContext = NamedTuple('SublayerDialogContext',
-                                     [('qtParent', QtWidgets.QWidget),
-                                      ('layerDialog', QtWidgets.QWidget),
-                                      ('stage', Usd.Stage),
-                                      ('selectedLayer', Optional[Sdf.Layer]),
-                                      ('editTargetLayer', Sdf.Layer)])
+LayerStackDialogContext = namedtuple('LayerStackDialogContext',
+                                     ['qtParent', 'layerDialog', 'stage',
+                                      'selectedLayer', 'editTargetLayer'])
 
 # FIXME: Reconcile with outliner action
 class ShowLayerText(MenuAction):
@@ -229,13 +226,10 @@ class EditTargetDialog(QtWidgets.QDialog):
             self._stage.SetEditTarget(newLayer)
 
 
-OutlinerContext = NamedTuple('OutlinerContext',
-                             [('qtParent', QtWidgets.QWidget),
-                              ('outliner', QtWidgets.QWidget),
-                              ('stage', Usd.Stage),
-                              ('editTargetLayer', Sdf.Layer),
-                              ('selectedPrim', Optional[Usd.Prim]),
-                              ('selectedPrims', List[Usd.Prim])])
+OutlinerContext = namedtuple('OutlinerContext',
+                             ['qtParent', 'outliner', 'stage',
+                              'editTargetLayer', 'selectedPrim',
+                              'selectedPrims'])
 
 
 class ActivatePrims(MenuAction):

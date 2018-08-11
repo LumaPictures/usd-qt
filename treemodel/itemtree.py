@@ -24,8 +24,8 @@
 
 import collections
 
-from typing import (Any, Dict, Generic, Hashable, Iterable, Iterator, List,
-                    Optional, Set, Tuple, Type, TypeVar, Union, TYPE_CHECKING)
+if False:
+    from typing import *
 
 
 class ItemLookupError(Exception):
@@ -50,45 +50,33 @@ class TreeItem(object):
         return '{0.__class__.__name__}({0.key!r})'.format(self)
 
 
-# any instance of a TreeItem subclass
-T = TypeVar('T', bound=TreeItem)
-
-
-class ItemTree(Generic[T]):
+class ItemTree(object):
+    '''A basic tree of hashable items, each of which can also be looked up using
+    an associated key.
     '''
-    A basic tree of items.
-    '''
-
     def __init__(self, rootItem=None):
         '''
         Parameters
         ----------
-        rootItem : Optional[T]
+        rootItem : Optional[TreeItem]
             Explicit item to use as the root of the tree. If omitted, a new
-            ``TreeItem`` instance will be used.
+            `TreeItem` instance will be used.
         '''
-        # self._itemBase = pylib.types.get_generic_type(self.__class__, T)
-
         if rootItem is None:
             rootItem = TreeItem('__ROOT__')
         else:
             self._validateItemType(rootItem)
 
         self._root = rootItem
-        self._parentToChildren = {rootItem: self._makeInitialChildrenValue(rootItem)}  # type: Dict[T, List[T]]
-        self._childToParent = {}  # type: Dict[T, T]
-        self._keyToItem = {rootItem.key: rootItem}  # type: Dict[Hashable, T]
+        self._parentToChildren = {rootItem: self._makeInitialChildrenValue(rootItem)}  # type: Dict[TreeItem, List[TreeItem]]
+        self._childToParent = {}  # type: Dict[TreeItem, TreeItem]
+        self._keyToItem = {rootItem.key: rootItem}  # type: Dict[Hashable, TreeItem]
 
     def __contains__(self, item):
         return item in self._parentToChildren
 
     def _validateItemType(self, item):
         pass
-        # if self._itemBase is None:
-        #     return
-        # if not issubclass(type(item), self._itemBase):
-        #     raise TypeError('Item class {0!r} does not inherit base tree item '
-        #                     'class {1!r}'.format(item.__class__, self._itemBase))
 
     @property
     def root(self):
@@ -404,9 +392,8 @@ class ItemTree(Generic[T]):
         return self._keyToItem.iteritems()
 
 
-class LazyItemTree(ItemTree[T]):
-    '''
-    Basic implementation of an ``ItemTree`` subclass that can fetch each item's
+class LazyItemTree(ItemTree):
+    '''Basic implementation of an `ItemTree` subclass that can fetch each item's
     children lazily as they are requested.
 
     This is a pretty basic approach that uses None as a placeholder value for
