@@ -19,7 +19,7 @@ if (INSTALL_PURE_PYTHON)
         qtUtils.py
         roles.py
         stageCacheModel.py
-        utils.py
+        usdUtils.py
         valueDelegate.py
         valueWidgets.py
         variantSets.py
