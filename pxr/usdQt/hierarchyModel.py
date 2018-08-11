@@ -30,7 +30,7 @@ from ._Qt import QtCore, QtWidgets, QtGui
 from pxr import Sdf, Tf, Usd
 
 from ._bindings import PrimFilterCache, _HierarchyCache
-from . import roles, utils
+from . import roles, qtUtils
 
 
 class HierarchyBaseModel(QtCore.QAbstractItemModel):
@@ -289,9 +289,9 @@ class HierarchyStandardModel(HierarchyBaseModel):
                         prim.HasVariantSets() or \
                         prim.HasPayload() or \
                         prim.HasAuthoredSpecializes():
-                    return utils.IconCache.Get(self.ArcsIconPath)
+                    return qtUtils.IconCache.Get(self.ArcsIconPath)
                 else:
-                    return utils.IconCache.Get(self.NoarcsIconPath)
+                    return qtUtils.IconCache.Get(self.NoarcsIconPath)
         elif role == QtCore.Qt.DisplayRole:
             if column == HierarchyStandardModel.Name:
                 return super(HierarchyStandardModel, self).data(modelIndex, role)

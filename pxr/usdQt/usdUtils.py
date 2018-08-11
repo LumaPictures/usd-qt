@@ -24,25 +24,7 @@
 
 from __future__ import absolute_import
 
-import os
-
-from ._Qt import QtGui
-
 from pxr import Pcp, Sdf
-
-
-ICONSPATH = os.path.dirname(os.path.realpath(__file__))
-
-
-class IconCache(object):
-    __cache = {}
-
-    @staticmethod
-    def Get(path):
-        if path not in IconCache.__cache:
-            icon = QtGui.QIcon(os.path.join(ICONSPATH, path))
-            IconCache.__cache[path] = icon
-        return IconCache.__cache[path]
 
 
 def SpecifierToString(specifier):
@@ -75,7 +57,7 @@ class EditTargetContext(object):
         self.stage.SetEditTarget(self.originalEditTarget)
 
 
-def getPrimVariants(prim):
+def GetPrimVariants(prim):
     '''Returns a list of tuples representing a prim's variant set names and
     active values.
 

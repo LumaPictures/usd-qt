@@ -26,17 +26,17 @@ from __future__ import absolute_import
 
 from functools import partial
 
+from ._Qt import QtCore, QtGui, QtWidgets
+
 from pxr import Sdf, Tf, Usd
 from pxr.UsdQt.hierarchyModel import HierarchyBaseModel
 from pxr.UsdQt.hooks import UsdQtHooks
 from pxr.UsdQt.layers import LayerStackBaseModel
 from pxr.UsdQt.qtUtils import DARK_ORANGE, MenuAction, MenuSeparator, \
     MenuBuilder, ContextMenuMixin, MenuBarBuilder, CopyToClipboard
-from pxr.UsdQt.utils import getPrimVariants
+from pxr.UsdQt.usdUtils import GetPrimVariants
 from pxr.UsdQtEditors.layerTextEditor import LayerTextEditorDialog
 from typing import List, NamedTuple, Optional
-
-from ._Qt import QtCore, QtGui, QtWidgets
 
 if False:
     from typing import *
@@ -346,7 +346,7 @@ class SelectVariants(MenuAction):
             return
 
         menu = QtWidgets.QMenu('Variants', context.qtParent)
-        for setName, currentValue in getPrimVariants(prim):
+        for setName, currentValue in GetPrimVariants(prim):
             setMenu = menu.addMenu(setName)
             variantSet = prim.GetVariantSet(setName)
             for setValue in [NO_VARIANT_SELECTION] + \

@@ -22,6 +22,7 @@
 # language governing permissions and limitations under the Apache License.
 #
 
+import os
 from functools import partial
 from inspect import isclass
 
@@ -30,6 +31,8 @@ from ._Qt import QtCore, QtGui, QtWidgets
 if False:
     from typing import *
 
+
+ICONSPATH = os.path.dirname(os.path.realpath(__file__))
 
 NO_COLOR = QtGui.QColor(0, 0, 0, 0)
 GREEN = QtGui.QColor(14, 93, 45, 200)
@@ -53,6 +56,17 @@ def CopyToClipboard(text):
     cb = QtWidgets.QApplication.clipboard()
     cb.setText(text, QtGui.QClipboard.Selection)
     cb.setText(text, QtGui.QClipboard.Clipboard)
+
+
+class IconCache(object):
+    __cache = {}
+
+    @staticmethod
+    def Get(path):
+        if path not in IconCache.__cache:
+            icon = QtGui.QIcon(os.path.join(ICONSPATH, path))
+            IconCache.__cache[path] = icon
+        return IconCache.__cache[path]
 
 
 class _MenuSeparator(object):
