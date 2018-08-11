@@ -9,13 +9,14 @@ if (INSTALL_PURE_PYTHON)
         _Qt.py
         __init__.py
         _bindings.py
-        common.py
         compatability.py
         hierarchyModel.py
+        hooks.py
         layerModel.py
         layers.py
         opinionModel.py
         opinionStackModel.py
+        qtUtils.py
         roles.py
         stageCacheModel.py
         utils.py

@@ -39,6 +39,3 @@ add_subdirectory(pxr)
 install(DIRECTORY treemodel
         DESTINATION lib/python
         PATTERN "*.py")
-install(DIRECTORY usdlib
-        DESTINATION lib/python
-        PATTERN "*.py")
