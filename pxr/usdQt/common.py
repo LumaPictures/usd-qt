@@ -22,17 +22,14 @@
 # language governing permissions and limitations under the Apache License.
 #
 
-from inspect import isclass
 from functools import partial
-
-from pxr import Sdf
+from inspect import isclass
 
 from ._Qt import QtCore, QtGui, QtWidgets
 
 if False:
     from typing import *
 
-NULL_INDEX = QtCore.QModelIndex()
 
 NO_COLOR = QtGui.QColor(0, 0, 0, 0)
 GREEN = QtGui.QColor(14, 93, 45, 200)
@@ -44,12 +41,6 @@ LIGHT_BLUE = QtGui.QColor(78, 181, 224, 200)
 BRIGHT_ORANGE = QtGui.QColor(255, 157, 45, 200)
 PALE_ORANGE = QtGui.QColor(224, 150, 66, 200)
 DARK_BLUE = QtGui.QColor(14, 82, 130, 200)
-
-
-class FallbackException(Exception):
-    '''Raised if a customized function fails and wants to fallback to the
-    default implementation.'''
-    pass
 
 
 def BlendColors(color1, color2, mix=.5):
@@ -385,57 +376,3 @@ class MenuBarBuilder(object):
         Optional[MenuBuilder]
         '''
         return self._menuBuilders.get(name)
-
-
-class UsdQtUtilities(object):
-    '''
-    Aggregator for customizable utilities in a usdQt app.
-
-    To overwrite the default implementation, just define a function and then
-    call:
-    UsdQtUtilities.register('someName', func)
-    '''
-    _registered = {}
-
-    @classmethod
-    def register(cls, name, func):
-        cls._registered.setdefault(name, []).insert(0, func)
-
-    @classmethod
-    def exec_(cls, name, *args, **kwargs):
-        for func in cls._registered[name]:
-            try:
-                return func(*args, **kwargs)
-            except FallbackException:
-                continue
-
-
-def GetReferencePath(parent, stage=None):
-    '''
-    Overrideable func for getting the path for a new reference from a user.
-
-    Use UsdQtUtilities to provide your pipeline specific file browser ui.
-    '''
-    name, _ = QtWidgets.QInputDialog.getText(
-        parent,
-        'Add Reference',
-        'Enter Usd Layer Identifier:')
-    return name
-
-
-def GetId(layer):
-    '''
-    Overrideable func to get the unique key used to store the original
-    contents of a layer.
-
-    Use UsdQtUtilities to provide support for pipeline specific resolvers that
-    may need special handling.
-    '''
-    if isinstance(layer, Sdf.Layer):
-        return layer.identifier
-    else:
-        return layer
-
-
-UsdQtUtilities.register('GetReferencePath', GetReferencePath)
-UsdQtUtilities.register('GetId', GetId)

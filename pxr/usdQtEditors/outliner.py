@@ -28,8 +28,9 @@ from functools import partial
 
 from pxr import Sdf, Tf, Usd
 from pxr.UsdQt.common import DARK_ORANGE, MenuAction, MenuSeparator, \
-    MenuBuilder, ContextMenuMixin, MenuBarBuilder, CopyToClipboard, UsdQtUtilities
+    MenuBuilder, ContextMenuMixin, MenuBarBuilder, CopyToClipboard
 from pxr.UsdQt.hierarchyModel import HierarchyBaseModel
+from pxr.UsdQt.hooks import UsdQtHooks
 from pxr.UsdQt.layers import LayerStackBaseModel
 from pxr.UsdQt.utils import getPrimVariants
 from pxr.UsdQtEditors.layerTextEditor import LayerTextEditorDialog
@@ -368,7 +369,7 @@ class AddReference(MenuAction):
         action.setEnabled(bool(context.selectedPrim))
 
     def Do(self, context):
-        refPath = UsdQtUtilities.exec_('GetReferencePath', stage=context.stage)
+        refPath = UsdQtHooks.Call('GetReferencePath', stage=context.stage)
         if refPath:
             stage = context.stage
             prim = context.selectedPrim
@@ -452,7 +453,7 @@ class SaveState(object):
         return True
 
     def GetId(self, layer):
-        return UsdQtUtilities.exec_('GetId', layer)
+        return UsdQtHooks.Call('GetId', layer)
 
 
 class SaveEditLayer(MenuAction):
