@@ -457,8 +457,6 @@ class SaveState(object):
 
 
 class SaveEditLayer(MenuAction):
-    __slots__ = ('state',)
-
     defaultText = 'Save Current Edit Layer'
 
     def __init__(self, state):
@@ -661,7 +659,6 @@ class UsdOutliner(QtWidgets.QDialog):
         self._listener = Tf.Notice.Register(Usd.Notice.StageEditTargetChanged,
                                             self._OnEditTargetChanged, stage)
 
-        # Widget and other Qt setup
         self.setModal(False)
         self.UpdateTitle()
 

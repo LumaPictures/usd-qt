@@ -78,8 +78,6 @@ MenuSeparator = _MenuSeparator()
 # for `Do` and optionally `Update` (and maybe optional static text).
 class MenuAction(object):
     '''Base class for menu actions'''
-    __slots__ = ()
-
     defaultText = None
 
     def Build(self, context):
@@ -157,8 +155,6 @@ class MenuAction(object):
 
 class MenuBuilder(object):
     '''Container class for a menu definition.'''
-    __slots__ = ('name', 'actions')
-
     def __init__(self, name, actions):
         '''
         Parameters
@@ -229,30 +225,6 @@ class ContextMenuMixin(object):
             event.accept()
 
     # Custom methods -----------------------------------------------------------
-# TODO: Get rid of this
-    def GetSignal(self, name):
-        # type: (str) -> QtCore.Signal
-        '''Search through all actions on the menu-builder for a signal object.
-
-        Parameters
-        ----------
-        name : str
-            name of an attribute holding a signal
-
-        Returns
-        -------
-        QtCore.Signal
-        '''
-        # search the view and then the menu and menu actions for a signal
-        toSearch = [self]
-        toSearch.extend(self._contextMenuBuilder.actions)
-        for obj in toSearch:
-            signal = getattr(obj, name, None)
-            if signal and isinstance(signal, QtCore.Signal):
-                return signal
-        raise ValueError('Signal not found: {} in any of {}'.format(
-            name, ', '.join([x.__class__.__name__ for x in toSearch])))
-
     def GetMenuContext(self):
         # type: () -> Context
         '''Override this to return contextual information to your menu actions.
@@ -265,23 +237,6 @@ class ContextMenuMixin(object):
             return self._contextProvider.GetMenuContext()
         raise NotImplementedError('No context provider set and GetMenuContext '
                                   'not reimplemented')
-
-
-# class SelectionContextMenuMixin(ContextMenuMixin):
-#     def GetSelectedRowItems(self):
-#         # type: () -> List[T]
-#         '''
-#         Returns
-#         -------
-#         List[T]
-#         '''
-#         indexes = self.selectionModel().selectedRows()
-#         return [index.internalPointer() for index in indexes]
-#
-#     def GetContext(self):
-#         # type: () -> Context
-#         # FIXME: create a Context here that includes self, selection, etc
-#         return self.GetSelectedRowItems()
 
 
 class MenuBarBuilder(object):
