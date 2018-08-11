@@ -1,5 +1,5 @@
 #
-# Copyright 2017 Luma Pictures
+# Copyright 2018 Luma Pictures
 #
 # Licensed under the Apache License, Version 2.0 (the "Apache License")
 # with the following modification you may not use this file except in
@@ -74,8 +74,6 @@ class _MenuSeparator(object):
 MenuSeparator = _MenuSeparator()
 
 
-# TODO: May want to consider adding a MenuAction subclass that takes callables
-# for `Do` and optionally `Update` (and maybe optional static text).
 class MenuAction(object):
     '''Base class for menu actions'''
     defaultText = None
@@ -151,6 +149,35 @@ class MenuAction(object):
         context : Context
         '''
         raise NotImplementedError
+
+
+class SimpleMenuAction(MenuAction):
+    '''Simple MenuAction subclass that allows its Do and Update callbacks to be
+    provided as __init__ arguments.
+    '''
+    def __init__(self, defaultText, actionCallback, updateCallback=None):
+        # type: (str, Callable[[Any], None], Optional[Callable[[MenuAction, Any], None]]) -> None
+        '''
+        Parameters
+        ----------
+        defaultText : str
+        actionCallback : Callable[[Any], None]
+        updateCallback : Optional[Callable[[MenuAction, Any], None]]
+        '''
+        if not callable(actionCallback):
+            raise TypeError('actionCallback must be a callable')
+        if updateCallback and not callable(updateCallback):
+            raise TypeError('updateCallback must be a callable if given')
+        self.actionCallback = actionCallback
+        self.updateCallback = updateCallback
+        self.defaultText = str(defaultText)
+
+    def Update(self, action, context):
+        if self.updateCallback:
+            self.updateCallback(action, context)
+
+    def Do(self, context):
+        self.actionCallback(context)
 
 
 class MenuBuilder(object):
