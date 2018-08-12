@@ -34,6 +34,10 @@ from pxr.UsdQt import roles
 
 from ._Qt import QtWidgets, QtCore
 
+if False:
+    from typing import *
+    from pxr.UsdQt.hierarchyModel import HierarchyBaseModel
+
 
 class HierarchyStandardContextMenuStrategy:
     """A simple context menu"""
@@ -42,6 +46,12 @@ class HierarchyStandardContextMenuStrategy:
         self.hierarchyEditor = hierarchyEditor
 
     def Construct(self, point):
+        # type: (QtCore.QPoint) -> None
+        """
+        Parameters
+        ----------
+        point : QtCore.QPoint
+        """
         prims = self._GetSelectedPrims()
         if len(prims) == 1:
             name = prims[0].GetName()
@@ -61,6 +71,12 @@ class HierarchyStandardContextMenuStrategy:
         menu.exec_(self.hierarchyEditor.mapToGlobal(point))
 
     def _GetSelectedPrims(self):
+        # type: () -> List[Usd.Prim]
+        """
+        Returns
+        -------
+        List[Usd.Prim]
+        """
         selection = self.hierarchyEditor.GetSelectedPrims()
         selection.sort(key=lambda prim: prim.GetPath(), reverse=True)
         return selection
@@ -84,8 +100,18 @@ class HierarchyStandardContextMenuStrategy:
                 prim.ClearActive()
 
     def __BuildStageMap(self, prims):
+        # type: (Any) -> Dict[Usd.Stage, Set[Sdf.Path]]
         """All prims are likely on the same stage, but in the event that we
-        allow for hybrid models, this should ensure everything still works"""
+        allow for hybrid models, this should ensure everything still works.
+
+        Parameters
+        ----------
+        Iterable[Usd.Prim]
+
+        Returns
+        -------
+        Dict[Usd.Stage, Set[Sdf.Path]]
+        """
         stageMap = defaultdict(set)
         for prim in prims:
             stageMap[prim.GetStage()].add(prim.GetPath())
@@ -122,6 +148,12 @@ class HierarchyEditor(QtWidgets.QWidget):
     FilterModel = HierarchyStandardFilterModel
 
     def __init__(self, parent=None):
+        # type: (Optional[QtWidgets.QWidget]) -> None
+        """
+        Parameters
+        ----------
+        parent : Optional[QtWidgets.QWidget]
+        """
         super(HierarchyEditor, self).__init__(parent=parent)
 
         self.menuBar = QtWidgets.QMenuBar()
@@ -193,6 +225,12 @@ class HierarchyEditor(QtWidgets.QWidget):
         return self.__hierarchyView.selectionModel().selectionChanged
 
     def SelectPaths(self, paths):
+        # type: (Iterable[Sdf.Path]) -> None
+        """
+        Parameters
+        ----------
+        paths : Iterable[Sdf.Path]
+        """
         itemSelection = QtCore.QItemSelection()
         sourceModel = self.__filterModel.sourceModel()
         for path in paths:
@@ -205,6 +243,12 @@ class HierarchyEditor(QtWidgets.QWidget):
                                                      QtCore.QItemSelectionModel.ClearAndSelect)
 
     def GetSelectedPrims(self):
+        # type: () -> List[Usd.Prim]
+        """
+        Returns
+        -------
+        List[Usd.Prim]
+        """
         selectedIndices = self.__hierarchyView.selectedIndexes()
         orderedPrims = []
         unorderedPrims = set()
@@ -216,12 +260,24 @@ class HierarchyEditor(QtWidgets.QWidget):
         return orderedPrims
 
     def GetPrimSelectedIndices(self):
-        '''Provides access to the internal selected indices'''
+        # type: () -> List[QtCore.QModelIndex]
+        '''Provides access to the internal selected indices.
+
+        Returns
+        -------
+        List[QtCore.QModelIndex]
+        '''
         return self.__hierarchyView.selectedIndexes()
 
     def SetSourceModel(self, model):
+        # type: (HierarchyBaseModel) -> None
         '''Replaces the current editor's current model with the new model.
-        The model must be a subclass of HierarchyBaseModel.'''
+        The model must be a subclass of HierarchyBaseModel.
+
+        Parameters
+        ----------
+        model : HierarchyBaseModel
+        '''
         self.__filterModel.setSourceModel(model)
 
 

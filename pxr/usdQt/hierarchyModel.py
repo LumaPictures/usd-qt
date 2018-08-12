@@ -23,14 +23,15 @@
 #
 
 from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 from ._Qt import QtCore, QtWidgets, QtGui
 from pxr import Sdf, Tf, Usd
 
 from ._bindings import PrimFilterCache, _HierarchyCache
 from . import roles, qtUtils
+
+if False:
+    from typing import *
 
 
 class HierarchyBaseModel(QtCore.QAbstractItemModel):
@@ -61,6 +62,7 @@ class HierarchyBaseModel(QtCore.QAbstractItemModel):
     def __init__(self, stage=None, predicate=Usd.TraverseInstanceProxies(
             Usd.PrimIsDefined | ~Usd.PrimIsDefined),
             parent=None):
+        # type: (Optional[Usd.Stage], Usd.PrimFlags, Optional[QtCore.QObject]) -> None
         """Instantiate an QAbstractItemModel adapter for a UsdStage.
 
         It's safe for the 'stage' to be None if the model needs to be instatiated
@@ -71,6 +73,12 @@ class HierarchyBaseModel(QtCore.QAbstractItemModel):
         and rely on a QSortFilterProxyModel to interactively reduce the view.
         Changing the predicate is a potentially expensive operation requiring
         rebuilding internal caches, making not ideal for interactive filtering.
+
+        Parameters
+        ----------
+        stage : Optional[Usd.Stage]
+        predicate : Usd.PrimFlags
+        parent : Optional[QtCore.QObject]
         """
         super(HierarchyBaseModel, self).__init__(parent)
 
@@ -84,9 +92,14 @@ class HierarchyBaseModel(QtCore.QAbstractItemModel):
         return self.__stage and self.__stage.GetPseudoRoot()
 
     def ResetStage(self, stage):
+        # type: (Usd.Stage) -> None
         """Resets the model for use with a new stage.
 
         If the stage isn't valid, this effectively becomes an empty model.
+
+        Parameters
+        ----------
+        stage : Usd.Stage
         """
         if stage == self.__stage:
             return
@@ -160,17 +173,37 @@ class HierarchyBaseModel(QtCore.QAbstractItemModel):
                 self.changePersistentIndexList(fromIndices, toIndices)
 
     def GetIndexForPath(self, path):
-        """Given a path, retrieve the appropriate index"""
+        # type: (Sdf.Path) -> Optional[QtCore.QModelIndex]
+        """Given a path, retrieve the appropriate model index.
+
+        Parameters
+        ----------
+        path : Sdf.Path
+
+        Returns
+        -------
+        Optional[QtCore.QModelIndex]
+        """
         if self.__index.ContainsPath(path):
             proxy = self.__index.GetProxy(path)
             row = self.__index.GetRow(proxy)
             return self.createIndex(row, 0, proxy)
 
     def _GetPrimForIndex(self, modelIndex):
-        """Retrieve the prim for the input modelIndex
+        # type: (QtCore.QModelIndex) -> Optional[Usd.Prim]
+        """Retrieve the prim for the input model index
 
-        External clients should use UsdQt.roles.HierarchyPrimRole to access
-        the prim for an index"""
+        External clients should use `UsdQt.roles.HierarchyPrimRole` to access
+        the prim for an index.
+
+        Parameters
+        ----------
+        modelIndex : QtCore.QModelIndex
+
+        Returns
+        -------
+        Optional[Usd.Prim]
+        """
         if modelIndex.isValid():
             proxy = modelIndex.internalPointer()
             if type(proxy) is _HierarchyCache.Proxy and not proxy.expired:
@@ -248,6 +281,14 @@ class HierarchyStandardModel(HierarchyBaseModel):
     NoarcsIconPath = 'icons/noarcs_2.xpm'
 
     def __init__(self, stage=None, columns=None, parent=None):
+        # type: (Optional[Usd.Stage], Optional[Union[List[str], Tuple[str]]], Optional[QtCore.QObject]) -> None
+        """
+        Parameters
+        ----------
+        stage : Optional[Usd.Stage]
+        columns : Optional[List[str]]
+        parent : Optional[QtCore.QObject]
+        """
         super(HierarchyStandardModel, self).__init__(
             stage, Usd.TraverseInstanceProxies(
                 Usd.PrimIsDefined | ~Usd.PrimIsDefined), parent)
@@ -338,12 +379,20 @@ class HierarchyStandardModel(HierarchyBaseModel):
 
 class HierarchyStandardFilterModel(QtCore.QSortFilterProxyModel):
     """Set of standard filtering strategies for items in a hierarchy model"""
-
-    def __init__(self, showInactive=False,
-                 showUndefined=False,
+    def __init__(self, showInactive=False, showUndefined=False,
                  showAbstract=False,
                  filterCachePredicate=(Usd.PrimIsDefined | ~Usd.PrimIsDefined),
                  parent=None):
+        # type: (bool, bool, bool, Usd.PrimFlags, Optional[QtCore.QObject]) -> None
+        """
+        Parameters
+        ----------
+        showInactive : bool
+        showUndefined : bool
+        showAbstract : bool
+        filterCachePredicate : Usd.PrimFlags
+        parent : Optional[QtCore.QObject]
+        """
         super(HierarchyStandardFilterModel, self).__init__(parent)
 
         self.__filterCachePredicate = filterCachePredicate

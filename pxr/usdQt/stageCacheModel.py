@@ -28,6 +28,10 @@ from __future__ import print_function
 
 from ._Qt import QtCore
 
+if False:
+    from typing import *
+    from pxr import Usd
+
 
 class StageCacheModel(QtCore.QAbstractTableModel):
     '''A stage cache model exposes the stages a cache is holding to Qt.
@@ -48,6 +52,13 @@ class StageCacheModel(QtCore.QAbstractTableModel):
     '''
 
     def __init__(self, stageCache, parent=None):
+        # type: (Usd.StageCache, Optional[QtCore.QObject]) -> None
+        '''
+        Parameters
+        ----------
+        stageCache : Usd.StageCache
+        parent : Optional[QtCore.QObject]
+        '''
         super(StageCacheModel, self).__init__(parent=parent)
         self.__stageCache = stageCache
 
@@ -69,7 +80,17 @@ class StageCacheModel(QtCore.QAbstractTableModel):
         # return super(StageCacheModel, self).data(index, role)
 
     def GetStageForIndex(self, index):
-        '''retrieve the UsdStage associated with the row of index'''
+        # type: (QtCore.QModelIndex) -> Usd.Stage
+        '''Retrieve the UsdStage associated with the row of index
+
+        Parameters
+        ----------
+        index : QtCore.QModelIndex
+
+        Returns
+        -------
+        Usd.Stage
+        '''
         return self.__stageCache.GetAllStages()[index.row()]
 
 

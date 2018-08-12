@@ -26,8 +26,22 @@ from __future__ import absolute_import
 
 from pxr import Pcp, Sdf
 
+if False:
+    from typing import *
+    from pxr import Usd
+
 
 def SpecifierToString(specifier):
+    # type: (Sdf.Specifier) -> str
+    '''
+    Parameters
+    ----------
+    specifier : Sdf.Specifier
+
+    Returns
+    -------
+    str
+    '''
     if specifier is Sdf.SpecifierDef:
         return "def"
     elif specifier is Sdf.SpecifierOver:
@@ -45,6 +59,13 @@ class EditTargetContext(object):
     __slots__ = ('stage', 'target', 'originalEditTarget')
 
     def __init__(self, stage, target):
+        # type: (Usd.Stage, Sdf.Layer) -> None
+        '''
+        Parameters
+        ----------
+        stage : Usd.Stage
+        target : Sdf.Layer
+        '''
         self.stage = stage
         self.target = target
         self.originalEditTarget = None
@@ -58,6 +79,7 @@ class EditTargetContext(object):
 
 
 def GetPrimVariants(prim):
+    # type: (Usd.Prim) -> List[Tuple[str, str]]
     '''Returns a list of tuples representing a prim's variant set names and
     active values.
 

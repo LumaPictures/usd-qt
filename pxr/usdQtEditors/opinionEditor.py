@@ -39,10 +39,20 @@ from pxr.UsdQt.valueDelegate import ValueDelegate
 from ._Qt import QtCore, QtWidgets
 from . import treeView
 
+if False:
+    from typing import *
+    from pxr.UsdQt.opinionStackModel import _BaseHandler, OpinionBaseModel
+
 
 class OpinionStackWidget(QtWidgets.QWidget):
 
     def __init__(self, parent=None):
+        # type: (Optional[QtWidgets.QWidget]) -> None
+        """
+        Parameters
+        ----------
+        parent : Optional[QtWidgets.QWidget]
+        """
         super(OpinionStackWidget, self).__init__(parent=parent)
         self.__toolBar = QtWidgets.QToolBar()
         self.__toolBar.addWidget(QtWidgets.QLabel('Opinion Stack'))
@@ -68,6 +78,12 @@ class OpinionStackWidget(QtWidgets.QWidget):
         self.setSizePolicy(policy)
 
     def Launch(self, model):
+        # type: (QtCore.QAbstractItemModel) -> None
+        """
+        Parameters
+        ----------
+        model : QtCore.QAbstractItemModel
+        """
         self.__opinionFilter.setSourceModel(model)
         self.show()
 
@@ -85,6 +101,13 @@ class OpinionStackWidget(QtWidgets.QWidget):
 class OpinionEditor(QtWidgets.QWidget):
 
     def __init__(self, delegate=None, parent=None):
+        # type: (Optional[QtWidgets.QAbstractItemDelegate], Optional[QtWidgets.QWidget]) -> None
+        """
+        Parameters
+        ----------
+        delegate : Optional[QtWidgets.QAbstractItemDelegate]
+        parent : Optional[QtWidgets.QWidget]
+        """
         super(OpinionEditor, self).__init__(parent=parent)
         self.__menuBar = QtWidgets.QMenuBar()
         self.__layout = QtWidgets.QVBoxLayout()
@@ -136,6 +159,13 @@ class OpinionEditor(QtWidgets.QWidget):
         self.__splitter.addWidget(self.__opinionViewer)
 
     def LaunchOpinionViewer(self, prim, handler):
+        # type: (Usd.Prim, _BaseHandler) -> None
+        """
+        Parameters
+        ----------
+        prim : Usd.Prim
+        handler : _BaseHandler
+        """
         self.__opinionViewer.Launch(OpinionStackModel(prim, handler))
 
     def SetSourceModel(self, model):
@@ -159,6 +189,14 @@ class OpinionEditor(QtWidgets.QWidget):
 class OpinionController(QtCore.QObject):
 
     def __init__(self, model, editor, parent=None):
+        # type: (OpinionBaseModel, OpinionEditor, Optional[QtCore.QObject]) -> None
+        """
+        Parameters
+        ----------
+        model : OpinionBaseModel
+        editor : OpinionEditor
+        parent : Optional[QtCore.QObject]
+        """
         super(OpinionController, self).__init__(parent)
         self.model = model
         self.editor = editor
@@ -183,8 +221,15 @@ class OpinionController(QtCore.QObject):
                                                     _PrimMetadataHandler(proxy.GetName()))
 
     def ResetPrims(self, prims):
+        # type: (List[Usd.Prim]) -> None
+        """
+        Parameters
+        ----------
+        prims : List[Usd.Prim]
+        """
         self.model.ResetPrims(prims)
         self.editor.ResetColumnSpanned()
+
 
 if __name__ == '__main__':
     import sys

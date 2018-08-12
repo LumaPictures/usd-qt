@@ -62,7 +62,6 @@ class LayerStackBaseModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         parent : Optional[QtCore.QObject]
         '''
         super(LayerStackBaseModel, self).__init__(parent=parent)
-
         self._stage = None
         self._includeSessionLayers = includeSessionLayers
         self.ResetStage(stage)
@@ -94,6 +93,7 @@ class LayerStackBaseModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         return self.itemTree.itemCount()
 
     def ResetStage(self, stage):
+        # type: (Usd.Stage) -> None
         '''Reset the model from a new stage.
 
         Parameters

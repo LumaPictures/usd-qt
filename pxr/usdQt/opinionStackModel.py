@@ -30,10 +30,48 @@ import os.path
 from ._Qt import QtCore
 from pxr import Usd, Tf
 
+if False:
+    from typing import *
+    from pxr import Sdf
 
-class _AttributeHandler(object):
 
+class _BaseHandler(object):
+    def IsSpecified(self, primSpec):
+        # type: (Sdf.PrimSpec) -> bool
+        """
+        Parameters
+        ----------
+        primSpec : Sdf.PrimSpec
+
+        Returns
+        -------
+        bool
+        """
+        raise NotImplementedError
+
+    def GetValue(self, primSpec):
+        # type: (Sdf.PrimSpec) -> Any
+        """
+        Parameters
+        ----------
+        primSpec : Sdf.PrimSpec
+
+        Returns
+        -------
+        Any
+        """
+        raise NotImplementedError
+
+
+class _AttributeHandler(_BaseHandler):
     def __init__(self, attributeName, timeCode):
+        # type: (str, Usd.TimeCode) -> None
+        """
+        Parameters
+        ----------
+        attributeName : str
+        timeCode : Usd.TimeCode
+        """
         self.attributeName = attributeName
         self.timeCode = timeCode
 
@@ -50,13 +88,16 @@ class _AttributeHandler(object):
             return str(primSpec.attributes[self.attributeName].default)
         elif primSpec.attributes[self.attributeName].HasInfo('timeSamples'):
             return "TODO!"
-        else:
-            return None
 
 
-class _PrimMetadataHandler(object):
-
+class _PrimMetadataHandler(_BaseHandler):
     def __init__(self, metadataName):
+        # type: (str) -> None
+        """
+        Parameters
+        ----------
+        metadataName : str
+        """
         self.metadataName = metadataName
 
     def IsSpecified(self, primSpec):
@@ -65,12 +106,17 @@ class _PrimMetadataHandler(object):
     def GetValue(self, primSpec):
         if primSpec.HasInfo(self.metadataName):
             return primSpec.GetInfo(self.metadataName)
-        return None
 
 
-class _PropertyMetadataHandler(object):
-
+class _PropertyMetadataHandler(_BaseHandler):
     def __init__(self, propertyName, metadataName):
+        # type: (str, str) -> None
+        """
+        Parameters
+        ----------
+        propertyName : str
+        metadataName : str
+        """
         self.propertyName = propertyName
         self.metadataName = metadataName
 
@@ -82,14 +128,9 @@ class _PropertyMetadataHandler(object):
     def GetValue(self, primSpec):
         if primSpec.properties[self.propertyName]:
             return primSpec.GetInfo(self.metadataName)
-        return None
 
 
-class _VariantSetsHandler(object):
-
-    def __init__(self):
-        pass
-
+class _VariantSetsHandler(_BaseHandler):
     def IsSpecified(self, primSpec):
         return bool(primSpec.variantSets)
 
@@ -97,9 +138,14 @@ class _VariantSetsHandler(object):
         return primSpec.variantSets
 
 
-class _VariantSetHandler(object):
-
+class _VariantSetHandler(_BaseHandler):
     def __init__(self, variantSet):
+        # type: (Usd.VariantSet) -> None
+        """
+        Parameters
+        ----------
+        variantSet : Usd.VariantSet
+        """
         self.variantSet = variantSet
 
     def IsSpecified(self, primSpec):
@@ -110,8 +156,14 @@ class _VariantSetHandler(object):
 
 
 class _LayerItem(object):
-
     def __init__(self, layer, row):
+        # type: (Sdf.Layer, int) -> None
+        """
+        Parameters
+        ----------
+        layer : Sdf.Layer
+        row : int
+        """
         self.layer = layer
         self.strongestPrim = None
         self.children = []
@@ -119,8 +171,14 @@ class _LayerItem(object):
 
 
 class _PrimItem(object):
-
     def __init__(self, primSpec, parent):
+        # type: (Sdf.PrimSpec, Any) -> None
+        """
+        Parameters
+        ----------
+        primSpec : Sdf.PrimSpec
+        parent : _PrimItem
+        """
         self.primSpec = primSpec
         self.parent = parent
 
@@ -128,6 +186,12 @@ class _PrimItem(object):
 class OpinionStackFilter(QtCore.QSortFilterProxyModel):
 
     def __init__(self, parent=None):
+        # type: (Optional[QtCore.Object]) -> None
+        """
+        Parameters
+        ----------
+        parent : Optional[QtCore.Object]
+        """
         super(OpinionStackFilter, self).__init__(parent)
         self.__shouldShowFullStack = False
 
@@ -150,11 +214,20 @@ class OpinionStackFilter(QtCore.QSortFilterProxyModel):
         return True
 
 
+# TODO: Convert this to use the AbstractTreeModelMixin
 class OpinionStackModel(QtCore.QAbstractItemModel):
     SourceColumn = 0
     OpinionColumn = 1
 
     def __init__(self, prim, handler, parent=None):
+        # type: (Usd.Prim, Any, Optional[QtCore.Object]) -> None
+        """
+        Parameters
+        ----------
+        prim : Usd.Prim
+        handler : _BaseHandler
+        parent : Optional[QtCore.Object]
+        """
         super(OpinionStackModel, self).__init__(parent)
         self.__handler = handler
         self.ResetPrim(prim)
@@ -192,6 +265,12 @@ class OpinionStackModel(QtCore.QAbstractItemModel):
         return primTree
 
     def ResetPrim(self, prim):
+        # type: (Usd.Prim) -> None
+        """
+        Parameters
+        ----------
+        prim : Usd.Prim
+        """
         self.beginResetModel()
         if prim is None:
             self.__valid = False

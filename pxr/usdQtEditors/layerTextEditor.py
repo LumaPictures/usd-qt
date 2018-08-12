@@ -27,6 +27,9 @@ from __future__ import absolute_import
 from ._Qt import QtCore, QtWidgets
 from pxr import Sdf, Tf, Usd
 
+if False:
+    from typing import *
+
 
 class LayerTextEditor(QtWidgets.QWidget):
     '''A basic text widget for viewing/editing the contents of a layer.'''
@@ -72,6 +75,12 @@ class LayerTextEditor(QtWidgets.QWidget):
         self.Refresh()
 
     def SetEditable(self, editable):
+        # type: (bool) -> None
+        '''
+        Parameters
+        ----------
+        editable : bool
+        '''
         if editable:
             if self.readOnly:
                 return
@@ -108,6 +117,14 @@ class LayerTextEditorDialog(QtWidgets.QDialog):
     _sharedInstances = {}
 
     def __init__(self, layer, readOnly=False, parent=None):
+        # type: (Sdf.Layer, bool, Optional[QtWidgets.QWidget]) -> None
+        '''
+        Parameters
+        ----------
+        layer : Sdf.Layer
+        readOnly : bool
+        parent : Optional[QtWidgets.QWidget]
+        '''
         super(LayerTextEditorDialog, self).__init__(parent=parent)
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -125,6 +142,19 @@ class LayerTextEditorDialog(QtWidgets.QDialog):
 
     @classmethod
     def GetSharedInstance(cls, layer, readOnly=False, parent=None):
+        # type: (Sdf.Layer, bool, Optional[QtWidgets.QWidget]) -> LayerTextEditorDialog
+        '''Convenience method to get or create a shared editor dialog instance.
+
+        Parameters
+        ----------
+        layer : Sdf.Layer
+        readOnly : bool
+        parent : Optional[QtWidgets.QWidget]
+
+        Returns
+        -------
+        LayerTextEditorDialog
+        '''
         dialog = cls._sharedInstances.get(layer)
         if dialog is None:
             dialog = cls(layer, readOnly=readOnly, parent=parent)

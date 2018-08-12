@@ -24,9 +24,13 @@
 
 from __future__ import absolute_import
 
+from pxr import Sdf
+
 from ._Qt import QtWidgets
 
-from pxr import Sdf
+if False:
+    from typing import *
+    from pxr import Usd
 
 
 class FallbackException(Exception):
@@ -45,10 +49,29 @@ class UsdQtHooks(object):
 
     @classmethod
     def Register(cls, name, func):
+        # type: (str, Callable) -> None
+        '''
+        Parameters
+        ----------
+        name : str
+        func : Callable
+        '''
         cls._registered.setdefault(name, []).insert(0, func)
 
     @classmethod
     def Call(cls, name, *args, **kwargs):
+        # type: (str, *Any, **Dict[str, Any]) -> Any
+        '''
+        Parameters
+        ----------
+        name : str
+        args : *Any
+        kwargs : **Dict[str, Any]
+
+        Returns
+        -------
+        Any
+        '''
         for func in cls._registered[name]:
             try:
                 return func(*args, **kwargs)
@@ -57,20 +80,39 @@ class UsdQtHooks(object):
 
 
 def GetReferencePath(parent, stage=None):
-    '''Prompts the user for a reference path.'''
+    # type: (QtWidgets.QWidget, Optional[Usd.Stage]) -> str
+    '''Prompts the user for a reference path.
+
+    Parameters
+    ----------
+    parent : QtWidgets.QWidget
+    stage : Optional[Usd.Stage]
+
+    Returns
+    -------
+    str
+    '''
     name, _ = QtWidgets.QInputDialog.getText(parent, 'Add Reference',
                                              'Enter Usd Layer Identifier:')
     return name
 
 
 def GetId(layer):
+    # type: (Sdf.Layer) -> str
     '''Returns the unique key used to store the original contents of a layer.
     This is currently used for change tracking in the outliner app.
+
+    Parameters
+    ----------
+    layer : Sdf.Layer
+
+    Returns
+    -------
+    str
     '''
     if isinstance(layer, Sdf.Layer):
         return layer.identifier
-    else:
-        return layer
+    return str(layer)
 
 
 UsdQtHooks.Register('GetReferencePath', GetReferencePath)
