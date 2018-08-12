@@ -193,19 +193,19 @@ class OpinionStackFilter(QtCore.QSortFilterProxyModel):
         parent : Optional[QtCore.Object]
         """
         super(OpinionStackFilter, self).__init__(parent)
-        self.__shouldShowFullStack = False
+        self._shouldShowFullStack = False
 
     def ToggleShowFullStack(self):
-        self.__shouldShowFullStack = not self.__shouldShowFullStack
+        self._shouldShowFullStack = not self._shouldShowFullStack
         self.invalidateFilter()
 
     def SetShowFullStack(self, shouldShowFullStack):
-        if bool(shouldShowFullStack) != self.__shouldShowFullStack:
-            self.__shouldShowFullStack = bool(shouldShowFullStack)
+        if bool(shouldShowFullStack) != self._shouldShowFullStack:
+            self._shouldShowFullStack = bool(shouldShowFullStack)
             self.invalidateFilter()
 
     def filterAcceptsRow(self, row, parent):
-        if self.__shouldShowFullStack:
+        if self._shouldShowFullStack:
             return True
         index = self.sourceModel().index(row, OpinionStackModel.OpinionColumn,
                                          parent)
@@ -229,23 +229,27 @@ class OpinionStackModel(QtCore.QAbstractItemModel):
         parent : Optional[QtCore.Object]
         """
         super(OpinionStackModel, self).__init__(parent)
-        self.__handler = handler
+        self._prim = None
+        self._primTree = []
+        self._valid = False
+        self._listener = None
+        self._handler = handler
         self.ResetPrim(prim)
 
-    def __OnObjectsChanged(self, notice, sender):
+    def _OnObjectsChanged(self, notice, sender):
         resyncedPaths = notice.GetResyncedPaths()
         changedInfoOnlyPaths = notice.GetChangedInfoOnlyPaths()
 
-        if not self.__prim and self.__valid:
+        if not self._prim and self._valid:
             # some change has caused the prim to expire
             self.ResetPrim(None)
             return
 
-        primPath = self.__prim.GetPath()
+        primPath = self._prim.GetPath()
         if primPath in resyncedPaths:
-            self.ResetPrim(self.__prim)
+            self.ResetPrim(self._prim)
         elif primPath in changedInfoOnlyPaths:
-            self.ResetPrim(self.__prim)
+            self.ResetPrim(self._prim)
 
     def _GetPrimTree(self, prim):
         primStack = prim.GetPrimStack()
@@ -260,7 +264,7 @@ class OpinionStackModel(QtCore.QAbstractItemModel):
             primTree[-1].children.append(
                 _PrimItem(prim, primTree[-1]))
             if not primTree[-1].strongestPrim:
-                if self.__handler.IsSpecified(prim):
+                if self._handler.IsSpecified(prim):
                     primTree[-1].strongestPrim = len(primTree[-1].children) - 1
         return primTree
 
@@ -273,19 +277,19 @@ class OpinionStackModel(QtCore.QAbstractItemModel):
         """
         self.beginResetModel()
         if prim is None:
-            self.__valid = False
-            self.__prim = Usd.Prim()
+            self._valid = False
+            self._prim = Usd.Prim()
         else:
-            self.__valid = True
-            self.__prim = prim
-            self.__listener = Tf.Notice.Register(
-                Usd.Notice.ObjectsChanged, self.__OnObjectsChanged,
-                self.__prim.GetStage())
+            self._valid = True
+            self._prim = prim
+            self._listener = Tf.Notice.Register(
+                Usd.Notice.ObjectsChanged, self._OnObjectsChanged,
+                self._prim.GetStage())
 
-        if self.__prim:
-            self.__primTree = self._GetPrimTree(prim)
+        if self._prim:
+            self._primTree = self._GetPrimTree(prim)
         else:
-            self.__primTree = []
+            self._primTree = []
         self.endResetModel()
 
     def parent(self, index):
@@ -310,7 +314,7 @@ class OpinionStackModel(QtCore.QAbstractItemModel):
 
     def rowCount(self, parent=QtCore.QModelIndex()):
         if not parent.isValid():
-            return len(self.__primTree)
+            return len(self._primTree)
         internalPointer = parent.internalPointer()
         if isinstance(internalPointer, _LayerItem):
             return len(parent.internalPointer().children)
@@ -333,14 +337,14 @@ class OpinionStackModel(QtCore.QAbstractItemModel):
                     if internalPointer.strongestPrim is not None else None
 
                 if modelIndex.column() == self.SourceColumn:
-                    if layer == self.__prim.GetStage().GetSessionLayer():
+                    if layer == self._prim.GetStage().GetSessionLayer():
                         return "session"
                     elif layer == Usd.SchemaRegistry.GetSchematics():
                         return "registry"
                     return os.path.split(os.path.splitext(layer.identifier)[0])[-1]
                 elif modelIndex.column() == self.OpinionColumn:
                     if strongestPrim is not None:
-                        return self.__handler.GetValue(strongestPrim)
+                        return self._handler.GetValue(strongestPrim)
                     else:
                         return None
                 else:
@@ -350,8 +354,8 @@ class OpinionStackModel(QtCore.QAbstractItemModel):
                 if modelIndex.column() == self.SourceColumn:
                     return primSpec.path.pathString
                 elif modelIndex.column() == self.OpinionColumn:
-                    if self.__handler.IsSpecified(primSpec):
-                        return self.__handler.GetValue(primSpec)
+                    if self._handler.IsSpecified(primSpec):
+                        return self._handler.GetValue(primSpec)
                     else:
                         return None
                 else:
@@ -366,7 +370,7 @@ class OpinionStackModel(QtCore.QAbstractItemModel):
 
     def index(self, row, column, parent=QtCore.QModelIndex()):
         if not parent.isValid():
-            return self.createIndex(row, column, self.__primTree[row])
+            return self.createIndex(row, column, self._primTree[row])
         else:
             return self.createIndex(row, column,
                                     parent.internalPointer().children[row])
@@ -380,7 +384,7 @@ class OpinionStackModel(QtCore.QAbstractItemModel):
             primSpec = internalPointer.primSpec
         else:
             primSpec = None
-        if not primSpec or not self.__handler.IsSpecified(primSpec):
+        if not primSpec or not self._handler.IsSpecified(primSpec):
             return ~QtCore.Qt.ItemIsEnabled & \
                 super(OpinionStackModel, self).flags(index)
         return super(OpinionStackModel, self).flags(index)

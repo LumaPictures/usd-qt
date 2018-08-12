@@ -37,7 +37,7 @@ if False:
 class HierarchyBaseModel(QtCore.QAbstractItemModel):
     """Base class for adapting a stage's prim hierarchy for Qt ItemViews
 
-    Most clients will want to use a configuration of the HierachyStandardModel
+    Most clients will want to use a configuration of the `HierachyStandardModel`
     which has a standard set of columns and data or subclass this to provide
     their own custom set of columns.
 
@@ -45,9 +45,10 @@ class HierarchyBaseModel(QtCore.QAbstractItemModel):
     robust handling of change notification and an efficient lazy population.
     This model listens for TfNotices and emits the appropriate Qt signals.
     """
-    class __LayoutChangedContext(object):
-        """context manager to ensure layout changes if exception is thrown"""
-
+    class LayoutChangedContext(object):
+        """Context manager to ensure model layout changes are propagated if an
+        exception is thrown.
+        """
         def __init__(self, model):
             self.model = model
 
@@ -82,14 +83,14 @@ class HierarchyBaseModel(QtCore.QAbstractItemModel):
         """
         super(HierarchyBaseModel, self).__init__(parent)
 
-        self.__predicate = predicate
-        self.__stage = None
-        self.__index = None
-        self.__listener = None
+        self._predicate = predicate
+        self._stage = None
+        self._index = None
+        self._listener = None
         self.ResetStage(stage)
 
-    def __IsStageValid(self):
-        return self.__stage and self.__stage.GetPseudoRoot()
+    def _IsStageValid(self):
+        return self._stage and self._stage.GetPseudoRoot()
 
     def ResetStage(self, stage):
         # type: (Usd.Stage) -> None
@@ -101,37 +102,36 @@ class HierarchyBaseModel(QtCore.QAbstractItemModel):
         ----------
         stage : Usd.Stage
         """
-        if stage == self.__stage:
+        if stage == self._stage:
             return
         self.beginResetModel()
-        self.__stage = stage
-        if not self.__IsStageValid():
-            self.__index = None
-            self.__listener = None
+        self._stage = stage
+        if not self._IsStageValid():
+            self._index = None
+            self._listener = None
         else:
-            self.__index = _HierarchyCache(
-                stage.GetPrimAtPath('/'), self.__predicate)
-            self.__listener = Tf.Notice.Register(
-                Usd.Notice.ObjectsChanged, self.__OnObjectsChanged, self.__stage)
+            self._index = _HierarchyCache(
+                stage.GetPrimAtPath('/'), self._predicate)
+            self._listener = Tf.Notice.Register(
+                Usd.Notice.ObjectsChanged, self._OnObjectsChanged, self._stage)
         self.endResetModel()
 
     def GetPredicate(self):
-        """Get the predicate used in stage hierarchy traversal
-        """
-        return self.__index.GetPredicate()
+        """Get the predicate used in stage hierarchy traversal"""
+        return self._index.GetPredicate()
 
     def GetRoot(self):
         """Retrieve the root of the current hierarchy model"""
-        rootProxy = self.__index.GetRoot()
+        rootProxy = self._index.GetRoot()
         return (rootProxy.GetPrim() if rootProxy and not rootProxy.expired
                 else None)
 
-    def __OnObjectsChanged(self, notice, sender):
+    def _OnObjectsChanged(self, notice, sender):
         resyncedPaths = notice.GetResyncedPaths()
         resyncedPaths = [path for path in resyncedPaths if path.IsPrimPath()]
 
         if len(resyncedPaths) > 0:
-            with self.__LayoutChangedContext(self):
+            with self.LayoutChangedContext(self):
                 persistentIndices = self.persistentIndexList()
                 indexToPath = {}
                 for index in persistentIndices:
@@ -151,16 +151,16 @@ class HierarchyBaseModel(QtCore.QAbstractItemModel):
                         if areSiblings or indexIsChild:
                             indexToPath[index] = indexPath
 
-                self.__index.ResyncSubtrees(resyncedPaths)
+                self._index.ResyncSubtrees(resyncedPaths)
 
                 fromIndices = []
                 toIndices = []
                 for index in indexToPath:
                     path = indexToPath[index]
 
-                    if self.__index.ContainsPath(path):
-                        newProxy = self.__index.GetProxy(path)
-                        newRow = self.__index.GetRow(newProxy)
+                    if self._index.ContainsPath(path):
+                        newProxy = self._index.GetProxy(path)
+                        newRow = self._index.GetRow(newProxy)
 
                         if index.row() != newRow:
                             for i in xrange(self.columnCount(QtCore.QModelIndex())):
@@ -184,9 +184,9 @@ class HierarchyBaseModel(QtCore.QAbstractItemModel):
         -------
         Optional[QtCore.QModelIndex]
         """
-        if self.__index.ContainsPath(path):
-            proxy = self.__index.GetProxy(path)
-            row = self.__index.GetRow(proxy)
+        if self._index.ContainsPath(path):
+            proxy = self._index.GetProxy(path)
+            row = self._index.GetRow(proxy)
             return self.createIndex(row, 0, proxy)
 
     def _GetPrimForIndex(self, modelIndex):
@@ -208,29 +208,28 @@ class HierarchyBaseModel(QtCore.QAbstractItemModel):
             proxy = modelIndex.internalPointer()
             if type(proxy) is _HierarchyCache.Proxy and not proxy.expired:
                 return proxy.GetPrim()
-        return None
 
     def parent(self, modelIndex):
-        if not self.__IsStageValid():
+        if not self._IsStageValid():
             return QtCore.QModelIndex()
         if not modelIndex.isValid():
             return QtCore.QModelIndex()
 
         proxy = modelIndex.internalPointer()
 
-        if self.__index.IsRoot(proxy):
+        if self._index.IsRoot(proxy):
             return QtCore.QModelIndex()
 
-        parentProxy = self.__index.GetParent(proxy)
-        parentRow = self.__index.GetRow(parentProxy)
+        parentProxy = self._index.GetParent(proxy)
+        parentRow = self._index.GetRow(parentProxy)
 
         return self.createIndex(parentRow, 0, parentProxy)
 
     def data(self, modelIndex, role=QtCore.Qt.DisplayRole):
         if not modelIndex.isValid():
-            return None
-        if not self.__IsStageValid():
-            return None
+            return
+        if not self._IsStageValid():
+            return
 
         if role == QtCore.Qt.DisplayRole:
             prim = self._GetPrimForIndex(modelIndex)
@@ -240,32 +239,32 @@ class HierarchyBaseModel(QtCore.QAbstractItemModel):
             return self._GetPrimForIndex(modelIndex)
 
     def index(self, row, column, parent=QtCore.QModelIndex()):
-        if not self.__IsStageValid():
+        if not self._IsStageValid():
             return QtCore.QModelIndex()
         if not parent.isValid():
             # We assume the root has already been registered.
-            root = self.__index.GetRoot()
+            root = self._index.GetRoot()
             return self.createIndex(row, column, root)
 
         parentProxy = parent.internalPointer()
-        child = self.__index.GetChild(parentProxy, row)
+        child = self._index.GetChild(parentProxy, row)
         return self.createIndex(row, column, child)
 
     def columnCount(self, parent):
         return 1
 
     def rowCount(self, parent):
-        if not self.__IsStageValid():
+        if not self._IsStageValid():
             return 0
 
         if not parent.isValid():
             return 1
 
         parentProxy = parent.internalPointer()
-        return self.__index.GetChildCount(parentProxy)
+        return self._index.GetChildCount(parentProxy)
 
     def Debug(self):
-        self.__index.PrintFullIndex()
+        self._index.PrintFullIndex()
 
 
 class HierarchyStandardModel(HierarchyBaseModel):
@@ -395,51 +394,51 @@ class HierarchyStandardFilterModel(QtCore.QSortFilterProxyModel):
         """
         super(HierarchyStandardFilterModel, self).__init__(parent)
 
-        self.__filterCachePredicate = filterCachePredicate
-        self.__filterCache = PrimFilterCache()
-        self.__filterCacheActive = False
+        self._filterCachePredicate = filterCachePredicate
+        self._filterCache = PrimFilterCache()
+        self._filterCacheActive = False
 
-        self.__filterAcrossArcs = True
-        self.__showInactive = showInactive
-        self.__showUndefined = showUndefined
-        self.__showAbstract = showAbstract
+        self._filterAcrossArcs = True
+        self._showInactive = showInactive
+        self._showUndefined = showUndefined
+        self._showAbstract = showAbstract
 
     def ClearFilter(self):
-        self.__filterCacheActive = False
+        self._filterCacheActive = False
         self.invalidateFilter()
 
     def SetPathContainsFilter(self, substring):
-        self.__filterCache.ApplyPathContainsFilter(self.sourceModel().GetRoot(),
-                                                   substring,
-                                                   self.__filterCachePredicate)
-        self.__filterCacheActive = True
+        self._filterCache.ApplyPathContainsFilter(self.sourceModel().GetRoot(),
+                                                  substring,
+                                                  self._filterCachePredicate)
+        self._filterCacheActive = True
         self.invalidateFilter()
 
     def TogglePrimInactive(self, value):
-        self.__showInactive = bool(value)
+        self._showInactive = bool(value)
         self.invalidateFilter()
 
     def TogglePrimUndefined(self, value):
-        self.__showUndefined = bool(value)
+        self._showUndefined = bool(value)
         self.invalidateFilter()
 
     def TogglePrimAbstract(self, value):
-        self.__showAbstract = bool(value)
+        self._showAbstract = bool(value)
         self.invalidateFilter()
 
     def ToggleFilterAcrossArcs(self, value):
-        self.__filterAcrossArcs = bool(value)
+        self._filterAcrossArcs = bool(value)
         self.invalidateFilter()
 
-    def __FilterAll(self, prim):
+    def _FilterAll(self, prim):
         if prim.GetPath() == Sdf.Path('/'):
             return True
-        if not self.__showInactive and not prim.IsActive():
+        if not self._showInactive and not prim.IsActive():
             return False
-        if not self.__showUndefined and not prim.GetSpecifier() \
+        if not self._showUndefined and not prim.GetSpecifier() \
                 in (Sdf.SpecifierDef, Sdf.SpecifierClass):
             return False
-        if not self.__showAbstract and not prim.GetSpecifier() \
+        if not self._showAbstract and not prim.GetSpecifier() \
                 in (Sdf.SpecifierDef, Sdf.SpecifierOver):
             return False
 
@@ -451,18 +450,18 @@ class HierarchyStandardFilterModel(QtCore.QSortFilterProxyModel):
         if not prim:
             raise Exception("Retrieved invalid prim during filtering.")
 
-        if not self.__FilterAll(prim):
+        if not self._FilterAll(prim):
             return False
 
-        isDefinedOrInRootStack = prim.GetPrimIndex().rootNode.hasSpecs or (
-            prim.IsActive() and prim.IsDefined())
-        if self.__filterAcrossArcs and not isDefinedOrInRootStack:
-            return False
+        if self._filterAcrossArcs:
+            if not (prim.GetPrimIndex().rootNode.hasSpecs
+                    or (prim.IsActive() and prim.IsDefined())):
+                return False
 
-        if self.__filterCacheActive:
-            state = self.__filterCache.GetState(prim.GetPath())
-            return state not in [PrimFilterCache.Reject,
-                                 PrimFilterCache.Untraversed]
+        if self._filterCacheActive:
+            state = self._filterCache.GetState(prim.GetPath())
+            return state not in (PrimFilterCache.Reject,
+                                 PrimFilterCache.Untraversed)
         return True
 
 

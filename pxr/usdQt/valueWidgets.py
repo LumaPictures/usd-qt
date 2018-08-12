@@ -155,25 +155,25 @@ class _LineEdit(_ValueEdit):
         parent : Optional[QtWidgets.QWidget]
         """
         super(_LineEdit, self).__init__(parent=parent)
-        self.__changed = False
+        self._changed = False
 
     def _SetupLineEdit(self, lineEdit):
-        lineEdit.returnPressed.connect(self.__OnReturnPressed)
-        lineEdit.textEdited.connect(self.__OnTextEdited)
+        lineEdit.returnPressed.connect(self._OnReturnPressed)
+        lineEdit.textEdited.connect(self._OnTextEdited)
         lineEdit.setFrame(False)
 
-    def __OnReturnPressed(self):
-        self.__changed = True
+    def _OnReturnPressed(self):
+        self._changed = True
 
-    def __OnTextEdited(self, _):
-        self.__changed = True
+    def _OnTextEdited(self, _):
+        self._changed = True
 
     def IsChanged(self):
         """Return true if return has been pressed or text has been edited.
 
         See _ValueEdit.IsChanged for more information.
         """
-        return self.__changed
+        return self._changed
 
 
 class _ComboEdit(_ValueEdit):
@@ -188,18 +188,18 @@ class _ComboEdit(_ValueEdit):
         parent : Optional[QtWidgets.QWidget]
         """
         super(_ComboEdit, self).__init__(parent=parent)
-        self.__changed = False
+        self._changed = False
         self._comboBox = QtWidgets.QComboBox(self)
         self._comboBox.addItems(choices)
-        self._comboBox.activated.connect(self.__OnActivated)
-        self.__layout = QtWidgets.QHBoxLayout()
-        self.__layout.addWidget(self._comboBox)
-        self._SetupLayoutSpacing(self.__layout)
+        self._comboBox.activated.connect(self._OnActivated)
+        self._layout = QtWidgets.QHBoxLayout()
+        self._layout.addWidget(self._comboBox)
+        self._SetupLayoutSpacing(self._layout)
         self.setFocusProxy(self._comboBox)
-        self.setLayout(self.__layout)
+        self.setLayout(self._layout)
 
-    def __OnActivated(self, _):
-        self.__changed = True
+    def _OnActivated(self, _):
+        self._changed = True
         self.editFinished.emit()
 
     def IsChanged(self):
@@ -207,7 +207,7 @@ class _ComboEdit(_ValueEdit):
 
         See _ValueEdit.IsChanged for more information.
         """
-        return self.__changed
+        return self._changed
 
     editFinished = QtCore.Signal()
 
@@ -233,33 +233,35 @@ class _NumericEdit(_LineEdit):
         """
         super(_NumericEdit, self).__init__(parent=parent)
 
-        self.__lineEdit = QtWidgets.QLineEdit(self)
-        self.__validator = self.validatorType(self)
-        self.__lineEdit.setValidator(self.__validator)
+        self._lineEdit = QtWidgets.QLineEdit(self)
+        self._validator = self.validatorType(self)
+        self._lineEdit.setValidator(self._validator)
         if minValue:
-            self.__validator.setBottom(minValue)
+            self._validator.setBottom(minValue)
         if maxValue:
-            self.__validator.setTop(maxValue)
-        self.__layout = QtWidgets.QHBoxLayout()
-        self.__layout.addWidget(self.__lineEdit)
-        self._SetupLayoutSpacing(self.__layout)
-        self.setLayout(self.__layout)
-        self.setFocusProxy(self.__lineEdit)
+            self._validator.setTop(maxValue)
+        self._layout = QtWidgets.QHBoxLayout()
+        self._layout.addWidget(self._lineEdit)
+        self._SetupLayoutSpacing(self._layout)
+        self.setLayout(self._layout)
+        self.setFocusProxy(self._lineEdit)
 
-        self._SetupLineEdit(self.__lineEdit)
+        self._SetupLineEdit(self._lineEdit)
 
     def GetValue(self):
-        return self.valueType(self.__lineEdit.text())\
-            if len(self.__lineEdit.text()) > 0 else 0.0
+        text = self._lineEdit.text()
+        if text:
+            return self.valueType(text)
+        return 0.0
 
     def SetValue(self, value):
         if value is None:
-            self.__lineEdit.clear()
+            self._lineEdit.clear()
             return
         value = str(value)
-        if self.__validator.validate(value, 0)[0] != QtGui.QValidator.Acceptable:
+        if self._validator.validate(value, 0)[0] != QtGui.QValidator.Acceptable:
             raise ValueError("%s not accepted by validator." % value)
-        self.__lineEdit.setText(value)
+        self._lineEdit.setText(value)
 
 
 class _VecEdit(_LineEdit):
@@ -285,33 +287,33 @@ class _VecEdit(_LineEdit):
         parent : Optional[QtWidgets.QWidget]
         """
         super(_VecEdit, self).__init__(parent=parent)
-        self.__layout = QtWidgets.QHBoxLayout()
-        self.__editors = []
+        self._layout = QtWidgets.QHBoxLayout()
+        self._editors = []
 
-        self.__validator = self.validatorType()
+        self._validator = self.validatorType()
 
         for index in xrange(self.valueType.dimension):
-            self.__editors.append(QtWidgets.QLineEdit(self))
-            self.__editors[-1].setValidator(self.__validator)
-            self.__layout.addWidget(self.__editors[-1])
+            self._editors.append(QtWidgets.QLineEdit(self))
+            self._editors[-1].setValidator(self._validator)
+            self._layout.addWidget(self._editors[-1])
             if index != 0:
-                self.setTabOrder(self.__editors[-2], self.__editors[-1])
-            self._SetupLineEdit(self.__editors[-1])
-        self.setTabOrder(self.__editors[-1], self.__editors[0])
+                self.setTabOrder(self._editors[-2], self._editors[-1])
+            self._SetupLineEdit(self._editors[-1])
+        self.setTabOrder(self._editors[-1], self._editors[0])
 
-        self._SetupLayoutSpacing(self.__layout)
-        self.setLayout(self.__layout)
-        self.setFocusProxy(self.__editors[0])
+        self._SetupLayoutSpacing(self._layout)
+        self.setLayout(self._layout)
+        self.setFocusProxy(self._editors[0])
 
     def GetValue(self):
-        text = (self.__editors[i].text()
+        text = (self._editors[i].text()
                 for i in xrange(self.valueType.dimension))
         return self.valueType(*(self.scalarType(t) if t else 0.0 for t in text))
 
     def SetValue(self, value):
         if value is None:
             for index in xrange(self.valueType.dimension):
-                self.__editors[index].clear()
+                self._editors[index].clear()
             return
         if len(value) != self.valueType.dimension:
             raise ValueError("Input length %i does not match expected length "
@@ -320,11 +322,11 @@ class _VecEdit(_LineEdit):
             if value[index] is None:
                 raise ValueError("Value at %i is None", index)
             string = str(value[index])
-            if self.__validator.validate(string, 0)[0] != QtGui.QValidator.Acceptable:
+            if self._validator.validate(string, 0)[0] != QtGui.QValidator.Acceptable:
                 raise ValueError(
                     "%s (at index %i) not accepted by validator." %
                     (string, index))
-            self.__editors[index].setText(string)
+            self._editors[index].setText(string)
 
 
 class _MatrixEdit(_LineEdit):
@@ -350,37 +352,37 @@ class _MatrixEdit(_LineEdit):
         parent : Optional[QtWidgets.QWidget]
         """
         super(_MatrixEdit, self).__init__(parent)
-        self.__layout = QtWidgets.QGridLayout(self)
-        self.__editors = []
-        self.__validator = self.validatorType()
+        self._layout = QtWidgets.QGridLayout(self)
+        self._editors = []
+        self._validator = self.validatorType()
 
         for row in xrange(self.valueType.dimension[0]):
             for column in xrange(self.valueType.dimension[1]):
-                self.__editors.append(QtWidgets.QLineEdit(self))
-                self.__editors[-1].setValidator(self.__validator)
-                self.__layout.addWidget(self.__editors[-1], row, column)
-                self._SetupLineEdit(self.__editors[-1])
+                self._editors.append(QtWidgets.QLineEdit(self))
+                self._editors[-1].setValidator(self._validator)
+                self._layout.addWidget(self._editors[-1], row, column)
+                self._SetupLineEdit(self._editors[-1])
                 if row != 0 and column != 0:
-                    self.setTabOrder(self.__editors[-2], self.__editors[-1])
-        self.setTabOrder(self.__editors[-1], self.__editors[0])
+                    self.setTabOrder(self._editors[-2], self._editors[-1])
+        self.setTabOrder(self._editors[-1], self._editors[0])
 
-        self.setFocusProxy(self.__editors[0])
+        self.setFocusProxy(self._editors[0])
         # self.setFocusPolicy(QtCore.Qt.StrongFocus)
-        self.setLayout(self.__layout)
-        self._SetupLayoutSpacing(self.__layout)
+        self.setLayout(self._layout)
+        self._SetupLayoutSpacing(self._layout)
 
-    def __GetIndex(self, row, column):
+    def _GetIndex(self, row, column):
         return row * self.valueType.dimension[1] + column
 
     def GetValue(self):
-        text = (e.text() for e in self.__editors)
+        text = (e.text() for e in self._editors)
         return self.valueType(*(self.scalarType(t) if t else 0.0 for t in text))
 
     def SetValue(self, value):
         numRows = self.valueType.dimension[0]
         numColumns = self.valueType.dimension[1]
         if value is None:
-            for e in self.__editors:
+            for e in self._editors:
                 e.clear()
             return
         if len(value) != numRows:
@@ -397,11 +399,11 @@ class _MatrixEdit(_LineEdit):
                 if value[row][column] is None:
                     raise ValueError("Value at (%i, %i) is None", row, column)
                 string = str(value[row][column])
-                if self.__validator.validate(string, 0)[0] != QtGui.QValidator.Acceptable:
+                if self._validator.validate(string, 0)[0] != QtGui.QValidator.Acceptable:
                     raise ValueError(
                         "%s (at %i, %i) not accepted by validator." %
                         (string, row, column))
-                self.__editors[self.__GetIndex(row, column)].setText(string)
+                self._editors[self._GetIndex(row, column)].setText(string)
 
 
 class IntEdit(_NumericEdit):
@@ -529,22 +531,22 @@ class StringEdit(_LineEdit):
         parent : Optional[QtWidgets.QWidget]
         """
         super(StringEdit, self).__init__(parent)
-        self.__lineEdit = QtWidgets.QLineEdit(self)
-        self.__layout = QtWidgets.QHBoxLayout()
-        self.__layout.addWidget(self.__lineEdit)
-        self._SetupLayoutSpacing(self.__layout)
-        self.setFocusProxy(self.__lineEdit)
-        self.setLayout(self.__layout)
-        self._SetupLineEdit(self.__lineEdit)
+        self._lineEdit = QtWidgets.QLineEdit(self)
+        self._layout = QtWidgets.QHBoxLayout()
+        self._layout.addWidget(self._lineEdit)
+        self._SetupLayoutSpacing(self._layout)
+        self.setFocusProxy(self._lineEdit)
+        self.setLayout(self._layout)
+        self._SetupLineEdit(self._lineEdit)
 
     def GetValue(self):
-        return str(self.__lineEdit.text())
+        return str(self._lineEdit.text())
 
     def SetValue(self, value):
         if value is None:
-            self.__lineEdit.clear()
+            self._lineEdit.clear()
             return
-        self.__lineEdit.setText(value)
+        self._lineEdit.setText(value)
 
 
 class AssetEdit(_LineEdit):
@@ -558,23 +560,23 @@ class AssetEdit(_LineEdit):
         parent : Optional[QtWidgets.QWidget]
         """
         super(AssetEdit, self).__init__(parent)
-        self.__lineEdit = QtWidgets.QLineEdit(self)
-        self.__layout = QtWidgets.QHBoxLayout()
-        self.__layout.addWidget(self.__lineEdit)
-        self._SetupLayoutSpacing(self.__layout)
-        self.setFocusProxy(self.__lineEdit)
-        self.setLayout(self.__layout)
-        self._SetupLineEdit(self.__lineEdit)
+        self._lineEdit = QtWidgets.QLineEdit(self)
+        self._layout = QtWidgets.QHBoxLayout()
+        self._layout.addWidget(self._lineEdit)
+        self._SetupLayoutSpacing(self._layout)
+        self.setFocusProxy(self._lineEdit)
+        self.setLayout(self._layout)
+        self._SetupLineEdit(self._lineEdit)
 
     def GetValue(self):
-        text = str(self.__lineEdit.text())
+        text = str(self._lineEdit.text())
         return Sdf.AssetPath(text) if text else Sdf.AssetPath()
 
     def SetValue(self, value):
         if value is None:
-            self.__lineEdit.clear()
+            self._lineEdit.clear()
             return
-        self.__lineEdit.setText(value.path)
+        self._lineEdit.setText(value.path)
 
 
 class PathValidator(QtGui.QValidator):
@@ -606,28 +608,28 @@ class PathEdit(_LineEdit):
         parent : Optional[QtWidgets.QWidget]
         """
         super(PathEdit, self).__init__(parent)
-        self.__validator = PathValidator()
-        self.__lineEdit = QtWidgets.QLineEdit(self)
-        self.__lineEdit.setValidator(self.__validator)
-        self.__layout = QtWidgets.QHBoxLayout()
-        self.__layout.addWidget(self.__lineEdit)
-        self._SetupLayoutSpacing(self.__layout)
-        self.setFocusProxy(self.__lineEdit)
-        self.setLayout(self.__layout)
-        self._SetupLineEdit(self.__lineEdit)
+        self._validator = PathValidator()
+        self._lineEdit = QtWidgets.QLineEdit(self)
+        self._lineEdit.setValidator(self._validator)
+        self._layout = QtWidgets.QHBoxLayout()
+        self._layout.addWidget(self._lineEdit)
+        self._SetupLayoutSpacing(self._layout)
+        self.setFocusProxy(self._lineEdit)
+        self.setLayout(self._layout)
+        self._SetupLineEdit(self._lineEdit)
 
     def GetValue(self):
-        text = str(self.__lineEdit.text())
+        text = str(self._lineEdit.text())
         return Sdf.Path(text) if text else Sdf.Path()
 
     def SetValue(self, value):
         if value is None:
-            self.__lineEdit.clear()
+            self._lineEdit.clear()
             return
         value = str(value)
-        if self.__validator.validate(value, 0)[0] != QtGui.QValidator.Acceptable:
+        if self._validator.validate(value, 0)[0] != QtGui.QValidator.Acceptable:
             raise ValueError("%s not accepted by validator." % value)
-        self.__lineEdit.setText(value)
+        self._lineEdit.setText(value)
 
 
 class _ColorButton(QtWidgets.QPushButton):
@@ -694,16 +696,16 @@ class _ColorEdit(_ValueEdit):
         parent : Optional[QtWidgets.QWidget]
         """
         super(_ColorEdit, self).__init__(parent)
-        self.__layout = QtWidgets.QHBoxLayout()
-        self._SetupLayoutSpacing(self.__layout)
+        self._layout = QtWidgets.QHBoxLayout()
+        self._SetupLayoutSpacing(self._layout)
         self._colorButton = _ColorButton()
         self._colorButton.setMaximumWidth(30)
         self._colorButton.clicked.connect(self._OnPushed)
         self._valueWidget = valueTypeMap[Tf.Type.Find(self.valueType)]()
 
-        self.__layout.addWidget(self._colorButton)
-        self.__layout.addWidget(self._valueWidget)
-        self.setLayout(self.__layout)
+        self._layout.addWidget(self._colorButton)
+        self._layout.addWidget(self._valueWidget)
+        self.setLayout(self._layout)
 
         # TODO: There should be a way to more directly identify if one of the
         # numeric widgets have changed.

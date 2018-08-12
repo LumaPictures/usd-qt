@@ -60,10 +60,10 @@ class StageCacheModel(QtCore.QAbstractTableModel):
         parent : Optional[QtCore.QObject]
         '''
         super(StageCacheModel, self).__init__(parent=parent)
-        self.__stageCache = stageCache
+        self._stageCache = stageCache
 
     def rowCount(self, parent=QtCore.QModelIndex()):
-        return len(self.__stageCache.GetAllStages())
+        return len(self._stageCache.GetAllStages())
 
     def columnCount(self, parent=QtCore.QModelIndex()):
         return 2
@@ -74,9 +74,9 @@ class StageCacheModel(QtCore.QAbstractTableModel):
 
         if role == QtCore.Qt.DisplayRole:
             if index.column() == 0:
-                return self.__stageCache.GetAllStages()[index.row()].GetRootLayer().identifier
+                return self._stageCache.GetAllStages()[index.row()].GetRootLayer().identifier
             elif index.column() == 1:
-                return self.__stageCache.GetAllStages()[index.row()].GetSessionLayer().identifier
+                return self._stageCache.GetAllStages()[index.row()].GetSessionLayer().identifier
         # return super(StageCacheModel, self).data(index, role)
 
     def GetStageForIndex(self, index):
@@ -91,7 +91,7 @@ class StageCacheModel(QtCore.QAbstractTableModel):
         -------
         Usd.Stage
         '''
-        return self.__stageCache.GetAllStages()[index.row()]
+        return self._stageCache.GetAllStages()[index.row()]
 
 
 if __name__ == '__main__':

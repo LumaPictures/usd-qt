@@ -54,23 +54,23 @@ class OpinionStackWidget(QtWidgets.QWidget):
         parent : Optional[QtWidgets.QWidget]
         """
         super(OpinionStackWidget, self).__init__(parent=parent)
-        self.__toolBar = QtWidgets.QToolBar()
-        self.__toolBar.addWidget(QtWidgets.QLabel('Opinion Stack'))
-        self.__toolBar.addSeparator()
-        self.__showAllAction = self.__toolBar.addAction("Show All")
-        self.__showAllAction.setCheckable(True)
-        self.__closeAction = self.__toolBar.addAction("Close")
-        self.__showAllAction.toggled.connect(self.__OnShowAllToggled)
-        self.__closeAction.triggered.connect(self.__OnClose)
+        self._toolBar = QtWidgets.QToolBar()
+        self._toolBar.addWidget(QtWidgets.QLabel('Opinion Stack'))
+        self._toolBar.addSeparator()
+        self._showAllAction = self._toolBar.addAction("Show All")
+        self._showAllAction.setCheckable(True)
+        self._closeAction = self._toolBar.addAction("Close")
+        self._showAllAction.toggled.connect(self._OnShowAllToggled)
+        self._closeAction.triggered.connect(self._OnClose)
 
-        self.__opinionFilter = OpinionStackFilter()
-        self.__view = QtWidgets.QTreeView()
-        self.__view.setModel(self.__opinionFilter)
+        self._opinionFilter = OpinionStackFilter()
+        self._view = QtWidgets.QTreeView()
+        self._view.setModel(self._opinionFilter)
 
-        self.__layout = QtWidgets.QVBoxLayout()
-        self.__layout.addWidget(self.__toolBar)
-        self.__layout.addWidget(self.__view)
-        self.setLayout(self.__layout)
+        self._layout = QtWidgets.QVBoxLayout()
+        self._layout.addWidget(self._toolBar)
+        self._layout.addWidget(self._view)
+        self.setLayout(self._layout)
 
         policy = QtWidgets.QSizePolicy()
         policy.setHorizontalPolicy(QtWidgets.QSizePolicy.MinimumExpanding)
@@ -84,17 +84,17 @@ class OpinionStackWidget(QtWidgets.QWidget):
         ----------
         model : QtCore.QAbstractItemModel
         """
-        self.__opinionFilter.setSourceModel(model)
+        self._opinionFilter.setSourceModel(model)
         self.show()
 
     def Close(self):
         self.hide()
-        self.__opinionFilter.setSourceModel(None)
+        self._opinionFilter.setSourceModel(None)
 
-    def __OnShowAllToggled(self, checked):
-        self.__opinionFilter.SetShowFullStack(checked)
+    def _OnShowAllToggled(self, checked):
+        self._opinionFilter.SetShowFullStack(checked)
 
-    def __OnClose(self):
+    def _OnClose(self):
         self.Close()
 
 
@@ -109,54 +109,54 @@ class OpinionEditor(QtWidgets.QWidget):
         parent : Optional[QtWidgets.QWidget]
         """
         super(OpinionEditor, self).__init__(parent=parent)
-        self.__menuBar = QtWidgets.QMenuBar()
-        self.__layout = QtWidgets.QVBoxLayout()
-        self.setLayout(self.__layout)
-        self.__layout.addWidget(self.__menuBar)
-        self.__SetupActions()
-        self.__SetupOptionsMenu()
-        self.__SetupEditMenu()
+        self._menuBar = QtWidgets.QMenuBar()
+        self._layout = QtWidgets.QVBoxLayout()
+        self.setLayout(self._layout)
+        self._layout.addWidget(self._menuBar)
+        self._SetupActions()
+        self._SetupOptionsMenu()
+        self._SetupEditMenu()
 
-        self.__filterLineEdit = QtWidgets.QLineEdit()
+        self._filterLineEdit = QtWidgets.QLineEdit()
 
-        self.__view = treeView.TreeView()
+        self._view = treeView.TreeView()
         itemDelegate = delegate if delegate else ValueDelegate()
-        self.__view.setItemDelegate(itemDelegate)
-        self.__view.setEditTriggers(
+        self._view.setItemDelegate(itemDelegate)
+        self._view.setEditTriggers(
             QtWidgets.QAbstractItemView.CurrentChanged |
             QtWidgets.QAbstractItemView.SelectedClicked |
             QtWidgets.QAbstractItemView.EditKeyPressed)
 
-        self.__splitter = QtWidgets.QSplitter(QtCore.Qt.Vertical, self)
-        self.__layout.addWidget(self.__filterLineEdit)
-        self.__layout.addWidget(self.__splitter)
-        self.__splitter.addWidget(self.__view)
-        self.__view.setSelectionMode(
+        self._splitter = QtWidgets.QSplitter(QtCore.Qt.Vertical, self)
+        self._layout.addWidget(self._filterLineEdit)
+        self._layout.addWidget(self._splitter)
+        self._splitter.addWidget(self._view)
+        self._view.setSelectionMode(
             QtWidgets.QAbstractItemView.ExtendedSelection)
-        self.__SetupOpinionViewWidget()
+        self._SetupOpinionViewWidget()
 
     @property
     def view(self):
-        return self.__view
+        return self._view
 
-    def __SetupActions(self):
+    def _SetupActions(self):
         pass
 
-    def __SetupOptionsMenu(self):
-        self.__optionsMenu = QtWidgets.QMenu("Options")
-        # self.__optionsMenu.addAction(self.__actionToggleOpinionDebugger)
-        self.__menuBar.addMenu(self.__optionsMenu)
+    def _SetupOptionsMenu(self):
+        self._optionsMenu = QtWidgets.QMenu("Options")
+        # self._optionsMenu.addAction(self._actionToggleOpinionDebugger)
+        self._menuBar.addMenu(self._optionsMenu)
 
-    def __SetupEditMenu(self):
-        self.__editMenu = QtWidgets.QMenu("Edit")
-        # self.__editMenu.addAction(self.__actionToggleEditScalar)
-        # self.__editMenu.addAction(self.__actionToggleEditArray)
-        self.__menuBar.addMenu(self.__editMenu)
+    def _SetupEditMenu(self):
+        self._editMenu = QtWidgets.QMenu("Edit")
+        # self._editMenu.addAction(self._actionToggleEditScalar)
+        # self._editMenu.addAction(self._actionToggleEditArray)
+        self._menuBar.addMenu(self._editMenu)
 
-    def __SetupOpinionViewWidget(self):
-        self.__opinionViewer = OpinionStackWidget()
-        self.__opinionViewer.hide()
-        self.__splitter.addWidget(self.__opinionViewer)
+    def _SetupOpinionViewWidget(self):
+        self._opinionViewer = OpinionStackWidget()
+        self._opinionViewer.hide()
+        self._splitter.addWidget(self._opinionViewer)
 
     def LaunchOpinionViewer(self, prim, handler):
         # type: (Usd.Prim, _BaseHandler) -> None
@@ -166,23 +166,23 @@ class OpinionEditor(QtWidgets.QWidget):
         prim : Usd.Prim
         handler : _BaseHandler
         """
-        self.__opinionViewer.Launch(OpinionStackModel(prim, handler))
+        self._opinionViewer.Launch(OpinionStackModel(prim, handler))
 
     def SetSourceModel(self, model):
-        self.__view.setModel(model)
+        self._view.setModel(model)
         self.ResetColumnSpanned()
 
-    def __TraverseAllDescendents(self, index):
-        for i in xrange(self.__view.model().rowCount(index)):
-            childIndex = self.__view.model().index(i, 0, index)
+    def _TraverseAllDescendents(self, index):
+        for i in xrange(self._view.model().rowCount(index)):
+            childIndex = self._view.model().index(i, 0, index)
             yield childIndex
-            for descendent in self.__TraverseAllDescendents(childIndex):
+            for descendent in self._TraverseAllDescendents(childIndex):
                 yield descendent
 
     def ResetColumnSpanned(self):
-        for index in self.__TraverseAllDescendents(QtCore.QModelIndex()):
+        for index in self._TraverseAllDescendents(QtCore.QModelIndex()):
             if type(index.internalPointer()) in (_DisplayGroupProxy, _PrimProxy):
-                self.__view.setFirstColumnSpanned(
+                self._view.setFirstColumnSpanned(
                     index.row(), index.parent(), True)
 
 
