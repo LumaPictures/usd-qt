@@ -65,27 +65,27 @@ class ItemTree(object):
         if rootItem is None:
             rootItem = TreeItem('__ROOT__')
         else:
-            self._validateItemType(rootItem)
+            self._ValidateItemType(rootItem)
 
         self._root = rootItem
-        self._parentToChildren = {rootItem: self._makeInitialChildrenValue(rootItem)}  # type: Dict[TreeItem, List[TreeItem]]
+        self._parentToChildren = {rootItem: self._MakeInitialChildrenValue(rootItem)}  # type: Dict[TreeItem, List[TreeItem]]
         self._childToParent = {}  # type: Dict[TreeItem, TreeItem]
         self._keyToItem = {rootItem.key: rootItem}  # type: Dict[Hashable, TreeItem]
 
     def __contains__(self, item):
         return item in self._parentToChildren
 
-    def _validateItemType(self, item):
+    def _ValidateItemType(self, item):
         pass
 
     @property
     def root(self):
         return self._root
 
-    def empty(self):
+    def Empty(self):
         return len(self._parentToChildren) == 1
 
-    def itemCount(self):
+    def ItemCount(self):
         """Return the number of items in the tree, excluding the root item.
 
         Returns
@@ -94,7 +94,7 @@ class ItemTree(object):
         """
         return len(self._parentToChildren) - 1
 
-    def itemByKey(self, key):
+    def ItemByKey(self, key):
         """Directly return an item by its associated key.
 
         Parameters
@@ -110,7 +110,7 @@ class ItemTree(object):
         except KeyError:
             raise ItemLookupError('Given item key not in tree')
 
-    def parent(self, item):
+    def Parent(self, item):
         """Return the given item's parent.
 
         Parameters
@@ -128,7 +128,7 @@ class ItemTree(object):
         except KeyError:
             raise ItemLookupError('Given item {0!r} not in tree'.format(item))
 
-    def _getItemChildren(self, parent):
+    def _GetItemChildren(self, parent):
         """Internal method called to look up the children of the given parent
         item.
 
@@ -149,11 +149,11 @@ class ItemTree(object):
         except KeyError:
             raise ItemLookupError('Given parent {0!r} not in tree'.format(parent))
 
-    def childCount(self, parent=None):
+    def ChildCount(self, parent=None):
         """Return the number of items that are children of the given parent.
 
         This is useful mainly as a way to avoid the list copy associated with
-        calling `len(self.children())`.
+        calling `len(self.Children())`.
 
         Parameters
         ----------
@@ -165,9 +165,9 @@ class ItemTree(object):
         """
         if parent is None:
             parent = self._root
-        return len(self._getItemChildren(parent))
+        return len(self._GetItemChildren(parent))
 
-    def children(self, parent=None):
+    def Children(self, parent=None):
         """Return the list of immediate children under the given parent.
 
         Parameters
@@ -181,9 +181,9 @@ class ItemTree(object):
         """
         if parent is None:
             parent = self._root
-        return list(self._getItemChildren(parent))
+        return list(self._GetItemChildren(parent))
 
-    def iterChildren(self, parent=None):
+    def IterChildren(self, parent=None):
         """Return an iterator over the immediate children of the given parent.
 
         Parameters
@@ -197,9 +197,9 @@ class ItemTree(object):
         """
         if parent is None:
             parent = self._root
-        return iter(self._getItemChildren(parent))
+        return iter(self._GetItemChildren(parent))
 
-    def childAtRow(self, parent, row):
+    def ChildAtRow(self, parent, row):
         """Return the given parent's child item at the given index.
 
         Parameters
@@ -211,9 +211,9 @@ class ItemTree(object):
         -------
         TreeItem
         """
-        return self._getItemChildren(parent)[row]
+        return self._GetItemChildren(parent)[row]
 
-    def rowIndex(self, item):
+    def RowIndex(self, item):
         """Return the index of the given item in its parent's list of children.
 
         Parameters
@@ -228,9 +228,9 @@ class ItemTree(object):
             parent = self._childToParent[item]
         except KeyError:
             raise ItemLookupError('Given item {0!r} not in tree'.format(item))
-        return self._getItemChildren(parent).index(item)
+        return self._GetItemChildren(parent).index(item)
 
-    def _makeInitialChildrenValue(self, parent):
+    def _MakeInitialChildrenValue(self, parent):
         """Internal method called when adding new items to the tree to return
         the default value that should be added to `self.parentToChildren` for
         the given parent.
@@ -247,7 +247,7 @@ class ItemTree(object):
         """
         return []
 
-    def addItems(self, items, parent=None):
+    def AddItems(self, items, parent=None):
         """Add one or more items to the tree, parented under `parent`, or the
         root item if `parent` is None.
 
@@ -274,7 +274,7 @@ class ItemTree(object):
         newItems = []
         newKeys = set()
         for item in items:
-            self._validateItemType(item)
+            self._ValidateItemType(item)
             if item not in self._childToParent:
                 key = item.key
                 if key in self._keyToItem:
@@ -286,7 +286,7 @@ class ItemTree(object):
                 newKeys.add(key)
                 newItems.append(item)
 
-        makeChildrenValue = self._makeInitialChildrenValue
+        makeChildrenValue = self._MakeInitialChildrenValue
         for item in newItems:
             self._keyToItem[item.key] = item
             self._parentToChildren[item] = makeChildrenValue(item)
@@ -297,7 +297,7 @@ class ItemTree(object):
 
         return newItems
 
-    def removeItems(self, items, childAction='delete'):
+    def RemoveItems(self, items, childAction='delete'):
         """Remove one or more items (and optionally their children) from the
         tree.
 
@@ -327,14 +327,14 @@ class ItemTree(object):
         if not items:
             return []
 
-        removeSets = [(item, self._getItemChildren(item)) for item in items]
+        removeSets = [(item, self._GetItemChildren(item)) for item in items]
         removed = []
         for itemToDelete, children in removeSets:
             if children:
                 if childAction == 'delete':
                     # TODO: Can we get rid of this recursion?
                     removed.extend(
-                        self.removeItems(children, childAction='delete'))
+                        self.RemoveItems(children, childAction='delete'))
                 else:
                     newParent = self._childToParent[itemToDelete]
                     while newParent in items:
@@ -349,7 +349,7 @@ class ItemTree(object):
             removed.append(itemToDelete)
         return removed
 
-    def walkItems(self, startParent=None):
+    def WalkItems(self, startParent=None):
         """Walk down the tree from the given starting item (which defaults to
         the root), recursively yielding each child item in breadth-first order.
 
@@ -363,13 +363,13 @@ class ItemTree(object):
         """
         if startParent is None:
             startParent = self._root
-        stack = collections.deque(self._getItemChildren(startParent))
+        stack = collections.deque(self._GetItemChildren(startParent))
         while stack:
             item = stack.popleft()
-            stack.extend(self._getItemChildren(item))
+            stack.extend(self._GetItemChildren(item))
             yield item
 
-    def iterItems(self):
+    def IterItems(self):
         """Return an iterator over all of the key-item pairs in the tree, in an
         undefined order.
 
@@ -387,15 +387,15 @@ class LazyItemTree(ItemTree):
     This is a pretty basic approach that uses None as a placeholder value for
     each item's entry in the parent-to-children mapping when they are first
     added. Then, the first time an item's children are actually requested, the
-    internal method `self._fetchItemChildren` will be called with the item as an
+    internal method `self._FetchItemChildren` will be called with the item as an
     argument, and its result will be stored in the parent-to-children mapping.
     """
     def __init__(self, rootItem=None):
         super(LazyItemTree, self).__init__(rootItem=rootItem)
         self.blockUpdates = False
 
-    def _fetchItemChildren(self, parent):
-        """Called by `self._getItemChildren` to actually fetch the child items
+    def _FetchItemChildren(self, parent):
+        """Called by `self._GetItemChildren` to actually fetch the child items
         for the given parent.
 
         This is called when the given parent's placeholder value in
@@ -412,24 +412,24 @@ class LazyItemTree(ItemTree):
         """
         raise NotImplementedError
 
-    def _getItemChildren(self, parent):
-        children = super(LazyItemTree, self)._getItemChildren(parent)
+    def _GetItemChildren(self, parent):
+        children = super(LazyItemTree, self)._GetItemChildren(parent)
         if children is None:
             if self.blockUpdates:
                 # Pretend there are no children without updating internal state.
                 return []
             self._parentToChildren[parent] = []
-            children = self._fetchItemChildren(parent)
+            children = self._FetchItemChildren(parent)
             if children:
-                self.addItems(children, parent=parent)
+                self.AddItems(children, parent=parent)
         return children
 
-    def _makeInitialChildrenValue(self, parent):
+    def _MakeInitialChildrenValue(self, parent):
         return None
 
-    def forgetChildren(self, parent):
+    def ForgetChildren(self, parent):
         """Recursively remove all children of the given parent from the tree,
-        and reset its internal state so that `self._fetchItemChildren` will be
+        and reset its internal state so that `self._FetchItemChildren` will be
         called the next time its children are requested.
 
         Parameters
@@ -446,9 +446,9 @@ class LazyItemTree(ItemTree):
                              'item. Maybe you just want a new tree instead?')
         self.blockUpdates = True
         try:
-            children = super(LazyItemTree, self)._getItemChildren(parent)
+            children = super(LazyItemTree, self)._GetItemChildren(parent)
             if children:
-                result = self.removeItems(children, childAction='delete')
+                result = self.RemoveItems(children, childAction='delete')
             else:
                 result = []
             self._parentToChildren[parent] = None

@@ -49,7 +49,7 @@ class AbstractTreeModelMixin(object):
         super(AbstractTreeModelMixin, self).__init__(parent=parent)
 
         self.itemTree = None  # type: ItemTree
-        self.setItemTree(itemTree or ItemTree())
+        self.SetItemTree(itemTree or ItemTree())
 
     # Qt methods ---------------------------------------------------------------
     def hasChildren(self, parentIndex):
@@ -80,7 +80,7 @@ class AbstractTreeModelMixin(object):
             parentItem = parentIndex.internalPointer()
         else:
             parentItem = self.itemTree.root
-        return self.itemIndex(row, column, parentItem)
+        return self.ItemIndex(row, column, parentItem)
 
     def parent(self, modelIndex):
         """
@@ -93,22 +93,31 @@ class AbstractTreeModelMixin(object):
         QtCore.QModelIndex
         """
         if modelIndex.isValid():
-            parent = self.itemTree.parent(modelIndex.internalPointer())
+            parent = self.itemTree.Parent(modelIndex.internalPointer())
             if parent is not self.itemTree.root:
-                return self.createIndex(self.itemTree.rowIndex(parent), 0, parent)
+                return self.createIndex(self.itemTree.RowIndex(parent), 0, parent)
         return NULL_INDEX
 
     def rowCount(self, parentIndex):
+        """
+        Parameters
+        ----------
+        parentIndex : QtCore.QModelIndex
+
+        Returns
+        -------
+        int
+        """
         if parentIndex.column() > 0:
             return 0
         if parentIndex.isValid():
             parent = parentIndex.internalPointer()
         else:
             parent = self.itemTree.root
-        return self.itemTree.childCount(parent=parent)
+        return self.itemTree.ChildCount(parent=parent)
 
     # Custom methods -----------------------------------------------------------
-    def setItemTree(self, itemTree):
+    def SetItemTree(self, itemTree):
         """
         Parameters
         ----------
@@ -119,7 +128,7 @@ class AbstractTreeModelMixin(object):
         self.itemTree = itemTree
         self.endResetModel()
 
-    def itemIndex(self, row, column, parentItem):
+    def ItemIndex(self, row, column, parentItem):
         """
         Parameters
         ----------
@@ -132,13 +141,22 @@ class AbstractTreeModelMixin(object):
         QtCore.QModelIndex
         """
         try:
-            childItem = self.itemTree.childAtRow(parentItem, row)
+            childItem = self.itemTree.ChildAtRow(parentItem, row)
         except (KeyError, IndexError):
             return NULL_INDEX
         else:
             return self.createIndex(row, column, childItem)
 
-    def getItemIndex(self, item, column=0):
-        return self.itemIndex(self.itemTree.rowIndex(item),
-                              column,
-                              self.itemTree.parent(item))
+    def GetItemIndex(self, item, column=0):
+        """
+        Parameters
+        ----------
+        item : TreeItem
+        column : int
+
+        Returns
+        -------
+        QtCore.QModelIndex
+        """
+        return self.ItemIndex(self.itemTree.RowIndex(item), column,
+                              self.itemTree.Parent(item))

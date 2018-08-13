@@ -336,7 +336,7 @@ class MenuBarBuilder(object):
     def menuBar(self):
         return self._menuBar
 
-    def _menuAboutToShow(self, menuName):
+    def _MenuAboutToShow(self, menuName):
         """Slot function called when an owned menu is about to be shown. This
         dispatches `Update` calls to each `QAction`'s associated `MenuAction`
         instance.
@@ -370,7 +370,7 @@ class MenuBarBuilder(object):
         menu = menuBuilder.Build(context, parent=self._menuBar)
         if menu:
             self._menuBar.addMenu(menu)
-            menu.aboutToShow.connect(partial(self._menuAboutToShow, name))
+            menu.aboutToShow.connect(partial(self._MenuAboutToShow, name))
             self._menus[name] = menu
             self._menuBuilders[name] = menuBuilder
             return True

@@ -90,7 +90,7 @@ class LayerStackBaseModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
     # Custom methods -----------------------------------------------------------
     def LayerCount(self):
         """Return the number of layers in the current stage's layer stack."""
-        return self.itemTree.itemCount()
+        return self.itemTree.ItemCount()
 
     def ResetStage(self, stage):
         # type: (Usd.Stage) -> None
@@ -108,7 +108,7 @@ class LayerStackBaseModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
 
         def addLayer(layer, parent=None):
             layerItem = LayerItem(layer)
-            itemTree.addItems(layerItem, parent=parent)
+            itemTree.AddItems(layerItem, parent=parent)
             return layerItem
 
         def addLayerTree(layerTree, parent=None):
