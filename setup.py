@@ -1,22 +1,25 @@
+import fnmatch
+import os
 from setuptools import setup, find_packages
 from distutils.extension import Extension
-# To use a consistent encoding
-from codecs import open
-from os import path
+from codecs import open  # For consistent encoding
 
-here = path.abspath(path.dirname(__file__))
+here = os.path.abspath(os.path.dirname(__file__))
 
-with open(path.join(here, 'README.md'), encoding='utf-8') as f:
+with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
-with open(path.join(here, 'requirements.txt'), encoding='utf-8') as f:
-    requirements = f.read().split('\n')
-    
-with open(path.join(here, 'usdQt', 'extensionModule.txt'), encoding='utf-8') as f:
-    extensionSources = [str("usdQt/%s" % line.strip()) for line in f.readlines() 
-                        if not line.startswith('#') and not line.isspace()]
+with open(os.path.join(here, 'requirements.txt'), encoding='utf-8') as f:
+    requirements = f.read().splitlines()
 
-cppModule = Extension('usdQt._usdQt',
+usdQtFiles = os.listdir(os.path.join(here, 'usdQt'))
+extensionSources = []
+extensionSources.extend(fnmatch.filter(usdQtFiles, '*.cpp'))
+extensionSources.extend(fnmatch.filter(usdQtFiles, '*.h'))
+extensionSources = ['usdQt/%s' % name for name in extensionSources]
+
+cppModule = Extension(
+    'usdQt._usdQt',
      define_macros = [('BUILD_OPTLEVEL_OPT', None),
                       ('BUILD_COMPONENT_SRC_PREFIX', ""),
                       ('MFB_PACKAGE_NAME', 'usdQt'),
@@ -27,12 +30,12 @@ cppModule = Extension('usdQt._usdQt',
      libraries = ['boost_python-mt', 'tbb', 'usd', 'sdf', 'tf'],
      sources = extensionSources,
      extra_compile_args=['-std=c++11', '-Wno-unused-local-typedefs', '-Wno-deprecated'])
-     
+
 packages = find_packages(exclude=['tests'])
 
 setup(
     name='UsdQt',
-    version='0.0.1',
+    version='0.5.0',
     description='USD Qt Components',
     long_description=long_description,
     url='https://github.com/LumaPictures/usd-qt',
