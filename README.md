@@ -70,3 +70,13 @@ by setting the `PXR_QT_PYTHON_BINDING` environment variable to the name of the
 API package/module you wish to use instead.
 
 This works with the popular [Qt.py](https://github.com/mottosso/Qt.py) project.
+
+## Planned Future Additions
+
+Here are some of the ideas we've had for future additions to the project. We're
+happy to consider new suggestions as well.
+
+- UI components for authoring and working with USD variant sets.
+- An adaptor class to translate USD notices to Qt signals.
+- A `QSyntaxHighlighter` class for `.usda` syntax.
+- A Hydra viewport widget.
