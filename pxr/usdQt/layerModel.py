@@ -39,28 +39,28 @@ class LayerItem(TreeItem):
 
     def __init__(self, layer):
         # type: (Sdf.Layer) -> None
-        '''
+        """
         Parameters
         ----------
         layer : Sdf.Layer
-        '''
+        """
         super(LayerItem, self).__init__(key=layer.identifier)
         self.layer = layer
 
 
 class LayerStackBaseModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
-    '''Basic tree model that exposes a Stage's layer stack.'''
+    """Basic tree model that exposes a Stage's layer stack."""
     headerLabels = ('Name', 'Path')
 
     def __init__(self, stage, includeSessionLayers=True, parent=None):
         # type: (Usd.Stage, bool, Optional[QtCore.QObject]) -> None
-        '''
+        """
         Parameters
         ----------
         stage : Usd.Stage
         includeSessionLayers : bool
         parent : Optional[QtCore.QObject]
-        '''
+        """
         super(LayerStackBaseModel, self).__init__(parent=parent)
         self._stage = None
         self._includeSessionLayers = includeSessionLayers
@@ -89,17 +89,17 @@ class LayerStackBaseModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
 
     # Custom methods -----------------------------------------------------------
     def LayerCount(self):
-        '''Return the number of layers in the current stage's layer stack.'''
+        """Return the number of layers in the current stage's layer stack."""
         return self.itemTree.itemCount()
 
     def ResetStage(self, stage):
         # type: (Usd.Stage) -> None
-        '''Reset the model from a new stage.
+        """Reset the model from a new stage.
 
         Parameters
         ----------
         stage : Usd.Stage
-        '''
+        """
         if stage == self._stage:
             return
 

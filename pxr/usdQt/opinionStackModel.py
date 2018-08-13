@@ -184,7 +184,6 @@ class _PrimItem(object):
 
 
 class OpinionStackFilter(QtCore.QSortFilterProxyModel):
-
     def __init__(self, parent=None):
         # type: (Optional[QtCore.Object]) -> None
         """

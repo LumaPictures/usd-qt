@@ -34,34 +34,34 @@ if False:
 
 
 class FallbackException(Exception):
-    '''Raised if a customized function fails and wants to fallback to the
-    default implementation.'''
+    """Raised if a customized function fails and wants to fallback to the
+    default implementation."""
     pass
 
 
 class UsdQtHooks(object):
-    '''Simple aggregator for overrideable hooks within a UsdQt app.
+    """Simple aggregator for overrideable hooks within a UsdQt app.
 
     This allows for easy site-specific overrides to common operations like
     browsing for a reference path, etc.
-    '''
+    """
     _registered = {}
 
     @classmethod
     def Register(cls, name, func):
         # type: (str, Callable) -> None
-        '''
+        """
         Parameters
         ----------
         name : str
         func : Callable
-        '''
+        """
         cls._registered.setdefault(name, []).insert(0, func)
 
     @classmethod
     def Call(cls, name, *args, **kwargs):
         # type: (str, *Any, **Dict[str, Any]) -> Any
-        '''
+        """
         Parameters
         ----------
         name : str
@@ -71,7 +71,7 @@ class UsdQtHooks(object):
         Returns
         -------
         Any
-        '''
+        """
         for func in cls._registered[name]:
             try:
                 return func(*args, **kwargs)
@@ -81,7 +81,7 @@ class UsdQtHooks(object):
 
 def GetReferencePath(parent, stage=None):
     # type: (QtWidgets.QWidget, Optional[Usd.Stage]) -> str
-    '''Prompts the user for a reference path.
+    """Prompts the user for a reference path.
 
     Parameters
     ----------
@@ -91,7 +91,7 @@ def GetReferencePath(parent, stage=None):
     Returns
     -------
     str
-    '''
+    """
     name, _ = QtWidgets.QInputDialog.getText(parent, 'Add Reference',
                                              'Enter Usd Layer Identifier:')
     return name
@@ -99,7 +99,7 @@ def GetReferencePath(parent, stage=None):
 
 def GetId(layer):
     # type: (Sdf.Layer) -> str
-    '''Returns the unique key used to store the original contents of a layer.
+    """Returns the unique key used to store the original contents of a layer.
     This is currently used for change tracking in the outliner app.
 
     Parameters
@@ -109,7 +109,7 @@ def GetId(layer):
     Returns
     -------
     str
-    '''
+    """
     if isinstance(layer, Sdf.Layer):
         return layer.identifier
     return str(layer)

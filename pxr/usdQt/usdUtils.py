@@ -33,7 +33,7 @@ if False:
 
 def SpecifierToString(specifier):
     # type: (Sdf.Specifier) -> str
-    '''
+    """
     Parameters
     ----------
     specifier : Sdf.Specifier
@@ -41,7 +41,7 @@ def SpecifierToString(specifier):
     Returns
     -------
     str
-    '''
+    """
     if specifier is Sdf.SpecifierDef:
         return "def"
     elif specifier is Sdf.SpecifierOver:
@@ -53,19 +53,19 @@ def SpecifierToString(specifier):
 
 
 class EditTargetContext(object):
-    '''A context manager that changes a stage's edit target on entry, and then
+    """A context manager that changes a stage's edit target on entry, and then
     returns it to  its previous value on exit.
-    '''
+    """
     __slots__ = ('stage', 'target', 'originalEditTarget')
 
     def __init__(self, stage, target):
         # type: (Usd.Stage, Sdf.Layer) -> None
-        '''
+        """
         Parameters
         ----------
         stage : Usd.Stage
         target : Sdf.Layer
-        '''
+        """
         self.stage = stage
         self.target = target
         self.originalEditTarget = None
@@ -80,7 +80,7 @@ class EditTargetContext(object):
 
 def GetPrimVariants(prim):
     # type: (Usd.Prim) -> List[Tuple[str, str]]
-    '''Returns a list of tuples representing a prim's variant set names and
+    """Returns a list of tuples representing a prim's variant set names and
     active values.
 
     The results are ordered "depth-first" by variant opinion strength in the
@@ -94,7 +94,7 @@ def GetPrimVariants(prim):
     -------
     List[Tuple[str, str]]
         (variantSetName, variantName) pairs
-    '''
+    """
     # FIXME: We might need a strategy for duplicate variant sets that are nested
     # under different variant hierarchies. These aren't very practical though,
     # since the selection on the composed stage is the same.

@@ -44,10 +44,8 @@ if False:
 
 
 class OpinionBaseModel(QtCore.QAbstractItemModel):
-
     class _ResetContext(object):
         """Context manager to ensure model resets if exception is thrown"""
-
         def __init__(self, model):
             self.model = model
 
@@ -61,7 +59,6 @@ class OpinionBaseModel(QtCore.QAbstractItemModel):
 
     class _LayoutChangedContext(object):
         """Context manager to ensure layout changes if exception is thrown"""
-
         def __init__(self, model):
             self.model = model
 
@@ -74,7 +71,6 @@ class OpinionBaseModel(QtCore.QAbstractItemModel):
             self.model.layoutChanged.emit()
 
     class _Item(object):
-
         def __init__(self):
             self.parent = None
             self.children = None

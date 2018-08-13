@@ -146,7 +146,6 @@ class _ValueEdit(QtWidgets.QWidget):
 
 class _LineEdit(_ValueEdit):
     """Parent class for any ValueEdit that contains one or more QLineEdits"""
-
     def __init__(self, parent=None):
         # type: (Optional[QtWidgets.QWidget]) -> None
         """
@@ -178,7 +177,6 @@ class _LineEdit(_ValueEdit):
 
 class _ComboEdit(_ValueEdit):
     """Parent class for any ValueEdit that contains a QComboBox"""
-
     def __init__(self, choices, parent=None):
         # type: (List[str], Optional[QtWidgets.QWidget]) -> None
         """
@@ -580,8 +578,7 @@ class AssetEdit(_LineEdit):
 
 
 class PathValidator(QtGui.QValidator):
-    """A PathValidator ensures that the path is a valid SdfPath """
-
+    """A PathValidator ensures that the path is a valid SdfPath"""
     def __init__(self, parent=None):
         # type: (Optional[QtCore.QObject]) -> None
         """
@@ -633,7 +630,7 @@ class PathEdit(_LineEdit):
 
 
 class _ColorButton(QtWidgets.QPushButton):
-    '''The color button stores its color in DISPLAY space not LINEAR space'''
+    """The color button stores its color in DISPLAY space not LINEAR space"""
     class _PainterContext(object):
         def __init__(self, widget):
             self.widget = widget
@@ -685,7 +682,7 @@ class _ColorButton(QtWidgets.QPushButton):
 
 
 class _ColorEdit(_ValueEdit):
-    '''Stores a color in LINEAR space'''
+    """Stores a color in LINEAR space"""
     valueType = None
 
     def __init__(self, parent=None):

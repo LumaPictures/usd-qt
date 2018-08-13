@@ -52,18 +52,18 @@ FONT_BOLD.setBold(True)
 
 
 class LayerStackModel(LayerStackBaseModel):
-    '''Layer stack model for the outliner's edit target selection dialog.'''
+    """Layer stack model for the outliner's edit target selection dialog."""
     headerLabels = ('Name', 'Path', 'Resolved Path')
 
     def __init__(self, stage, includeSessionLayers=True, parent=None):
         # type: (Usd.Stage, bool, Optional[QtCore.QObject]) -> None
-        '''
+        """
         Parameters
         ----------
         stage : Usd.Stage
         includeSessionLayers : bool
         parent : Optional[QtCore.QObject]
-        '''
+        """
         super(LayerStackModel, self).__init__(
             stage,
             includeSessionLayers=includeSessionLayers,
@@ -104,11 +104,11 @@ class LayerStackModel(LayerStackBaseModel):
     # Custom Methods -----------------------------------------------------------
     def ResetStage(self, stage):
         # type: (Usd.Stage) -> None
-        '''
+        """
         Parameters
         ----------
         stage : Usd.Stage
-        '''
+        """
         super(LayerStackModel, self).ResetStage(stage)
         if self._stage:
             self._listener = Tf.Notice.Register(Usd.Notice.StageEditTargetChanged,
@@ -162,12 +162,12 @@ class OpenLayer(MenuAction):
 class LayerStackTreeView(ContextMenuMixin, QtWidgets.QTreeView):
     def __init__(self, contextProvider, parent=None):
         # type: (ContextProvider, Optional[QtWidgets.QWidget]) -> None
-        '''
+        """
         Parameters
         ----------
         contextProvider : ContextProvider
         parent : Optional[QtWidgets.QWidget]
-        '''
+        """
         contextMenuActions = [ShowLayerText, CopyLayerPath, OpenLayer]
         super(LayerStackTreeView, self).__init__(
             contextMenuActions=contextMenuActions,
@@ -176,11 +176,11 @@ class LayerStackTreeView(ContextMenuMixin, QtWidgets.QTreeView):
 
     def GetSelectedLayer(self):
         # type: () -> Optional[Sdf.Layer]
-        '''
+        """
         Returns
         -------
         Optional[Sdf.Layer]
-        '''
+        """
         selectionModel = self.selectionModel()
         indexes = selectionModel.selectedRows()
         if indexes:
@@ -192,7 +192,7 @@ class LayerStackTreeView(ContextMenuMixin, QtWidgets.QTreeView):
 class EditTargetDialog(QtWidgets.QDialog):
     def __init__(self, stage, editTargetChangeCallback=None, parent=None):
         # type: (Usd.Stage, Optional[Callable[[Sdf.Layer], bool]], Optional[QtWidgets.QWidget]) -> None
-        '''
+        """
         Parameters
         ----------
         stage : Usd.Stage
@@ -202,7 +202,7 @@ class EditTargetDialog(QtWidgets.QDialog):
             double-clicking a layer). If this is provided and returns False, the
             edit target will not be changed.
         parent : Optional[QtWidgets.QWidget]
-        '''
+        """
         super(EditTargetDialog, self).__init__(parent=parent)
         self._stage = stage
         self._dataModel = LayerStackModel(stage, parent=self)
@@ -230,11 +230,11 @@ class EditTargetDialog(QtWidgets.QDialog):
 
     def GetMenuContext(self):
         # type: () -> LayerStackDialogContext
-        '''
+        """
         Returns
         -------
         LayerStackDialogContext
-        '''
+        """
         stage = self._stage
         return LayerStackDialogContext(
             qtParent=self.parent() or self,
@@ -246,11 +246,11 @@ class EditTargetDialog(QtWidgets.QDialog):
     @QtCore.Slot(QtCore.QModelIndex)
     def ChangeEditTarget(self, modelIndex):
         # type: (QtCore.QModelIndex) -> None
-        '''
+        """
         Parameters
         ----------
         modelIndex : QtCore.QModelIndex
-        '''
+        """
         if not modelIndex.isValid():
             return
         item = modelIndex.internalPointer()
@@ -414,14 +414,14 @@ class AddReference(MenuAction):
 
 
 class SaveState(object):
-    '''State tracker for layer contents in an outliner app'''
+    """State tracker for layer contents in an outliner app"""
     def __init__(self, outliner):
         # type: (UsdOutliner) -> None
-        '''
+        """
         Parameters
         ----------
         outliner : UsdOutliner
-        '''
+        """
         self.outliner = outliner
         editTarget = outliner.GetEditTargetLayer()
         self.origLayerContents = \
@@ -437,7 +437,7 @@ class SaveState(object):
 
     def GetOriginalContents(self, layer):
         # type: (Sdf.Layer) -> str
-        '''
+        """
         Parameters
         ----------
         layer : Sdf.Layer
@@ -445,7 +445,7 @@ class SaveState(object):
         Returns
         -------
         str
-        '''
+        """
         return self.origLayerContents[self.GetId(layer)]
 
     def SaveOriginalContents(self, layer, contents=None):
@@ -455,7 +455,7 @@ class SaveState(object):
 
     def _GetDiskContents(self, layer):
         # type: (Sdf.Layer) -> str
-        '''Fetch the usd layer's contents on disk.
+        """Fetch the usd layer's contents on disk.
 
         Parameters
         ----------
@@ -464,7 +464,7 @@ class SaveState(object):
         Returns
         -------
         str
-        '''
+        """
         # with USD Issue #253 solved, we can do a cheaper check of just
         # comparing time stamps and getting contents only if needed.
 
@@ -486,7 +486,7 @@ class SaveState(object):
 
     def CheckOriginalContents(self, editLayer):
         # type: (Sdf.Layer) -> bool
-        '''
+        """
         Parameters
         ----------
         editLayer : Sdf.Layer
@@ -494,7 +494,7 @@ class SaveState(object):
         Returns
         -------
         bool
-        '''
+        """
         import difflib
 
         diskContents = self._GetDiskContents(editLayer)
@@ -519,7 +519,7 @@ class SaveState(object):
 
     def GetId(self, layer):
         # type: (Sdf.Layer) -> str
-        '''
+        """
         Parameters
         ----------
         layer : Sdf.Layer
@@ -527,7 +527,7 @@ class SaveState(object):
         Returns
         -------
         str
-        '''
+        """
         return UsdQtHooks.Call('GetId', layer)
 
 
@@ -538,9 +538,9 @@ class SaveEditLayer(MenuAction):
         self.state = state
 
     def Do(self, context):
-        '''
+        """
         Save the current edit target to the appropriate place.
-        '''
+        """
         editTarget = context.editTargetLayer
         if not editTarget.dirty:
             print 'Nothing to save'
@@ -576,14 +576,14 @@ class OutlinerTreeView(ContextMenuMixin, QtWidgets.QTreeView):
     def __init__(self, dataModel, contextMenuActions, contextProvider=None,
                  parent=None):
         # type: (QtCore.QAbstractItemModel, List[MenuAction], Optional[ContextProvider], Optional[QtWidgets.QWidget]) -> None
-        '''
+        """
         Parameters
         ----------
         dataModel : QtCore.QAbstractItemModel
         contextMenuActions : List[MenuAction]
         contextProvider : Optional[ContextProvider]
         parent : Optional[QtWidgets.QWidget]
-        '''
+        """
         super(OutlinerTreeView, self).__init__(
             contextMenuActions=contextMenuActions,
             contextProvider=contextProvider,
@@ -607,7 +607,7 @@ class OutlinerTreeView(ContextMenuMixin, QtWidgets.QTreeView):
     # Custom methods -----------------------------------------------------------
     @QtCore.Slot(QtCore.QItemSelection, QtCore.QItemSelection)
     def _SelectionChanged(self, selected, deselected):
-        '''Connected to selectionChanged'''
+        """Connected to selectionChanged"""
         model = self._dataModel
 
         def toPrims(qSelection):
@@ -617,11 +617,11 @@ class OutlinerTreeView(ContextMenuMixin, QtWidgets.QTreeView):
 
     def SelectedPrims(self):
         # type: () -> List[Usd.Prim]
-        '''
+        """
         Returns
         -------
         List[Usd.Prim]
-        '''
+        """
         model = self._dataModel
         result = []
         for index in self.selectionModel().selectedRows():
@@ -632,17 +632,17 @@ class OutlinerTreeView(ContextMenuMixin, QtWidgets.QTreeView):
 
 
 class OutlinerViewDelegate(QtWidgets.QStyledItemDelegate):
-    '''
+    """
     Item delegate class assigned to an ``OutlinerTreeView``.
-    '''
+    """
     def __init__(self, stage, parent=None):
         # type: (Usd.Stage, Optional[QtGui.QWidget]) -> None
-        '''
+        """
         Parameters
         ----------
         stage : Usd.Stage
         parent : Optional[QtGui.QWidget]
-        '''
+        """
         super(OutlinerViewDelegate, self).__init__(parent=parent)
         self._activeLayer = stage.GetEditTarget().GetLayer()
         self._listener = Tf.Notice.Register(Usd.Notice.StageEditTargetChanged,
@@ -678,22 +678,22 @@ class OutlinerViewDelegate(QtWidgets.QStyledItemDelegate):
 
     def SetActiveLayer(self, layer):
         # type: (Sdf.Layer) -> None
-        '''
+        """
         Parameters
         ----------
         layer : Sdf.Layer
-        '''
+        """
         self._activeLayer = layer
 
 
 class OutlinerRole(object):
-    '''Helper which provides standard hooks for defining the context menu
+    """Helper which provides standard hooks for defining the context menu
     actions and menu bar menus that should be added to an outliner.
-    '''
+    """
     @classmethod
     def GetContextMenuActions(cls, outliner):
         # type: (UsdOutliner) -> List[Union[MenuAction, Type[MenuAction]]]
-        '''
+        """
         Parameters
         ----------
         outliner : UsdOutliner
@@ -701,14 +701,14 @@ class OutlinerRole(object):
         Returns
         -------
         List[Union[MenuAction, Type[MenuAction]]]
-        '''
+        """
         return [ActivatePrims, DeactivatePrims, SelectVariants, MenuSeparator,
                 RemovePrim]
 
     @classmethod
     def GetMenuBarMenuBuilders(cls, outliner):
         # type: (UsdOutliner) -> List[MenuBuilder]
-        '''
+        """
         Parameters
         ----------
         outliner : UsdOutliner
@@ -716,7 +716,7 @@ class OutlinerRole(object):
         Returns
         -------
         List[MenuBuilder]
-        '''
+        """
         saveState = SaveState(outliner)
         return [MenuBuilder('&File', [SaveEditLayer(saveState)]),
                 MenuBuilder('&Tools', [ShowEditTargetLayerText,
@@ -724,16 +724,16 @@ class OutlinerRole(object):
 
 
 class UsdOutliner(QtWidgets.QDialog):
-    '''UsdStage editing application which displays the hierarchy of a stage.'''
+    """UsdStage editing application which displays the hierarchy of a stage."""
     def __init__(self, stage, role=None, parent=None):
         # type: (Usd.Stage, Optional[Union[Type[OutlinerRole], OutlinerRole]], Optional[QtGui.QWidget]) -> None
-        '''
+        """
         Parameters
         ----------
         stage : Usd.Stage
         role : Optional[Union[Type[OutlinerRole], OutlinerRole]]
         parent : Optional[QtGui.QWidget]
-        '''
+        """
         assert isinstance(stage, Usd.Stage), 'A Stage instance is required'
         super(UsdOutliner, self).__init__(parent=parent)
 
@@ -776,7 +776,7 @@ class UsdOutliner(QtWidgets.QDialog):
 
     def _CreateView(self, stage, role):
         # type: (Usd.Stage, Union[Type[OutlinerRole], OutlinerRole]) -> QtWidgets.QAbstractItemView
-        '''Create the hierarchy view for the outliner.
+        """Create the hierarchy view for the outliner.
 
         This is provided as a convenience for subclass implementations.
 
@@ -788,7 +788,7 @@ class UsdOutliner(QtWidgets.QDialog):
         Returns
         -------
         QtWidgets.QAbstractItemView
-        '''
+        """
         return OutlinerTreeView(
             self._dataModel,
             contextMenuActions=role.GetContextMenuActions(self),
@@ -822,11 +822,11 @@ class UsdOutliner(QtWidgets.QDialog):
 
     def GetMenuContext(self):
         # type: () -> OutlinerContext
-        '''
+        """
         Returns
         -------
         OutlinerContext
-        '''
+        """
         selectedPrims = self.view.SelectedPrims()
         selectedPrim = selectedPrims[0] if selectedPrims else None
         return OutlinerContext(qtParent=self, outliner=self, stage=self._stage,
@@ -836,11 +836,11 @@ class UsdOutliner(QtWidgets.QDialog):
 
     def GetEditTargetLayer(self):
         # type: () -> Sdf.Layer
-        '''
+        """
         Returns
         -------
         Sdf.Layer
-        '''
+        """
         return self._stage.GetEditTarget().GetLayer()
 
     def ResetStage(self):
@@ -849,12 +849,12 @@ class UsdOutliner(QtWidgets.QDialog):
 
     def UpdateTitle(self, identifier=None):
         # type: (Optional[str]) -> None
-        '''
+        """
         Parameters
         ----------
         identifier : Optional[str]
             If not provided, it is acquired from the curent edit target.
-        '''
+        """
         if not identifier:
             identifier = self.GetEditTargetLayer().identifier
         self.setWindowTitle('Outliner - %s' % identifier)
@@ -881,7 +881,7 @@ class UsdOutliner(QtWidgets.QDialog):
     @classmethod
     def FromUsdFile(cls, usdFile, role=None, parent=None):
         # type: (str, Optional[Union[Type[OutlinerRole], OutlinerRole]], Optional[QtGui.QWidget]) -> UsdOutliner
-        '''
+        """
         Parameters
         ----------
         usdFile : str
@@ -891,7 +891,7 @@ class UsdOutliner(QtWidgets.QDialog):
         Returns
         -------
         UsdOutliner
-        '''
+        """
         with Usd.StageCacheContext(Usd.BlockStageCaches):
             stage = Usd.Stage.Open(usdFile, Usd.Stage.LoadNone)
             assert stage, 'Failed to open stage'

@@ -36,18 +36,16 @@ NULL_INDEX = QtCore.QModelIndex()
 
 
 class AbstractTreeModelMixin(object):
-    '''
-    Mixin class that implements the necessary methods for Qt model to reflect
+    """Mixin class that implements the necessary methods for Qt model to reflect
     the structure of an ``ItemTree`` instance.
-    '''
-
+    """
     def __init__(self, itemTree=None, parent=None):
-        '''
+        """
         Parameters
         ----------
         itemTree : Optional[ItemTree]
         parent
-        '''
+        """
         super(AbstractTreeModelMixin, self).__init__(parent=parent)
 
         self.itemTree = None  # type: ItemTree
@@ -55,7 +53,7 @@ class AbstractTreeModelMixin(object):
 
     # Qt methods ---------------------------------------------------------------
     def hasChildren(self, parentIndex):
-        '''
+        """
         Parameters
         ----------
         parentIndex : QtCore.QModelIndex
@@ -63,11 +61,11 @@ class AbstractTreeModelMixin(object):
         Returns
         -------
         bool
-        '''
+        """
         return bool(self.rowCount(parentIndex))
 
     def index(self, row, column, parentIndex):
-        '''
+        """
         Parameters
         ----------
         row : int
@@ -77,7 +75,7 @@ class AbstractTreeModelMixin(object):
         Returns
         -------
         QtCore.QModelIndex
-        '''
+        """
         if parentIndex.isValid():
             parentItem = parentIndex.internalPointer()
         else:
@@ -85,7 +83,7 @@ class AbstractTreeModelMixin(object):
         return self.itemIndex(row, column, parentItem)
 
     def parent(self, modelIndex):
-        '''
+        """
         Parameters
         ----------
         modelIndex : QtCore.QModelIndex
@@ -93,7 +91,7 @@ class AbstractTreeModelMixin(object):
         Returns
         -------
         QtCore.QModelIndex
-        '''
+        """
         if modelIndex.isValid():
             parent = self.itemTree.parent(modelIndex.internalPointer())
             if parent is not self.itemTree.root:
@@ -111,18 +109,18 @@ class AbstractTreeModelMixin(object):
 
     # Custom methods -----------------------------------------------------------
     def setItemTree(self, itemTree):
-        '''
+        """
         Parameters
         ----------
         itemTree : ItemTree
-        '''
+        """
         assert isinstance(itemTree, ItemTree)
         self.beginResetModel()
         self.itemTree = itemTree
         self.endResetModel()
 
     def itemIndex(self, row, column, parentItem):
-        '''
+        """
         Parameters
         ----------
         row : int
@@ -132,7 +130,7 @@ class AbstractTreeModelMixin(object):
         Returns
         -------
         QtCore.QModelIndex
-        '''
+        """
         try:
             childItem = self.itemTree.childAtRow(parentItem, row)
         except (KeyError, IndexError):
@@ -147,17 +145,17 @@ class AbstractTreeModelMixin(object):
 
 
 class Column(object):
-    '''Qt specific column used by ItemDataModel'''
+    """Qt-specific column used by ItemDataModel"""
     __slots__ = ('_name', 'label', 'width')
 
     def __init__(self, name, label=None, width=100):
-        '''
+        """
         Parameters
         ----------
         name : str
         label : Optional[str]
         width: int
-        '''
+        """
         self._name = name
         if label is None:
             label = name

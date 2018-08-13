@@ -54,7 +54,6 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
     widgets to the default UsdQt handlers or write a new StyledItemDelegate
     using ValueDelegate as a reference implementation.
     """
-
     # def PaintArray(self, painter, option, index, arrayData, elementSize):
     #     super(ValueEditDelegate, self).paint(painter, option, QtCore.QModelIndex())
     #     arrayOption = QtWidgets.QStyleOptionViewItem(option)

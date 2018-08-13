@@ -39,9 +39,8 @@ if False:
     from pxr.UsdQt.hierarchyModel import HierarchyBaseModel
 
 
-class HierarchyStandardContextMenuStrategy:
+class HierarchyStandardContextMenuStrategy(object):
     """A simple context menu"""
-
     def __init__(self, hierarchyEditor):
         self.hierarchyEditor = hierarchyEditor
 
@@ -131,13 +130,13 @@ class HierarchyStandardContextMenuStrategy:
 
 
 class HierarchyEditor(QtWidgets.QWidget):
-    '''The hierarchy editor provides a filterable tree view of the prim
+    """The hierarchy editor provides a filterable tree view of the prim
     hierarchy.  This class may be used as is for simple/standard uses cases.
 
     For more specialized use cases, this class should be used as an exmaple of
     how to build an editor around the UsdQt hierarchy components and not
     directly subclassed.
-    '''
+    """
     ShowInactive = "Show Inactive"
     ShowUndefined = "Show Undefined (Overs)"
     ShowAbstract = "Show Abstract (Classes)"
@@ -220,8 +219,8 @@ class HierarchyEditor(QtWidgets.QWidget):
 
     @property
     def primSelectionChanged(self):
-        '''Provides access to the internal QItemSelectionModel's
-        selectionChanged signal for callbacks on prim selection changes.'''
+        """Provides access to the internal QItemSelectionModel's
+        selectionChanged signal for callbacks on prim selection changes."""
         return self._hierarchyView.selectionModel().selectionChanged
 
     def SelectPaths(self, paths):
@@ -261,23 +260,23 @@ class HierarchyEditor(QtWidgets.QWidget):
 
     def GetPrimSelectedIndices(self):
         # type: () -> List[QtCore.QModelIndex]
-        '''Provides access to the internal selected indices.
+        """Provides access to the internal selected indices.
 
         Returns
         -------
         List[QtCore.QModelIndex]
-        '''
+        """
         return self._hierarchyView.selectedIndexes()
 
     def SetSourceModel(self, model):
         # type: (HierarchyBaseModel) -> None
-        '''Replaces the current editor's current model with the new model.
+        """Replaces the current editor's current model with the new model.
         The model must be a subclass of HierarchyBaseModel.
 
         Parameters
         ----------
         model : HierarchyBaseModel
-        '''
+        """
         self._filterModel.setSourceModel(model)
 
 

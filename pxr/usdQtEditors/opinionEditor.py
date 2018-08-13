@@ -45,7 +45,6 @@ if False:
 
 
 class OpinionStackWidget(QtWidgets.QWidget):
-
     def __init__(self, parent=None):
         # type: (Optional[QtWidgets.QWidget]) -> None
         """
@@ -99,7 +98,6 @@ class OpinionStackWidget(QtWidgets.QWidget):
 
 
 class OpinionEditor(QtWidgets.QWidget):
-
     def __init__(self, delegate=None, parent=None):
         # type: (Optional[QtWidgets.QAbstractItemDelegate], Optional[QtWidgets.QWidget]) -> None
         """
@@ -187,7 +185,6 @@ class OpinionEditor(QtWidgets.QWidget):
 
 
 class OpinionController(QtCore.QObject):
-
     def __init__(self, model, editor, parent=None):
         # type: (OpinionBaseModel, OpinionEditor, Optional[QtCore.QObject]) -> None
         """
@@ -209,16 +206,18 @@ class OpinionController(QtCore.QObject):
             if proxy.GetSize() == 1:
                 attributes = proxy.GetAttributes()
                 attribute = attributes[0]
-                self.editor.LaunchOpinionViewer(attribute.GetPrim(),
-                                                _AttributeHandler(attribute.GetName(),
-                                                                  Usd.TimeCode.Default()))
+                self.editor.LaunchOpinionViewer(
+                    attribute.GetPrim(),
+                    _AttributeHandler(attribute.GetName(),
+                                      Usd.TimeCode.Default()))
         elif type(proxy) == _MetadataProxy:
             if proxy.GetSize() == 1:
                 objects = proxy.GetObjects()
                 obj = objects[0]
                 if type(obj) == Usd.Prim:
-                    self.editor.LaunchOpinionViewer(obj,
-                                                    _PrimMetadataHandler(proxy.GetName()))
+                    self.editor.LaunchOpinionViewer(
+                        obj,
+                        _PrimMetadataHandler(proxy.GetName()))
 
     def ResetPrims(self, prims):
         # type: (List[Usd.Prim]) -> None

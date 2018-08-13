@@ -34,7 +34,7 @@ if False:
 
 
 class StageCacheModel(QtCore.QAbstractTableModel):
-    '''A stage cache model exposes the stages a cache is holding to Qt.
+    """A stage cache model exposes the stages a cache is holding to Qt.
 
     The stage cache model by default exposes the root layer in column 0 and
     the session layer in column 1.  Even though this is an abstract table model,
@@ -49,16 +49,15 @@ class StageCacheModel(QtCore.QAbstractTableModel):
     change over time.  However, if stage cache membership changes were backed
     by an UsdNotice, we could know when to flush and update our own internal
     cache membership list.
-    '''
-
+    """
     def __init__(self, stageCache, parent=None):
         # type: (Usd.StageCache, Optional[QtCore.QObject]) -> None
-        '''
+        """
         Parameters
         ----------
         stageCache : Usd.StageCache
         parent : Optional[QtCore.QObject]
-        '''
+        """
         super(StageCacheModel, self).__init__(parent=parent)
         self._stageCache = stageCache
 
@@ -81,7 +80,7 @@ class StageCacheModel(QtCore.QAbstractTableModel):
 
     def GetStageForIndex(self, index):
         # type: (QtCore.QModelIndex) -> Usd.Stage
-        '''Retrieve the UsdStage associated with the row of index
+        """Retrieve the UsdStage associated with the row of index
 
         Parameters
         ----------
@@ -90,14 +89,14 @@ class StageCacheModel(QtCore.QAbstractTableModel):
         Returns
         -------
         Usd.Stage
-        '''
+        """
         return self._stageCache.GetAllStages()[index.row()]
 
 
 if __name__ == '__main__':
-    '''
+    """
     Sample usage
-    '''
+    """
     import os
     from pxr import Usd, UsdUtils
     from ._Qt import QtWidgets
