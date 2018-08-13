@@ -142,32 +142,3 @@ class AbstractTreeModelMixin(object):
         return self.itemIndex(self.itemTree.rowIndex(item),
                               column,
                               self.itemTree.parent(item))
-
-
-class Column(object):
-    """Qt-specific column used by ItemDataModel"""
-    __slots__ = ('_name', 'label', 'width')
-
-    def __init__(self, name, label=None, width=100):
-        """
-        Parameters
-        ----------
-        name : str
-        label : Optional[str]
-        width: int
-        """
-        self._name = name
-        if label is None:
-            label = name
-        self.label = label
-        self.width = max(0, width)
-
-    def __repr__(self):
-        return '{0.__class__.__name__}({0._name})'.format(self)
-
-    def __str__(self):
-        return self._name
-
-    @property
-    def name(self):
-        return self._name
