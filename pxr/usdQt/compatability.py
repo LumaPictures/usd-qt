@@ -22,6 +22,13 @@
 # language governing permissions and limitations under the Apache License.
 #
 
+"""
+UsdQt is currently architected to work with PySide2's API. This module is used
+to provide compatability with other Qt APIs.
+
+If you need to add a function here, try to document the reason it is being
+added, and if there is any known path to deprecating it.
+"""
 from __future__ import absolute_import
 
 from ._Qt import QtCore
@@ -30,10 +37,6 @@ if False:
     from typing import *
     from ._Qt import QtGui, QtWidgets
 
-# UsdQt is currently architected to work with PySide2.  The compatability
-# module is designed as a place to provide compatability with other vesions of
-# Qt.  When adding a function here, try to document the reason that it's being
-# added and if there's any path to deprecating it
 
 QT_VERSION_STR = QtCore.qVersion()
 QT_VERSION_PARTS = map(int, QT_VERSION_STR.split('.'))

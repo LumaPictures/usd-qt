@@ -22,6 +22,9 @@
 # language governing permissions and limitations under the Apache License.
 #
 
+"""
+An extensible Usd stage outliner.
+"""
 from __future__ import absolute_import
 
 from collections import namedtuple

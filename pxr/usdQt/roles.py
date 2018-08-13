@@ -22,6 +22,10 @@
 # language governing permissions and limitations under the Apache License.
 #
 
+"""
+Contains UsdQt-specific Qt user roles, as well as some hint types for custom
+editor widgets.
+"""
 from __future__ import absolute_import
 
 from ._Qt import QtCore
