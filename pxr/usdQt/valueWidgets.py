@@ -22,6 +22,23 @@
 # language governing permissions and limitations under the Apache License.
 #
 
+"""
+A Note on `None`
+================
+
+This module aims to provide editors that are compatable with any
+`VtValue`s/`SdfValueTypeName`s that may appear in a Usd file. That means that
+`None` may be a value that needs to be handled by a widget's SetValue (as
+`None` may be returned by an attribute's Get). At the same time, calling Set
+with a value of None will raise an Exception, so value editors cannot not
+return `None` from GetValue. When values are not explicitly defined (e.g. an
+empty numeric value, we prefer to map the undefined field to the type's
+`VtZero` value. It may be tempting to try and equate a SetValue with a Block or
+a Clear, but that may be ambiguous.
+
+In short, editor widgets MUST handle be able to handle `None` as an argument to
+SetValue, and NEVER return `None` from GetValue.
+"""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -32,34 +49,20 @@ from ._Qt import QtCore, QtWidgets, QtGui
 
 from pxr import Gf, Tf, Sdf
 
-from . import compatability
-
-# A Note on 'None'
-#
-# This file aims to provide editors that are compatable with all
-# VtValues/SdfValueTypeNames that may appear in a Usd file. That means that
-# 'None' may be a value that needs to be handled by a widget's SetValue (as
-# 'None' may be returned by an attribute's Get). At the same time, calling Set
-# with a value of None will raise an Exception, so value editors cannot not
-# return None in their GetValue. When values are not explicitly defined (say an
-# empty numeric value, we prefer to map the undefined field to the type's
-# VtZero value. It may be tempting to try and equate a SetValue with a Block or
-# a Clear, but that may be ambiguous.
-#
-# In short, Widgets MUST be instantiatable with None via SetValue and NEVER
-# return None via GetValue.
+if False:
+    from typing import *
 
 
 class _ValueEditMetaclass(type(QtWidgets.QWidget)):
-    """Metaclass used for all subclasses of _ValueEdit
-    Qt user properties are the magic that allows for the editors to
-    leverage a lot of default Qt behavior with respect to item delegates.
-    If 'valueType' is not None, then you MUST declare an implementation of
-    GetValue and SetValue.
+    """Metaclass for `_ValueEdit`
 
-    Ideally, this would be achieved via inheritance or python decorators,
-    but the user property is defined via metaclass in PySide so we need to
-    approach the problem this way.
+    Qt user properties are the magic that allows for the editors to leverage a
+    lot of default Qt behavior with respect to item delegates.
+
+    If 'valueType' is not `None`, then you MUST reimplement GetValue and
+    SetValue. Ideally, this would be achieved via inheritance or python
+    decorators, but the user property is defined via a metaclass in PySide, so
+    we need to approach the problem this way.
     """
     def __new__(meta, name, bases, clsAttributes):
         valueType = clsAttributes.get('valueType', None)
@@ -73,7 +76,7 @@ class _ValueEditMetaclass(type(QtWidgets.QWidget)):
                         break
                 else:
                     raise NotImplementedError(
-                        "GetValue must be defined in class or parent.")
+                        "GetValue must be reimplemented by class or parent.")
             if 'SetValue' in clsAttributes:
                 setter = clsAttributes['SetValue']
             else:
@@ -83,7 +86,7 @@ class _ValueEditMetaclass(type(QtWidgets.QWidget)):
                         break
                 else:
                     raise NotImplementedError(
-                        "SetValue must be defined in class or parent.")
+                        "SetValue must be reimplemented by class or parent.")
             clsAttributes['value'] = QtCore.Property(
                 valueType, getter, setter, user=True)
             # NOTE: We're supposed to be able to declare a notify signal in the
@@ -102,26 +105,38 @@ class _ValueEdit(QtWidgets.QWidget):
     'SetValue', and 'IsChanged'.
     """
     __metaclass__ = _ValueEditMetaclass
+
     valueType = None
 
     def __init__(self, parent=None):
+        # type: (Optional[QtWidgets.QWidget]) -> None
+        """
+        Parameters
+        ----------
+        parent : Optional[QtWidgets.QWidget]
+        """
         super(_ValueEdit, self).__init__(parent=parent)
 
     def GetValue(self):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def SetValue(self, value):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def IsChanged(self):
+        # type: () -> bool
         """Returns whether the widget should be considered changed by delegates.
 
         There are several actions that can trigger setModelData in the
-        ValueDelegate.  A custom IsChanged allows us to filter those out by
+        ValueDelegate. A custom IsChanged allows us to filter those out by
         limiting the edits that will be considered a change.
         (It would be nice to remove this if possible.)
+
+        Returns
+        -------
+        bool
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def _SetupLayoutSpacing(self, layout):
         layout.setSpacing(0)
@@ -131,47 +146,58 @@ class _ValueEdit(QtWidgets.QWidget):
 
 class _LineEdit(_ValueEdit):
     """Parent class for any ValueEdit that contains one or more QLineEdits"""
-
     def __init__(self, parent=None):
+        # type: (Optional[QtWidgets.QWidget]) -> None
+        """
+        Parameters
+        ----------
+        parent : Optional[QtWidgets.QWidget]
+        """
         super(_LineEdit, self).__init__(parent=parent)
-        self.__changed = False
+        self._changed = False
 
     def _SetupLineEdit(self, lineEdit):
-        lineEdit.returnPressed.connect(self.__OnReturnPressed)
-        lineEdit.textEdited.connect(self.__OnTextEdited)
+        lineEdit.returnPressed.connect(self._OnReturnPressed)
+        lineEdit.textEdited.connect(self._OnTextEdited)
         lineEdit.setFrame(False)
 
-    def __OnReturnPressed(self):
-        self.__changed = True
+    def _OnReturnPressed(self):
+        self._changed = True
 
-    def __OnTextEdited(self, _):
-        self.__changed = True
+    def _OnTextEdited(self, _):
+        self._changed = True
 
     def IsChanged(self):
         """Return true if return has been pressed or text has been edited.
 
         See _ValueEdit.IsChanged for more information.
         """
-        return self.__changed
+        return self._changed
 
 
 class _ComboEdit(_ValueEdit):
     """Parent class for any ValueEdit that contains a QComboBox"""
-
     def __init__(self, choices, parent=None):
+        # type: (List[str], Optional[QtWidgets.QWidget]) -> None
+        """
+        Parameters
+        ----------
+        choices : List[str]
+        parent : Optional[QtWidgets.QWidget]
+        """
         super(_ComboEdit, self).__init__(parent=parent)
-        self.__changed = False
+        self._changed = False
         self._comboBox = QtWidgets.QComboBox(self)
         self._comboBox.addItems(choices)
-        self._comboBox.activated.connect(self.__OnActivated)
-        self.__layout = QtWidgets.QHBoxLayout()
-        self.__layout.addWidget(self._comboBox)
-        self._SetupLayoutSpacing(self.__layout)
+        self._comboBox.activated.connect(self._OnActivated)
+        self._layout = QtWidgets.QHBoxLayout()
+        self._layout.addWidget(self._comboBox)
+        self._SetupLayoutSpacing(self._layout)
         self.setFocusProxy(self._comboBox)
-        self.setLayout(self.__layout)
+        self.setLayout(self._layout)
 
-    def __OnActivated(self, _):
-        self.__changed = True
+    def _OnActivated(self, _):
+        self._changed = True
         self.editFinished.emit()
 
     def IsChanged(self):
@@ -179,7 +205,7 @@ class _ComboEdit(_ValueEdit):
 
         See _ValueEdit.IsChanged for more information.
         """
-        return self.__changed
+        return self._changed
 
     editFinished = QtCore.Signal()
 
@@ -195,38 +221,45 @@ class _NumericEdit(_LineEdit):
     validatorType = None
 
     def __init__(self, minValue=None, maxValue=None, parent=None):
+        # type: (Optional[Union[int, float]], Optional[Union[int, float]], Optional[QtWidgets.QWidget]) -> None
+        """
+        Parameters
+        ----------
+        minValue : Optional[Union[int, float]]
+        maxValue : Optional[Union[int, float]]
+        parent : Optional[QtWidgets.QWidget]
+        """
         super(_NumericEdit, self).__init__(parent=parent)
 
-        self.__lineEdit = QtWidgets.QLineEdit(self)
-        self.__validator = self.validatorType(self)
-        self.__lineEdit.setValidator(self.__validator)
+        self._lineEdit = QtWidgets.QLineEdit(self)
+        self._validator = self.validatorType(self)
+        self._lineEdit.setValidator(self._validator)
         if minValue:
-            self.__validator.setBottom(minValue)
+            self._validator.setBottom(minValue)
         if maxValue:
-            self.__validator.setTop(maxValue)
-        self.__layout = QtWidgets.QHBoxLayout()
-        self.__layout.addWidget(self.__lineEdit)
-        self._SetupLayoutSpacing(self.__layout)
-        self.setLayout(self.__layout)
-        self.setFocusProxy(self.__lineEdit)
+            self._validator.setTop(maxValue)
+        self._layout = QtWidgets.QHBoxLayout()
+        self._layout.addWidget(self._lineEdit)
+        self._SetupLayoutSpacing(self._layout)
+        self.setLayout(self._layout)
+        self.setFocusProxy(self._lineEdit)
 
-        self._SetupLineEdit(self.__lineEdit)
-
-        # get the preferred string type of the current Qt context
-        self._stringType = type(self.__lineEdit.text())
+        self._SetupLineEdit(self._lineEdit)
 
     def GetValue(self):
-        return self.valueType(self.__lineEdit.text())\
-            if len(self.__lineEdit.text()) > 0 else 0.0
+        text = self._lineEdit.text()
+        if text:
+            return self.valueType(text)
+        return 0.0
 
     def SetValue(self, value):
         if value is None:
-            self.__lineEdit.clear()
+            self._lineEdit.clear()
             return
-        stringValue = compatability.ResolveString(str(value), self._stringType)
-        if self.__validator.validate(stringValue, 0)[0] != QtGui.QValidator.Acceptable:
-            raise ValueError("%s not accepted by validator." % stringValue)
-        self.__lineEdit.setText(stringValue)
+        value = str(value)
+        if self._validator.validate(value, 0)[0] != QtGui.QValidator.Acceptable:
+            raise ValueError("%s not accepted by validator." % value)
+        self._lineEdit.setText(value)
 
 
 class _VecEdit(_LineEdit):
@@ -245,36 +278,40 @@ class _VecEdit(_LineEdit):
     validatorType = None
 
     def __init__(self, parent=None):
+        # type: (Optional[QtWidgets.QWidget]) -> None
+        """
+        Parameters
+        ----------
+        parent : Optional[QtWidgets.QWidget]
+        """
         super(_VecEdit, self).__init__(parent=parent)
-        self.__layout = QtWidgets.QHBoxLayout()
-        self.__editors = []
+        self._layout = QtWidgets.QHBoxLayout()
+        self._editors = []
 
-        self.__validator = self.validatorType()
+        self._validator = self.validatorType()
 
         for index in xrange(self.valueType.dimension):
-            self.__editors.append(QtWidgets.QLineEdit(self))
-            self.__editors[-1].setValidator(self.__validator)
-            self.__layout.addWidget(self.__editors[-1])
+            self._editors.append(QtWidgets.QLineEdit(self))
+            self._editors[-1].setValidator(self._validator)
+            self._layout.addWidget(self._editors[-1])
             if index != 0:
-                self.setTabOrder(self.__editors[-2], self.__editors[-1])
-            self._SetupLineEdit(self.__editors[-1])
-        self.setTabOrder(self.__editors[-1], self.__editors[0])
+                self.setTabOrder(self._editors[-2], self._editors[-1])
+            self._SetupLineEdit(self._editors[-1])
+        self.setTabOrder(self._editors[-1], self._editors[0])
 
-        self._SetupLayoutSpacing(self.__layout)
-        self.setLayout(self.__layout)
-        self.setFocusProxy(self.__editors[0])
-        # get the preferred string type of the current Qt context
-        self._stringType = type(self.__editors[0].text())
+        self._SetupLayoutSpacing(self._layout)
+        self.setLayout(self._layout)
+        self.setFocusProxy(self._editors[0])
 
     def GetValue(self):
-        text = (self.__editors[i].text()
+        text = (self._editors[i].text()
                 for i in xrange(self.valueType.dimension))
         return self.valueType(*(self.scalarType(t) if t else 0.0 for t in text))
 
     def SetValue(self, value):
         if value is None:
             for index in xrange(self.valueType.dimension):
-                self.__editors[index].clear()
+                self._editors[index].clear()
             return
         if len(value) != self.valueType.dimension:
             raise ValueError("Input length %i does not match expected length "
@@ -282,13 +319,12 @@ class _VecEdit(_LineEdit):
         for index in xrange(self.valueType.dimension):
             if value[index] is None:
                 raise ValueError("Value at %i is None", index)
-            string = compatability.ResolveString(
-                str(value[index]), self._stringType)
-            if self.__validator.validate(string, 0)[0] != QtGui.QValidator.Acceptable:
+            string = str(value[index])
+            if self._validator.validate(string, 0)[0] != QtGui.QValidator.Acceptable:
                 raise ValueError(
                     "%s (at index %i) not accepted by validator." %
                     (string, index))
-            self.__editors[index].setText(string)
+            self._editors[index].setText(string)
 
 
 class _MatrixEdit(_LineEdit):
@@ -307,40 +343,44 @@ class _MatrixEdit(_LineEdit):
     validatorType = None
 
     def __init__(self, parent=None):
+        # type: (Optional[QtWidgets.QWidget]) -> None
+        """
+        Parameters
+        ----------
+        parent : Optional[QtWidgets.QWidget]
+        """
         super(_MatrixEdit, self).__init__(parent)
-        self.__layout = QtWidgets.QGridLayout(self)
-        self.__editors = []
-        self.__validator = self.validatorType()
+        self._layout = QtWidgets.QGridLayout(self)
+        self._editors = []
+        self._validator = self.validatorType()
 
         for row in xrange(self.valueType.dimension[0]):
             for column in xrange(self.valueType.dimension[1]):
-                self.__editors.append(QtWidgets.QLineEdit(self))
-                self.__editors[-1].setValidator(self.__validator)
-                self.__layout.addWidget(self.__editors[-1], row, column)
-                self._SetupLineEdit(self.__editors[-1])
+                self._editors.append(QtWidgets.QLineEdit(self))
+                self._editors[-1].setValidator(self._validator)
+                self._layout.addWidget(self._editors[-1], row, column)
+                self._SetupLineEdit(self._editors[-1])
                 if row != 0 and column != 0:
-                    self.setTabOrder(self.__editors[-2], self.__editors[-1])
-        self.setTabOrder(self.__editors[-1], self.__editors[0])
+                    self.setTabOrder(self._editors[-2], self._editors[-1])
+        self.setTabOrder(self._editors[-1], self._editors[0])
 
-        self.setFocusProxy(self.__editors[0])
+        self.setFocusProxy(self._editors[0])
         # self.setFocusPolicy(QtCore.Qt.StrongFocus)
-        self.setLayout(self.__layout)
-        self._SetupLayoutSpacing(self.__layout)
-        # get the preferred string type of the current Qt context
-        self._stringType = type(self.__editors[0].text())
+        self.setLayout(self._layout)
+        self._SetupLayoutSpacing(self._layout)
 
-    def __GetIndex(self, row, column):
+    def _GetIndex(self, row, column):
         return row * self.valueType.dimension[1] + column
 
     def GetValue(self):
-        text = (e.text() for e in self.__editors)
+        text = (e.text() for e in self._editors)
         return self.valueType(*(self.scalarType(t) if t else 0.0 for t in text))
 
     def SetValue(self, value):
         numRows = self.valueType.dimension[0]
         numColumns = self.valueType.dimension[1]
         if value is None:
-            for e in self.__editors:
+            for e in self._editors:
                 e.clear()
             return
         if len(value) != numRows:
@@ -356,13 +396,12 @@ class _MatrixEdit(_LineEdit):
             for column in xrange(numColumns):
                 if value[row][column] is None:
                     raise ValueError("Value at (%i, %i) is None", row, column)
-                string = compatability.ResolveString(
-                    str(value[row][column]), self._stringType)
-                if self.__validator.validate(string, 0)[0] != QtGui.QValidator.Acceptable:
+                string = str(value[row][column])
+                if self._validator.validate(string, 0)[0] != QtGui.QValidator.Acceptable:
                     raise ValueError(
                         "%s (at %i, %i) not accepted by validator." %
                         (string, row, column))
-                self.__editors[self.__GetIndex(row, column)].setText(string)
+                self._editors[self._GetIndex(row, column)].setText(string)
 
 
 class IntEdit(_NumericEdit):
@@ -433,6 +472,13 @@ class TextComboEdit(_ComboEdit):
     valueType = str
 
     def __init__(self, allowedValues, parent=None):
+        # type: (List[str], Optional[QtWidgets.QWidget]) -> None
+        """
+        Parameters
+        ----------
+        allowedValues : List[str]
+        parent : Optional[QtWidgets.QWidget]
+        """
         super(TextComboEdit, self).__init__(allowedValues, parent=parent)
         self._reluctantValues = []
 
@@ -454,6 +500,12 @@ class BoolEdit(_ComboEdit):
     valueType = bool
 
     def __init__(self, parent=None):
+        # type: (Optional[QtWidgets.QWidget]) -> None
+        """
+        Parameters
+        ----------
+        parent : Optional[QtWidgets.QWidget]
+        """
         super(BoolEdit, self).__init__(['false', 'true'], parent)
 
     def GetValue(self):
@@ -470,94 +522,115 @@ class StringEdit(_LineEdit):
     valueType = str
 
     def __init__(self, parent=None):
+        # type: (Optional[QtWidgets.QWidget]) -> None
+        """
+        Parameters
+        ----------
+        parent : Optional[QtWidgets.QWidget]
+        """
         super(StringEdit, self).__init__(parent)
-        self.__lineEdit = QtWidgets.QLineEdit(self)
-        self.__layout = QtWidgets.QHBoxLayout()
-        self.__layout.addWidget(self.__lineEdit)
-        self._SetupLayoutSpacing(self.__layout)
-        self.setFocusProxy(self.__lineEdit)
-        self.setLayout(self.__layout)
-        self._SetupLineEdit(self.__lineEdit)
+        self._lineEdit = QtWidgets.QLineEdit(self)
+        self._layout = QtWidgets.QHBoxLayout()
+        self._layout.addWidget(self._lineEdit)
+        self._SetupLayoutSpacing(self._layout)
+        self.setFocusProxy(self._lineEdit)
+        self.setLayout(self._layout)
+        self._SetupLineEdit(self._lineEdit)
 
     def GetValue(self):
-        return str(self.__lineEdit.text())
+        return str(self._lineEdit.text())
 
     def SetValue(self, value):
         if value is None:
-            self.__lineEdit.clear()
+            self._lineEdit.clear()
             return
-        self.__lineEdit.setText(value)
+        self._lineEdit.setText(value)
 
 
 class AssetEdit(_LineEdit):
     valueType = Sdf.AssetPath
 
     def __init__(self, parent=None):
+        # type: (Optional[QtWidgets.QWidget]) -> None
+        """
+        Parameters
+        ----------
+        parent : Optional[QtWidgets.QWidget]
+        """
         super(AssetEdit, self).__init__(parent)
-        self.__lineEdit = QtWidgets.QLineEdit(self)
-        self.__layout = QtWidgets.QHBoxLayout()
-        self.__layout.addWidget(self.__lineEdit)
-        self._SetupLayoutSpacing(self.__layout)
-        self.setFocusProxy(self.__lineEdit)
-        self.setLayout(self.__layout)
-        self._SetupLineEdit(self.__lineEdit)
+        self._lineEdit = QtWidgets.QLineEdit(self)
+        self._layout = QtWidgets.QHBoxLayout()
+        self._layout.addWidget(self._lineEdit)
+        self._SetupLayoutSpacing(self._layout)
+        self.setFocusProxy(self._lineEdit)
+        self.setLayout(self._layout)
+        self._SetupLineEdit(self._lineEdit)
 
     def GetValue(self):
-        text = str(self.__lineEdit.text())
+        text = str(self._lineEdit.text())
         return Sdf.AssetPath(text) if text else Sdf.AssetPath()
 
     def SetValue(self, value):
         if value is None:
-            self.__lineEdit.clear()
+            self._lineEdit.clear()
             return
-        self.__lineEdit.setText(value.path)
+        self._lineEdit.setText(value.path)
 
 
 class PathValidator(QtGui.QValidator):
-    """A PathValidator ensures that the path is a valid SdfPath """
-
+    """A PathValidator ensures that the path is a valid SdfPath"""
     def __init__(self, parent=None):
+        # type: (Optional[QtCore.QObject]) -> None
+        """
+        Parameters
+        ----------
+        parent : Optional[QtCore.QObject]
+        """
         super(PathValidator, self).__init__(parent)
 
-    def validate(self, string, pos):
-        value = compatability.ResolveString(string, str)
+    def validate(self, value, pos):
         if value != '' and not Sdf.Path.IsValidPathString(value):
-            return (QtGui.QValidator.Intermediate, string, pos)
-        return (QtGui.QValidator.Acceptable, string, pos)
+            return (QtGui.QValidator.Intermediate, value, pos)
+        return (QtGui.QValidator.Acceptable, value, pos)
 
 
 class PathEdit(_LineEdit):
     valueType = Sdf.Path
 
     def __init__(self, parent=None):
+        # type: (Optional[QtWidgets.QWidget]) -> None
+        """
+        Parameters
+        ----------
+        parent : Optional[QtWidgets.QWidget]
+        """
         super(PathEdit, self).__init__(parent)
-        self.__validator = PathValidator()
-        self.__lineEdit = QtWidgets.QLineEdit(self)
-        self._stringType = type(self.__lineEdit.text())
-        self.__lineEdit.setValidator(self.__validator)
-        self.__layout = QtWidgets.QHBoxLayout()
-        self.__layout.addWidget(self.__lineEdit)
-        self._SetupLayoutSpacing(self.__layout)
-        self.setFocusProxy(self.__lineEdit)
-        self.setLayout(self.__layout)
-        self._SetupLineEdit(self.__lineEdit)
+        self._validator = PathValidator()
+        self._lineEdit = QtWidgets.QLineEdit(self)
+        self._lineEdit.setValidator(self._validator)
+        self._layout = QtWidgets.QHBoxLayout()
+        self._layout.addWidget(self._lineEdit)
+        self._SetupLayoutSpacing(self._layout)
+        self.setFocusProxy(self._lineEdit)
+        self.setLayout(self._layout)
+        self._SetupLineEdit(self._lineEdit)
 
     def GetValue(self):
-        text = str(self.__lineEdit.text())
+        text = str(self._lineEdit.text())
         return Sdf.Path(text) if text else Sdf.Path()
 
     def SetValue(self, value):
         if value is None:
-            self.__lineEdit.clear()
+            self._lineEdit.clear()
             return
-        stringValue = compatability.ResolveString(str(value), self._stringType)
-        if self.__validator.validate(stringValue, 0)[0] != QtGui.QValidator.Acceptable:
-            raise ValueError("%s not accepted by validator." % stringValue)
-        self.__lineEdit.setText(stringValue)
+        value = str(value)
+        if self._validator.validate(value, 0)[0] != QtGui.QValidator.Acceptable:
+            raise ValueError("%s not accepted by validator." % value)
+        self._lineEdit.setText(value)
 
 
 class _ColorButton(QtWidgets.QPushButton):
-    '''The color button stores its color in DISPLAY space not LINEAR space'''
+    """The color button stores its color in DISPLAY space not LINEAR space"""
     class _PainterContext(object):
         def __init__(self, widget):
             self.widget = widget
@@ -572,6 +645,12 @@ class _ColorButton(QtWidgets.QPushButton):
             self._painter.end()
 
     def __init__(self, parent=None):
+        # type: (Optional[QtWidgets.QWidget]) -> None
+        """
+        Parameters
+        ----------
+        parent : Optional[QtWidgets.QWidget]
+        """
         super(_ColorButton, self).__init__(parent)
         self._color = QtGui.QColor(255, 255, 255)
 
@@ -603,21 +682,27 @@ class _ColorButton(QtWidgets.QPushButton):
 
 
 class _ColorEdit(_ValueEdit):
-    '''Stores a color in LINEAR space'''
+    """Stores a color in LINEAR space"""
     valueType = None
 
     def __init__(self, parent=None):
+        # type: (Optional[QtWidgets.QWidget]) -> None
+        """
+        Parameters
+        ----------
+        parent : Optional[QtWidgets.QWidget]
+        """
         super(_ColorEdit, self).__init__(parent)
-        self.__layout = QtWidgets.QHBoxLayout()
-        self._SetupLayoutSpacing(self.__layout)
+        self._layout = QtWidgets.QHBoxLayout()
+        self._SetupLayoutSpacing(self._layout)
         self._colorButton = _ColorButton()
         self._colorButton.setMaximumWidth(30)
         self._colorButton.clicked.connect(self._OnPushed)
         self._valueWidget = valueTypeMap[Tf.Type.Find(self.valueType)]()
 
-        self.__layout.addWidget(self._colorButton)
-        self.__layout.addWidget(self._valueWidget)
-        self.setLayout(self.__layout)
+        self._layout.addWidget(self._colorButton)
+        self._layout.addWidget(self._valueWidget)
+        self.setLayout(self._layout)
 
         # TODO: There should be a way to more directly identify if one of the
         # numeric widgets have changed.
@@ -724,6 +809,7 @@ vecTypes = {Tf.Type.Find(Gf.Vec2i), Tf.Type.Find(Gf.Vec2f),
 matrixTypes = {Tf.Type.Find(Gf.Matrix2f), Tf.Type.Find(Gf.Matrix2d),
                Tf.Type.Find(Gf.Matrix3f), Tf.Type.Find(Gf.Matrix3d),
                Tf.Type.Find(Gf.Matrix4f), Tf.Type.Find(Gf.Matrix4d)}
+
 
 if __name__ == '__main__':
     import sys

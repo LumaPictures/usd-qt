@@ -27,40 +27,49 @@ from __future__ import division
 from __future__ import print_function
 
 from pxr import Usd
-from pxr import UsdQt
 
 # TODO: Make all proxies and handlers not private
 from pxr.UsdQt._bindings import _AttributeProxy, _DisplayGroupProxy, \
     _MetadataProxy, _PrimProxy, _VariantSetProxy, _VariantSetsProxy
-from pxr.UsdQt.opinionStackModel import _AttributeHandler, _PrimMetadataHandler, \
-    _VariantSetHandler, _VariantSetsHandler
-
-from . import treeView
+from pxr.UsdQt.opinionStackModel import OpinionStackFilter, OpinionStackModel, \
+    _AttributeHandler, _PrimMetadataHandler, _VariantSetHandler, \
+    _VariantSetsHandler
+from pxr.UsdQt.valueDelegate import ValueDelegate
 
 from ._Qt import QtCore, QtWidgets
+from . import treeView
+
+if False:
+    from typing import *
+    from pxr.UsdQt.opinionStackModel import _BaseHandler, OpinionBaseModel
 
 
 class OpinionStackWidget(QtWidgets.QWidget):
-
     def __init__(self, parent=None):
+        # type: (Optional[QtWidgets.QWidget]) -> None
+        """
+        Parameters
+        ----------
+        parent : Optional[QtWidgets.QWidget]
+        """
         super(OpinionStackWidget, self).__init__(parent=parent)
-        self.__toolBar = QtWidgets.QToolBar()
-        self.__toolBar.addWidget(QtWidgets.QLabel('Opinion Stack'))
-        self.__toolBar.addSeparator()
-        self.__showAllAction = self.__toolBar.addAction("Show All")
-        self.__showAllAction.setCheckable(True)
-        self.__closeAction = self.__toolBar.addAction("Close")
-        self.__showAllAction.toggled.connect(self.__OnShowAllToggled)
-        self.__closeAction.triggered.connect(self.__OnClose)
+        self._toolBar = QtWidgets.QToolBar()
+        self._toolBar.addWidget(QtWidgets.QLabel('Opinion Stack'))
+        self._toolBar.addSeparator()
+        self._showAllAction = self._toolBar.addAction("Show All")
+        self._showAllAction.setCheckable(True)
+        self._closeAction = self._toolBar.addAction("Close")
+        self._showAllAction.toggled.connect(self._OnShowAllToggled)
+        self._closeAction.triggered.connect(self._OnClose)
 
-        self.__opinionFilter = UsdQt.OpinionStackFilter()
-        self.__view = QtWidgets.QTreeView()
-        self.__view.setModel(self.__opinionFilter)
+        self._opinionFilter = OpinionStackFilter()
+        self._view = QtWidgets.QTreeView()
+        self._view.setModel(self._opinionFilter)
 
-        self.__layout = QtWidgets.QVBoxLayout()
-        self.__layout.addWidget(self.__toolBar)
-        self.__layout.addWidget(self.__view)
-        self.setLayout(self.__layout)
+        self._layout = QtWidgets.QVBoxLayout()
+        self._layout.addWidget(self._toolBar)
+        self._layout.addWidget(self._view)
+        self.setLayout(self._layout)
 
         policy = QtWidgets.QSizePolicy()
         policy.setHorizontalPolicy(QtWidgets.QSizePolicy.MinimumExpanding)
@@ -68,97 +77,123 @@ class OpinionStackWidget(QtWidgets.QWidget):
         self.setSizePolicy(policy)
 
     def Launch(self, model):
-        self.__opinionFilter.setSourceModel(model)
+        # type: (QtCore.QAbstractItemModel) -> None
+        """
+        Parameters
+        ----------
+        model : QtCore.QAbstractItemModel
+        """
+        self._opinionFilter.setSourceModel(model)
         self.show()
 
     def Close(self):
         self.hide()
-        self.__opinionFilter.setSourceModel(None)
+        self._opinionFilter.setSourceModel(None)
 
-    def __OnShowAllToggled(self, checked):
-        self.__opinionFilter.SetShowFullStack(checked)
+    def _OnShowAllToggled(self, checked):
+        self._opinionFilter.SetShowFullStack(checked)
 
-    def __OnClose(self):
+    def _OnClose(self):
         self.Close()
 
 
 class OpinionEditor(QtWidgets.QWidget):
-
     def __init__(self, delegate=None, parent=None):
+        # type: (Optional[QtWidgets.QAbstractItemDelegate], Optional[QtWidgets.QWidget]) -> None
+        """
+        Parameters
+        ----------
+        delegate : Optional[QtWidgets.QAbstractItemDelegate]
+        parent : Optional[QtWidgets.QWidget]
+        """
         super(OpinionEditor, self).__init__(parent=parent)
-        self.__menuBar = QtWidgets.QMenuBar()
-        self.__layout = QtWidgets.QVBoxLayout()
-        self.setLayout(self.__layout)
-        self.__layout.addWidget(self.__menuBar)
-        self.__SetupActions()
-        self.__SetupOptionsMenu()
-        self.__SetupEditMenu()
+        self._menuBar = QtWidgets.QMenuBar()
+        self._layout = QtWidgets.QVBoxLayout()
+        self.setLayout(self._layout)
+        self._layout.addWidget(self._menuBar)
+        self._SetupActions()
+        self._SetupOptionsMenu()
+        self._SetupEditMenu()
 
-        self.__filterLineEdit = QtWidgets.QLineEdit()
+        self._filterLineEdit = QtWidgets.QLineEdit()
 
-        self.__view = treeView.TreeView()
-        itemDelegate = delegate if delegate else UsdQt.ValueDelegate()
-        self.__view.setItemDelegate(itemDelegate)
-        self.__view.setEditTriggers(
+        self._view = treeView.TreeView()
+        itemDelegate = delegate if delegate else ValueDelegate()
+        self._view.setItemDelegate(itemDelegate)
+        self._view.setEditTriggers(
             QtWidgets.QAbstractItemView.CurrentChanged |
             QtWidgets.QAbstractItemView.SelectedClicked |
             QtWidgets.QAbstractItemView.EditKeyPressed)
 
-        self.__splitter = QtWidgets.QSplitter(QtCore.Qt.Vertical, self)
-        self.__layout.addWidget(self.__filterLineEdit)
-        self.__layout.addWidget(self.__splitter)
-        self.__splitter.addWidget(self.__view)
-        self.__view.setSelectionMode(
+        self._splitter = QtWidgets.QSplitter(QtCore.Qt.Vertical, self)
+        self._layout.addWidget(self._filterLineEdit)
+        self._layout.addWidget(self._splitter)
+        self._splitter.addWidget(self._view)
+        self._view.setSelectionMode(
             QtWidgets.QAbstractItemView.ExtendedSelection)
-        self.__SetupOpinionViewWidget()
+        self._SetupOpinionViewWidget()
 
     @property
     def view(self):
-        return self.__view
+        return self._view
 
-    def __SetupActions(self):
+    def _SetupActions(self):
         pass
 
-    def __SetupOptionsMenu(self):
-        self.__optionsMenu = QtWidgets.QMenu("Options")
-        # self.__optionsMenu.addAction(self.__actionToggleOpinionDebugger)
-        self.__menuBar.addMenu(self.__optionsMenu)
+    def _SetupOptionsMenu(self):
+        self._optionsMenu = QtWidgets.QMenu("Options")
+        # self._optionsMenu.addAction(self._actionToggleOpinionDebugger)
+        self._menuBar.addMenu(self._optionsMenu)
 
-    def __SetupEditMenu(self):
-        self.__editMenu = QtWidgets.QMenu("Edit")
-        # self.__editMenu.addAction(self.__actionToggleEditScalar)
-        # self.__editMenu.addAction(self.__actionToggleEditArray)
-        self.__menuBar.addMenu(self.__editMenu)
+    def _SetupEditMenu(self):
+        self._editMenu = QtWidgets.QMenu("Edit")
+        # self._editMenu.addAction(self._actionToggleEditScalar)
+        # self._editMenu.addAction(self._actionToggleEditArray)
+        self._menuBar.addMenu(self._editMenu)
 
-    def __SetupOpinionViewWidget(self):
-        self.__opinionViewer = OpinionStackWidget()
-        self.__opinionViewer.hide()
-        self.__splitter.addWidget(self.__opinionViewer)
+    def _SetupOpinionViewWidget(self):
+        self._opinionViewer = OpinionStackWidget()
+        self._opinionViewer.hide()
+        self._splitter.addWidget(self._opinionViewer)
 
     def LaunchOpinionViewer(self, prim, handler):
-        self.__opinionViewer.Launch(UsdQt.OpinionStackModel(prim, handler))
+        # type: (Usd.Prim, _BaseHandler) -> None
+        """
+        Parameters
+        ----------
+        prim : Usd.Prim
+        handler : _BaseHandler
+        """
+        self._opinionViewer.Launch(OpinionStackModel(prim, handler))
 
     def SetSourceModel(self, model):
-        self.__view.setModel(model)
+        self._view.setModel(model)
         self.ResetColumnSpanned()
 
-    def __TraverseAllDescendents(self, index):
-        for i in xrange(self.__view.model().rowCount(index)):
-            childIndex = self.__view.model().index(i, 0, index)
+    def _TraverseAllDescendents(self, index):
+        for i in xrange(self._view.model().rowCount(index)):
+            childIndex = self._view.model().index(i, 0, index)
             yield childIndex
-            for descendent in self.__TraverseAllDescendents(childIndex):
+            for descendent in self._TraverseAllDescendents(childIndex):
                 yield descendent
 
     def ResetColumnSpanned(self):
-        for index in self.__TraverseAllDescendents(QtCore.QModelIndex()):
+        for index in self._TraverseAllDescendents(QtCore.QModelIndex()):
             if type(index.internalPointer()) in (_DisplayGroupProxy, _PrimProxy):
-                self.__view.setFirstColumnSpanned(
+                self._view.setFirstColumnSpanned(
                     index.row(), index.parent(), True)
 
 
 class OpinionController(QtCore.QObject):
-
     def __init__(self, model, editor, parent=None):
+        # type: (OpinionBaseModel, OpinionEditor, Optional[QtCore.QObject]) -> None
+        """
+        Parameters
+        ----------
+        model : OpinionBaseModel
+        editor : OpinionEditor
+        parent : Optional[QtCore.QObject]
+        """
         super(OpinionController, self).__init__(parent)
         self.model = model
         self.editor = editor
@@ -171,28 +206,39 @@ class OpinionController(QtCore.QObject):
             if proxy.GetSize() == 1:
                 attributes = proxy.GetAttributes()
                 attribute = attributes[0]
-                self.editor.LaunchOpinionViewer(attribute.GetPrim(),
-                                                _AttributeHandler(attribute.GetName(),
-                                                                  Usd.TimeCode.Default()))
+                self.editor.LaunchOpinionViewer(
+                    attribute.GetPrim(),
+                    _AttributeHandler(attribute.GetName(),
+                                      Usd.TimeCode.Default()))
         elif type(proxy) == _MetadataProxy:
             if proxy.GetSize() == 1:
                 objects = proxy.GetObjects()
                 obj = objects[0]
                 if type(obj) == Usd.Prim:
-                    self.editor.LaunchOpinionViewer(obj,
-                                                    _PrimMetadataHandler(proxy.GetName()))
+                    self.editor.LaunchOpinionViewer(
+                        obj,
+                        _PrimMetadataHandler(proxy.GetName()))
 
     def ResetPrims(self, prims):
+        # type: (List[Usd.Prim]) -> None
+        """
+        Parameters
+        ----------
+        prims : List[Usd.Prim]
+        """
         self.model.ResetPrims(prims)
         self.editor.ResetColumnSpanned()
 
+
 if __name__ == '__main__':
     import sys
+    from pxr.UsdQt.opinionModel import OpinionStandardModel
+
     app = QtWidgets.QApplication(sys.argv)
     stage = Usd.Stage.Open('../usdQt/testenv/testUsdQtOpinionModel/simple.usda')
     prim = stage.GetPrimAtPath('/MyPrim1/Child1')
 
-    model = UsdQt.OpinionStandardModel([prim])
+    model = OpinionStandardModel([prim])
     # modelComposition = compositionModel.CompositionStandardModel(prim)
     editor = OpinionEditor()
 

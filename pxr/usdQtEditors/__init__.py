@@ -21,11 +21,3 @@
 # KIND, either express or implied. See the Apache License for the specific
 # language governing permissions and limitations under the Apache License.
 #
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from .hierarchyEditor import HierarchyEditor, HierarchyStandardContextMenuStrategy
-from .opinionEditor import OpinionEditor, OpinionController
-from .layerTextEditor import LayerTextEditor

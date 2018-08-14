@@ -67,9 +67,9 @@ class TestSimpleLayerModelBase(unittest.TestCase):
 
 
 class TestSimpleLayerStandardModel(unittest.TestCase):
-    '''
+    """
     TODO: Also test uneditable and unsaveable flag masks as well.
-    '''
+    """
 
     def setUp(self):
 

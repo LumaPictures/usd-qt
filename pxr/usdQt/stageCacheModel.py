@@ -28,9 +28,13 @@ from __future__ import print_function
 
 from ._Qt import QtCore
 
+if False:
+    from typing import *
+    from pxr import Usd
+
 
 class StageCacheModel(QtCore.QAbstractTableModel):
-    '''A stage cache model exposes the stages a cache is holding to Qt.
+    """A stage cache model exposes the stages a cache is holding to Qt.
 
     The stage cache model by default exposes the root layer in column 0 and
     the session layer in column 1.  Even though this is an abstract table model,
@@ -45,14 +49,20 @@ class StageCacheModel(QtCore.QAbstractTableModel):
     change over time.  However, if stage cache membership changes were backed
     by an UsdNotice, we could know when to flush and update our own internal
     cache membership list.
-    '''
-
+    """
     def __init__(self, stageCache, parent=None):
+        # type: (Usd.StageCache, Optional[QtCore.QObject]) -> None
+        """
+        Parameters
+        ----------
+        stageCache : Usd.StageCache
+        parent : Optional[QtCore.QObject]
+        """
         super(StageCacheModel, self).__init__(parent=parent)
-        self.__stageCache = stageCache
+        self._stageCache = stageCache
 
     def rowCount(self, parent=QtCore.QModelIndex()):
-        return len(self.__stageCache.GetAllStages())
+        return len(self._stageCache.GetAllStages())
 
     def columnCount(self, parent=QtCore.QModelIndex()):
         return 2
@@ -63,20 +73,30 @@ class StageCacheModel(QtCore.QAbstractTableModel):
 
         if role == QtCore.Qt.DisplayRole:
             if index.column() == 0:
-                return self.__stageCache.GetAllStages()[index.row()].GetRootLayer().identifier
+                return self._stageCache.GetAllStages()[index.row()].GetRootLayer().identifier
             elif index.column() == 1:
-                return self.__stageCache.GetAllStages()[index.row()].GetSessionLayer().identifier
+                return self._stageCache.GetAllStages()[index.row()].GetSessionLayer().identifier
         # return super(StageCacheModel, self).data(index, role)
 
     def GetStageForIndex(self, index):
-        '''retrieve the UsdStage associated with the row of index'''
-        return self.__stageCache.GetAllStages()[index.row()]
+        # type: (QtCore.QModelIndex) -> Usd.Stage
+        """Retrieve the UsdStage associated with the row of index
+
+        Parameters
+        ----------
+        index : QtCore.QModelIndex
+
+        Returns
+        -------
+        Usd.Stage
+        """
+        return self._stageCache.GetAllStages()[index.row()]
 
 
 if __name__ == '__main__':
-    '''
+    """
     Sample usage
-    '''
+    """
     import os
     from pxr import Usd, UsdUtils
     from ._Qt import QtWidgets

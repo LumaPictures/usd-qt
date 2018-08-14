@@ -36,12 +36,16 @@ from ._bindings import _AttributeProxy, _DisplayGroupProxy, _MetadataProxy, \
 
 from . import compatability, roles
 
+if False:
+    from typing import *
+    # We could union all the above classes together, but that seems overkill
+    # since they're all uninspectable.
+    UsdQtProxyBase = Any
+
 
 class OpinionBaseModel(QtCore.QAbstractItemModel):
-
-    class __ResetContext(object):
+    class _ResetContext(object):
         """Context manager to ensure model resets if exception is thrown"""
-
         def __init__(self, model):
             self.model = model
 
@@ -53,9 +57,8 @@ class OpinionBaseModel(QtCore.QAbstractItemModel):
                 self.model._Invalidate()
             self.model.endResetModel()
 
-    class __LayoutChangedContext(object):
+    class _LayoutChangedContext(object):
         """Context manager to ensure layout changes if exception is thrown"""
-
         def __init__(self, model):
             self.model = model
 
@@ -67,15 +70,14 @@ class OpinionBaseModel(QtCore.QAbstractItemModel):
                 self.model._Invalidate()
             self.model.layoutChanged.emit()
 
-    class __Item(object):
-
+    class _Item(object):
         def __init__(self):
             self.parent = None
             self.children = None
             self.row = None
             self.proxy = None
             self.persistentName = None
-            
+
     _colorTypes = {
         Sdf.ValueTypeNames.Color3f,
         Sdf.ValueTypeNames.Color3d,
@@ -86,6 +88,13 @@ class OpinionBaseModel(QtCore.QAbstractItemModel):
     }
 
     def __init__(self, prims, parent=None):
+        # type: (List[Usd.Prim], Optional[QtCore.QObject]) -> None
+        """
+        Parameters
+        ----------
+        prims : List[Usd.Prim]
+        parent : Optional[QtCore.QObject]
+        """
         super(OpinionBaseModel, self).__init__(parent)
         self.ResetPrims(prims)
 
@@ -93,30 +102,36 @@ class OpinionBaseModel(QtCore.QAbstractItemModel):
         """Wipe out all internal data.
         NOT FOR EXTERNAL USE.  Use ResetPrims(None) instead.
         """
-        self.__rootItems = []
-        self.__proxyToItem = {}
-        self.__listeners = None
+        self._rootItems = []
+        self._proxyToItem = {}
+        self._listeners = None
 
     def ResetPrims(self, prims):
+        # type: (List[Usd.Prim]) -> None
         """Reset prims invokes a model reset and replaces the current prim
         proxies at the root of the tree with the list provided.
 
         An empty list or None are valid inputs, which effectively clears the
-        the model and shuts down any Tf.Notice listeners"""
+        the model and shuts down any Tf.Notice listeners
+
+        Parameters
+        ----------
+        prims : List[Usd.Prim]
+        """
         if prims:
             prims = [prim for prim in prims if prim.GetPath() != Sdf.Path('/')]
         if not prims or not all(prims):
-            with self.__ResetContext(self):
+            with self._ResetContext(self):
                 self._Invalidate()
         else:
-            with self.__LayoutChangedContext(self):
+            with self._LayoutChangedContext(self):
                 indexList = self.persistentIndexList()
                 indexToPersistentName = {}
 
                 for index in indexList:
                     proxy = self.GetProxyForIndex(index)
-                    if proxy in self.__proxyToItem:
-                        item = self.__proxyToItem[proxy]
+                    if proxy in self._proxyToItem:
+                        item = self._proxyToItem[proxy]
                         indexToPersistentName[index] = item.persistentName
                     else:
                         indexToPersistentName[index] = None
@@ -124,20 +139,20 @@ class OpinionBaseModel(QtCore.QAbstractItemModel):
                 self._Invalidate()
 
                 stages = set([prim.GetStage() for prim in prims])
-                combinedItem = OpinionBaseModel.__Item()
+                combinedItem = OpinionBaseModel._Item()
                 combinedItem.row = 0
                 combinedItem.children = []
                 combinedItem.proxy = _PrimProxy(prims)
                 combinedItem.persistentName = "./"
 
-                self.__rootItems.append(combinedItem)
-                self.__proxyToItem[combinedItem.proxy] = combinedItem
+                self._rootItems.append(combinedItem)
+                self._proxyToItem[combinedItem.proxy] = combinedItem
                 self.ResyncProxy(combinedItem.proxy)
 
                 persistentNameToItem = {}
                 persistentNameToItem[combinedItem.persistentName] = combinedItem
                 for proxy in self._TraverseAllDescendents(combinedItem.proxy):
-                    item = self.__proxyToItem[proxy]
+                    item = self._proxyToItem[proxy]
                     if item.persistentName is not None:
                         persistentNameToItem[item.persistentName] = item
 
@@ -159,22 +174,29 @@ class OpinionBaseModel(QtCore.QAbstractItemModel):
                 self.changePersistentIndexList(fromIndices, toIndices)
 
                 # setup listeners for all stages
-                self.__listeners = [Tf.Notice.Register(
-                    Usd.Notice.ObjectsChanged, self.__OnObjectsChanged,
+                self._listeners = [Tf.Notice.Register(
+                    Usd.Notice.ObjectsChanged, self._OnObjectsChanged,
                     stage) for stage in stages]
 
     def _AppendProxy(self, parent, child, persistentName=None):
+        # type: (UsdQtProxyBase, UsdQtProxyBase, Optional[str]) -> None
         """Append a child to the list of parent's children.
 
         This should not be directly called by external clients of the
         opinion model.  It is provided as a 'protected' method so that
         ResyncProxy can use this to update the tree view topology.
+
+        Parameters
+        ----------
+        parent : UsdQtProxyBase
+        child : UsdQtProxyBase
+        persistentName : Optional[str]
         """
-        if parent not in self.__proxyToItem:
+        if parent not in self._proxyToItem:
             raise Exception("Cannot add child '%s' to parent '%s' "
                             "not in model." % (repr(parent), repr(child)))
-        parentItem = self.__proxyToItem[parent]
-        item = OpinionBaseModel.__Item()
+        parentItem = self._proxyToItem[parent]
+        item = OpinionBaseModel._Item()
 
         item.parent = parentItem
         item.children = []
@@ -182,22 +204,47 @@ class OpinionBaseModel(QtCore.QAbstractItemModel):
         item.proxy = child
         item.persistentName = persistentName
         item.parent.children.append(item)
-        self.__proxyToItem[item.proxy] = item
+        self._proxyToItem[item.proxy] = item
 
     def _TraverseChildren(self, proxy):
-        """traverse immediate children of the proxy"""
-        for child in self.__proxyToItem[proxy].children:
+        # type: (UsdQtProxyBase) -> Iterator[UsdQtProxyBase]
+        """traverse immediate children of the proxy
+
+        Parameters
+        ----------
+        proxy : UsdQtProxyBase
+
+        Returns
+        -------
+        Iterator[UsdQtProxyBase]
+        """
+        for child in self._proxyToItem[proxy].children:
             yield child.proxy
 
     def _TraverseAllDescendents(self, proxy):
-        """traverse all descendents of the proxy, breadth first traversal"""
-        for child in self.__proxyToItem[proxy].children:
+        # type: (UsdQtProxyBase) -> Iterator[UsdQtProxyBase]
+        """traverse all descendents of the proxy, breadth first traversal
+
+        Parameters
+        ----------
+        proxy : UsdQtProxyBase
+
+        Returns
+        -------
+        Iterator[UsdQtProxyBase]
+        """
+        for child in self._proxyToItem[proxy].children:
             yield child.proxy
             for descendent in self._TraverseAllDescendents(child.proxy):
                 yield descendent
 
     def ResyncProxy(self, proxy):
-        """ Return a map of proxies to """
+        # type: (UsdQtProxyBase) -> None
+        """
+        Parameters
+        ----------
+        proxy : UsdQtProxyBase
+        """
         if type(proxy) is _PrimProxy:
             compositionGroup = _DisplayGroupProxy("Composition")
             metadataGroup = _DisplayGroupProxy("Metadata")
@@ -258,11 +305,17 @@ class OpinionBaseModel(QtCore.QAbstractItemModel):
                 % repr(proxy))
 
     def ChangeInfoForProxy(self, proxy):
+        # type: (UsdQtProxyBase) -> None
+        """
+        Parameters
+        ----------
+        proxy : UsdQtProxyBase
+        """
         if not proxy:
             raise Exception("cannot change info for expired proxy.")
         elif type(proxy) is _PrimProxy:
             # TODO:  Special handling for prim specific data
-            row = self.__proxyToItem[proxy].row
+            row = self._proxyToItem[proxy].row
             columnCount = self.columnCount(QtCore.QModelIndex())
             compatability.EmitDataChanged(self,
                                           self.createIndex(row, 0, proxy),
@@ -270,29 +323,29 @@ class OpinionBaseModel(QtCore.QAbstractItemModel):
                                                            proxy))
         elif type(proxy) is _AttributeProxy:
             # TODO:  Special handling for prim specific data
-            row = self.__proxyToItem[proxy].row
+            row = self._proxyToItem[proxy].row
             columnCount = self.columnCount(QtCore.QModelIndex())
             compatability.EmitDataChanged(self,
                                           self.createIndex(row, 0, proxy),
                                           self.createIndex(row, columnCount,
                                                            proxy))
 
-    def __OnObjectsChanged(self, notice, sender):
+    def _OnObjectsChanged(self, notice, sender):
         # explore abstracting change processing into central helper class
         changeInfoPaths = notice.GetChangedInfoOnlyPaths()
         resyncPaths = notice.GetResyncedPaths()
 
         if resyncPaths:
-            resyncProxies = [proxy for proxy in self.__proxyToItem
+            resyncProxies = [proxy for proxy in self._proxyToItem
                              if isinstance(proxy, _ObjectProxy) and
                              proxy.ContainsPathOrDescendent(resyncPaths)]
             if resyncProxies:
                 # it seems fast enough to just dump and rebuild on resync
                 # operations.
-                if len(self.__rootItems) > 0:
-                    self.ResetPrims(self.__rootItems[0].proxy.GetPrims())
+                if len(self._rootItems) > 0:
+                    self.ResetPrims(self._rootItems[0].proxy.GetPrims())
         if changeInfoPaths:
-            changeInfoProxies = [proxy for proxy in self.__proxyToItem
+            changeInfoProxies = [proxy for proxy in self._proxyToItem
                                  if isinstance(proxy, _ObjectProxy) and
                                  proxy.ContainsPath(changeInfoPaths)]
             if changeInfoPaths:
@@ -300,6 +353,16 @@ class OpinionBaseModel(QtCore.QAbstractItemModel):
                     self.ChangeInfoForProxy(proxy)
 
     def GetProxyForIndex(self, modelIndex):
+        # type: (QtCore.QModelIndex) -> Optional[UsdQtProxyBase]
+        """
+        Parameters
+        ----------
+        modelIndex : QtCore.QModelIndex
+
+        Returns
+        -------
+        Optional[UsdQtProxyBase]
+        """
         if not modelIndex.isValid():
             return None
         else:
@@ -308,17 +371,17 @@ class OpinionBaseModel(QtCore.QAbstractItemModel):
 
     def rowCount(self, parent):
         if not parent.isValid():
-            return len(self.__rootItems)
+            return len(self._rootItems)
         proxy = parent.internalPointer()
-        item = self.__proxyToItem[proxy]
+        item = self._proxyToItem[proxy]
         return len(item.children)
 
     def parent(self, modelIndex):
         if not modelIndex.isValid():
             return QtCore.QModelIndex()
         proxy = modelIndex.internalPointer()
-        item = self.__proxyToItem[proxy]
-        if item in self.__rootItems:
+        item = self._proxyToItem[proxy]
+        if item in self._rootItems:
             return QtCore.QModelIndex()
         return self.createIndex(item.row, 0, item.parent.proxy)
 
@@ -341,10 +404,10 @@ class OpinionBaseModel(QtCore.QAbstractItemModel):
 
     def index(self, row, column, parent=QtCore.QModelIndex()):
         if not parent.isValid():
-            return self.createIndex(row, column, self.__rootItems[row].proxy)
+            return self.createIndex(row, column, self._rootItems[row].proxy)
         else:
             parentProxy = parent.internalPointer()
-            parentItem = self.__proxyToItem[parentProxy]
+            parentItem = self._proxyToItem[parentProxy]
             childItem = parentItem.children[row]
         return self.createIndex(row, column, childItem.proxy)
 
@@ -362,8 +425,17 @@ class OpinionStandardModel(OpinionBaseModel):
 
     def __init__(self, prims, columns=None, timeCode=Usd.TimeCode.Default(),
                  parent=None):
+        # type: (List[Usd.Prim], Optional[List[str]], Usd.TimeCode, Optional[QtCore.QObject]) -> None
+        """
+        Parameters
+        ----------
+        prims : List[Usd.Prim]
+        columns : Optional[List[str]]
+        timeCode : Usd.TimeCode
+        parent : Optional[QtCore.QObject]
+        """
         super(OpinionStandardModel, self).__init__(prims, parent)
-        self.__timeCode = timeCode
+        self._timeCode = timeCode
         if not columns:
             # By default show all possible columns.
             self.columns = [OpinionStandardModel.Name,
@@ -379,11 +451,23 @@ class OpinionStandardModel(OpinionBaseModel):
         if role == QtCore.Qt.DisplayRole:
             column = self.columns[section]
             if column == OpinionStandardModel.Value:
-                return "Value @ %s" % str(self.__timeCode)
+                return "Value @ %s" % str(self._timeCode)
             else:
                 return self.columns[section]
 
     def _GetDataForDisplayGroup(self, proxy, column, role):
+        # type: (UsdQtProxyBase, str, QtCore.Qt.ItemDataRole) -> Optional[Any]
+        """
+        Parameters
+        ----------
+        proxy : UsdQtProxyBase
+        column : str
+        role : QtCore.Qt.ItemDataRole
+
+        Returns
+        -------
+        Optional[Any]
+        """
         if role == QtCore.Qt.DisplayRole:
             if column == OpinionStandardModel.Name:
                 return proxy.GetName()
@@ -392,13 +476,25 @@ class OpinionStandardModel(OpinionBaseModel):
                 return roles.EditorHintTab()
 
     def _GetDataForAttribute(self, proxy, column, role):
+        # type: (UsdQtProxyBase, str, QtCore.Qt.ItemDataRole) -> Optional[Any]
+        """
+        Parameters
+        ----------
+        proxy : UsdQtProxyBase
+        column : str
+        role : QtCore.Qt.ItemDataRole
+
+        Returns
+        -------
+        Optional[Any]
+        """
         if role == QtCore.Qt.DisplayRole:
             if column == OpinionStandardModel.Name:
                 return proxy.GetName()
             elif column == OpinionStandardModel.TypeName:
                 return str(proxy.GetTypeName())
             elif column == OpinionStandardModel.Value:
-                value = proxy.Get(self.__timeCode)
+                value = proxy.Get(self._timeCode)
                 if hasattr(value, '_isVtArray') and value._isVtArray:
                     if len(value) == 0:
                         return "[]"
@@ -409,7 +505,7 @@ class OpinionStandardModel(OpinionBaseModel):
                 return str(value) if value is not None else ''
         elif role == QtCore.Qt.EditRole:
             if column == OpinionStandardModel.Value:
-                return proxy.Get(self.__timeCode)
+                return proxy.Get(self._timeCode)
         elif role == QtCore.Qt.ToolTipRole:
             return "[%s] %s" % (str(proxy.GetTypeName()),
                                 proxy.GetDocumentation())
@@ -425,6 +521,18 @@ class OpinionStandardModel(OpinionBaseModel):
                 return roles.EditorHintBasicValue(tfType)
 
     def _GetDataForPrim(self, proxy, column, role):
+        # type: (UsdQtProxyBase, str, QtCore.Qt.ItemDataRole) -> Optional[Any]
+        """
+        Parameters
+        ----------
+        proxy : UsdQtProxyBase
+        column : str
+        role : QtCore.Qt.ItemDataRole
+
+        Returns
+        -------
+        Optional[Any]
+        """
         if role == QtCore.Qt.DisplayRole:
             if column == OpinionStandardModel.Name:
                 return ", ".join(proxy.GetNames())
@@ -433,6 +541,18 @@ class OpinionStandardModel(OpinionBaseModel):
                 return roles.EditorHintTab()
 
     def _GetDataForMetadata(self, proxy, column, role):
+        # type: (UsdQtProxyBase, str, QtCore.Qt.ItemDataRole) -> Optional[Any]
+        """
+        Parameters
+        ----------
+        proxy : UsdQtProxyBase
+        column : str
+        role : QtCore.Qt.ItemDataRole
+
+        Returns
+        -------
+        Optional[Any]
+        """
         if role == QtCore.Qt.DisplayRole:
             if column == OpinionStandardModel.Name:
                 name = proxy.GetName()
@@ -454,6 +574,18 @@ class OpinionStandardModel(OpinionBaseModel):
                 return roles.EditorHintBasicValue(proxy.GetType())
 
     def _GetDataForMetadataDictKey(self, proxy, column, role):
+        # type: (UsdQtProxyBase, str, QtCore.Qt.ItemDataRole) -> Optional[Any]
+        """
+        Parameters
+        ----------
+        proxy : UsdQtProxyBase
+        column : str
+        role : QtCore.Qt.ItemDataRole
+
+        Returns
+        -------
+        Optional[Any]
+        """
         if role == QtCore.Qt.DisplayRole:
             if column == OpinionStandardModel.Name:
                 return proxy.GetEntryName()
@@ -470,6 +602,18 @@ class OpinionStandardModel(OpinionBaseModel):
                 return roles.EditorHitBasicValue(proxy.GetType())
 
     def _GetDataForRelationship(self, proxy, column, role):
+        # type: (UsdQtProxyBase, str, QtCore.Qt.ItemDataRole) -> Optional[Any]
+        """
+        Parameters
+        ----------
+        proxy : UsdQtProxyBase
+        column : str
+        role : QtCore.Qt.ItemDataRole
+
+        Returns
+        -------
+        Optional[Any]
+        """
         if role == QtCore.Qt.DisplayRole:
             if column == OpinionStandardModel.Name:
                 return proxy.GetName()
@@ -484,11 +628,35 @@ class OpinionStandardModel(OpinionBaseModel):
                 return "\n".join([str(t) for t in proxy.GetForwardedTargets()])
 
     def _GetDataForVariantSets(self, proxy, column, role):
+        # type: (UsdQtProxyBase, str, QtCore.Qt.ItemDataRole) -> Optional[Any]
+        """
+        Parameters
+        ----------
+        proxy : UsdQtProxyBase
+        column : str
+        role : QtCore.Qt.ItemDataRole
+
+        Returns
+        -------
+        Optional[Any]
+        """
         if role == QtCore.Qt.DisplayRole:
             if column == OpinionStandardModel.Name:
                 return "variants"
 
     def _GetDataForVariantSet(self, proxy, column, role):
+        # type: (UsdQtProxyBase, str, QtCore.Qt.ItemDataRole) -> Optional[Any]
+        """
+        Parameters
+        ----------
+        proxy : UsdQtProxyBase
+        column : str
+        role : QtCore.Qt.ItemDataRole
+
+        Returns
+        -------
+        Optional[Any]
+        """
         if role == QtCore.Qt.DisplayRole:
             if column == OpinionStandardModel.Name:
                 return proxy.GetName()
@@ -526,30 +694,28 @@ class OpinionStandardModel(OpinionBaseModel):
             return self._GetDataForRelationship(proxy, column, role)
 
     def setData(self, index, value, role):
-        """ Call the approriate set method for the EditRole proxy 
+        """Call the approriate set method for the EditRole proxy
+
         Traditionally, we would emit the "dataChanged" signal in the setData
-        method directly. Instead, we are letting Usd's change notification 
+        method directly. Instead, we are letting Usd's change notification
         emit the signal so that we robustly handle all edits from all sources
-        without emitting the signal twice."""
+        without emitting the signal twice.
+        """
         if role == QtCore.Qt.EditRole:
             column = self.columns[index.column()]
             if column == OpinionStandardModel.Value:
                 proxy = self.GetProxyForIndex(index)
                 if type(proxy) is _AttributeProxy:
-                    valuePy = compatability.ResolveValue(value)
-                    proxy.Set(valuePy, self.__timeCode)
+                    proxy.Set(value, self._timeCode)
                     return True
                 elif type(proxy) is _MetadataProxy:
-                    valuePy = compatability.ResolveValue(value)
-                    proxy.SetValue(valuePy)
+                    proxy.SetValue(value)
                     return True
                 elif type(proxy) is _MetadataDictKeyProxy:
-                    valuePy = compatability.ResolveValue(value)
-                    proxy.SetValue(valuePy)
+                    proxy.SetValue(value)
                     return True
                 elif type(proxy) is _VariantSetProxy:
-                    valuePy = compatability.ResolveValue(value)
-                    proxy.SetVariantSelection(valuePy)
+                    proxy.SetVariantSelection(value)
                     return True
                 else:
                     raise Exception("Unsupported type.")
@@ -558,6 +724,12 @@ class OpinionStandardModel(OpinionBaseModel):
         return False
 
     def ClearData(self, index):
+        # type: (QtCore.QModelIndex) -> None
+        """
+        Parameters
+        ----------
+        index : QtCore.QModelIndex
+        """
         proxy = self.GetProxyForIndex(index)
         if type(proxy) is _AttributeProxy:
             proxy.Clear()
@@ -571,11 +743,23 @@ class OpinionStandardModel(OpinionBaseModel):
             proxy.ClearVariantSelection()
 
     def ClearAtTime(self, index):
+        # type: (QtCore.QModelIndex) -> None
+        """
+        Parameters
+        ----------
+        index : QtCore.QModelIndex
+        """
         proxy = self.GetProxyForIndex(index)
         if type(proxy) is _AttributeProxy:
-            proxy.ClearAtTime(self.__timeCode)
+            proxy.ClearAtTime(self._timeCode)
 
     def BlockData(self, index):
+        # type: (QtCore.QModelIndex) -> None
+        """
+        Parameters
+        ----------
+        index : QtCore.QModelIndex
+        """
         proxy = self.GetProxyForIndex(index)
         if type(proxy) is _AttributeProxy:
             proxy.BlockValue()

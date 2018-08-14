@@ -59,7 +59,7 @@ class TestMetaclass(unittest.TestCase):
                 self.assertEqual(x.metaObject().userProperty().name(), 'value')
 
     def testNoValueType(self):
-        '''verify that the metaclass doesn't fail if value type isn't set'''
+        """verify that the metaclass doesn't fail if value type isn't set"""
         class MyEditor(QtWidgets.QWidget):
             __metaclass__ = UsdQt.valueWidgets._ValueEditMetaclass
 
@@ -80,9 +80,9 @@ class TestMetaclass(unittest.TestCase):
 
 
 class _Base:
-    '''
+    """
     Namespace to prevent test from being executed
-    '''
+    """
     class TestValueEdit(unittest.TestCase):
         AttributeErrorValues = []
 
@@ -90,55 +90,55 @@ class _Base:
             self.longMessage = True
 
         def testUserProperty(self):
-            '''verify the Qt user property has been setup.
+            """verify the Qt user property has been setup.
             using the user property gets a lot of nice behavior for free
             when interacting with Qt ItemModels so its important that
             all our widgets have this setup correctly.
-            '''
+            """
             widget = self.Widget()
             self.assertEqual(widget.metaObject().userProperty().name(), 'value')
 
         def testSuccess(self):
-            '''verifying that the widget can set and get a value without loss of equality'''
+            """verifying that the widget can set and get a value without loss of equality"""
             widget = self.Widget()
             for value in self.SuccessValues:
                 widget.value = value
                 self.assertEqual(widget.value, value)
 
         def testSuccessCasted(self):
-            '''verify that the widget can set values, but there may be some transformation
+            """verify that the widget can set values, but there may be some transformation
 
             ie. it may go in as a string and out as an int, so its not strictly equal
             to the orignal value
-            '''
+            """
             widget = self.Widget()
             for value in self.SuccessCastedValues:
                 widget.value = value
                 self.assertEqual(widget.value, self.SuccessCastedValues[value])
 
         def testValueErrors(self):
-            '''verify that some values are unsettable [raise ValueError]'''
+            """verify that some values are unsettable [raise ValueError]"""
             widget = self.Widget()
             for value in self.ValueErrorValues:
                 with self.assertRaises(ValueError):
                     widget.value = value
 
         def testTypeErrors(self):
-            '''verify that some values are unsettable [raise TypeError]'''
+            """verify that some values are unsettable [raise TypeError]"""
             widget = self.Widget()
             for value in self.TypeErrorValues:
                 with self.assertRaises(TypeError):
                     widget.value = value
 
         def testAttributeErrors(self):
-            '''verify that some values are unsettable [raise TypeError]'''
+            """verify that some values are unsettable [raise TypeError]"""
             widget = self.Widget()
             for value in self.AttributeErrorValues:
                 with self.assertRaises(AttributeError):
                     widget.value = value
 
         def testKeySequence(self):
-            '''verify a series of keystrokes when the widget has focus'''
+            """verify a series of keystrokes when the widget has focus"""
             if 'PXR_USDQT_ALLOW_TEST_KEYS' in os.environ and \
                     os.environ['PXR_USDQT_ALLOW_TEST_KEYS'] != '0':
                 from pixar.UsdQt._Qt import QtTest

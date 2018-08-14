@@ -28,19 +28,29 @@ from __future__ import print_function
 
 from collections import OrderedDict, defaultdict
 
-from ._Qt import QtWidgets, QtCore
 from pxr import Usd, UsdUtils, Sdf
-from pxr import UsdQt
-import pxr.UsdQt.compatability
+from pxr.UsdQt.hierarchyModel import HierarchyStandardFilterModel
+from pxr.UsdQt import roles
+
+from ._Qt import QtWidgets, QtCore
+
+if False:
+    from typing import *
+    from pxr.UsdQt.hierarchyModel import HierarchyBaseModel
 
 
-class HierarchyStandardContextMenuStrategy:
+class HierarchyStandardContextMenuStrategy(object):
     """A simple context menu"""
-
     def __init__(self, hierarchyEditor):
         self.hierarchyEditor = hierarchyEditor
 
     def Construct(self, point):
+        # type: (QtCore.QPoint) -> None
+        """
+        Parameters
+        ----------
+        point : QtCore.QPoint
+        """
         prims = self._GetSelectedPrims()
         if len(prims) == 1:
             name = prims[0].GetName()
@@ -60,6 +70,12 @@ class HierarchyStandardContextMenuStrategy:
         menu.exec_(self.hierarchyEditor.mapToGlobal(point))
 
     def _GetSelectedPrims(self):
+        # type: () -> List[Usd.Prim]
+        """
+        Returns
+        -------
+        List[Usd.Prim]
+        """
         selection = self.hierarchyEditor.GetSelectedPrims()
         selection.sort(key=lambda prim: prim.GetPath(), reverse=True)
         return selection
@@ -82,9 +98,19 @@ class HierarchyStandardContextMenuStrategy:
             for prim in prims:
                 prim.ClearActive()
 
-    def __BuildStageMap(self, prims):
+    def _BuildStageMap(self, prims):
+        # type: (Any) -> Dict[Usd.Stage, Set[Sdf.Path]]
         """All prims are likely on the same stage, but in the event that we
-        allow for hybrid models, this should ensure everything still works"""
+        allow for hybrid models, this should ensure everything still works.
+
+        Parameters
+        ----------
+        Iterable[Usd.Prim]
+
+        Returns
+        -------
+        Dict[Usd.Stage, Set[Sdf.Path]]
+        """
         stageMap = defaultdict(set)
         for prim in prims:
             stageMap[prim.GetStage()].add(prim.GetPath())
@@ -92,25 +118,25 @@ class HierarchyStandardContextMenuStrategy:
 
     def LoadSelection(self):
         prims = self._GetSelectedPrims()
-        stageMap = self.__BuildStageMap(prims)
+        stageMap = self._BuildStageMap(prims)
         for stage in stageMap:
             stage.LoadAndUnload(stageMap[stage], [])
 
     def UnloadSelection(self):
         prims = self._GetSelectedPrims()
-        stageMap = self.__BuildStageMap(prims)
+        stageMap = self._BuildStageMap(prims)
         for stage in stageMap:
             stage.LoadAndUnload([], stageMap[stage])
 
 
 class HierarchyEditor(QtWidgets.QWidget):
-    '''The hierarchy editor provides a filterable tree view of the prim
+    """The hierarchy editor provides a filterable tree view of the prim
     hierarchy.  This class may be used as is for simple/standard uses cases.
 
     For more specialized use cases, this class should be used as an exmaple of
     how to build an editor around the UsdQt hierarchy components and not
     directly subclassed.
-    '''
+    """
     ShowInactive = "Show Inactive"
     ShowUndefined = "Show Undefined (Overs)"
     ShowAbstract = "Show Abstract (Classes)"
@@ -118,9 +144,15 @@ class HierarchyEditor(QtWidgets.QWidget):
 
     # A context menu strategy takes the editor as an input
     ContextMenuStrategy = HierarchyStandardContextMenuStrategy
-    FilterModel = UsdQt.HierarchyStandardFilterModel
+    FilterModel = HierarchyStandardFilterModel
 
     def __init__(self, parent=None):
+        # type: (Optional[QtWidgets.QWidget]) -> None
+        """
+        Parameters
+        ----------
+        parent : Optional[QtWidgets.QWidget]
+        """
         super(HierarchyEditor, self).__init__(parent=parent)
 
         self.menuBar = QtWidgets.QMenuBar()
@@ -128,10 +160,10 @@ class HierarchyEditor(QtWidgets.QWidget):
         self.showMenu = QtWidgets.QMenu("Show")
         self.menuBar.addMenu(self.showMenu)
 
-        self.__filterLineEdit = QtWidgets.QLineEdit()
-        self.__hierarchyView = QtWidgets.QTreeView()
+        self._filterLineEdit = QtWidgets.QLineEdit()
+        self._hierarchyView = QtWidgets.QTreeView()
 
-        self.__showMenuItems = OrderedDict([
+        self._showMenuItems = OrderedDict([
             (HierarchyEditor.ShowInactive, QtWidgets.QAction(
                 HierarchyEditor.ShowInactive, self)),
             (HierarchyEditor.ShowUndefined, QtWidgets.QAction(
@@ -142,91 +174,115 @@ class HierarchyEditor(QtWidgets.QWidget):
                 HierarchyEditor.FilterAcrossArcs, self)),
         ])
 
-        for item in self.__showMenuItems:
-            self.__showMenuItems[item].setCheckable(True)
-            self.showMenu.addAction(self.__showMenuItems[item])
+        for item in self._showMenuItems:
+            self._showMenuItems[item].setCheckable(True)
+            self.showMenu.addAction(self._showMenuItems[item])
 
-        self.__filterModel = UsdQt.HierarchyStandardFilterModel()
+        self._filterModel = HierarchyStandardFilterModel()
 
-        self.__showMenuItems[HierarchyEditor.ShowInactive].toggled.connect(
-            self.__filterModel.TogglePrimInactive)
-        self.__showMenuItems[HierarchyEditor.ShowUndefined].toggled.connect(
-            self.__filterModel.TogglePrimUndefined)
-        self.__showMenuItems[HierarchyEditor.ShowAbstract].toggled.connect(
-            self.__filterModel.TogglePrimAbstract)
-        self.__showMenuItems[HierarchyEditor.FilterAcrossArcs].toggled.connect(
-            self.__filterModel.ToggleFilterAcrossArcs)
+        self._showMenuItems[HierarchyEditor.ShowInactive].toggled.connect(
+            self._filterModel.TogglePrimInactive)
+        self._showMenuItems[HierarchyEditor.ShowUndefined].toggled.connect(
+            self._filterModel.TogglePrimUndefined)
+        self._showMenuItems[HierarchyEditor.ShowAbstract].toggled.connect(
+            self._filterModel.TogglePrimAbstract)
+        self._showMenuItems[HierarchyEditor.FilterAcrossArcs].toggled.connect(
+            self._filterModel.ToggleFilterAcrossArcs)
 
-        self.__showMenuItems[HierarchyEditor.FilterAcrossArcs].setChecked(True)
-        self.__showMenuItems[HierarchyEditor.ShowInactive].setChecked(False)
-        self.__showMenuItems[HierarchyEditor.ShowUndefined].setChecked(False)
-        self.__showMenuItems[HierarchyEditor.ShowAbstract].setChecked(False)
+        self._showMenuItems[HierarchyEditor.FilterAcrossArcs].setChecked(True)
+        self._showMenuItems[HierarchyEditor.ShowInactive].setChecked(False)
+        self._showMenuItems[HierarchyEditor.ShowUndefined].setChecked(False)
+        self._showMenuItems[HierarchyEditor.ShowAbstract].setChecked(False)
 
-        self.__layout = QtWidgets.QVBoxLayout()
-        self.__layout.addWidget(self.menuBar)
-        self.__layout.addWidget(self.__filterLineEdit)
-        self.__layout.addWidget(self.__hierarchyView)
+        self._layout = QtWidgets.QVBoxLayout()
+        self._layout.addWidget(self.menuBar)
+        self._layout.addWidget(self._filterLineEdit)
+        self._layout.addWidget(self._hierarchyView)
 
-        self.__hierarchyView.setModel(self.__filterModel)
-        self.__hierarchyView.setSelectionMode(
+        self._hierarchyView.setModel(self._filterModel)
+        self._hierarchyView.setSelectionMode(
             QtWidgets.QAbstractItemView.ExtendedSelection)
 
-        self.__filterLineEdit.returnPressed.connect(
-            self.__OnFilterReturnPressed)
+        self._filterLineEdit.returnPressed.connect(
+            self._OnFilterReturnPressed)
 
-        self.setLayout(self.__layout)
-        self.__SetupContextMenu()
+        self.setLayout(self._layout)
+        self._SetupContextMenu()
 
-    def __SetupContextMenu(self):
-        self.__contextMenu = self.ContextMenuStrategy(self)
+    def _SetupContextMenu(self):
+        self._contextMenu = self.ContextMenuStrategy(self)
         self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        self.customContextMenuRequested.connect(self.__contextMenu.Construct)
+        self.customContextMenuRequested.connect(self._contextMenu.Construct)
 
-    def __OnFilterReturnPressed(self):
-        self.__filterModel.SetPathContainsFilter(self.__filterLineEdit.text())
+    def _OnFilterReturnPressed(self):
+        self._filterModel.SetPathContainsFilter(self._filterLineEdit.text())
 
     @property
     def primSelectionChanged(self):
-        '''Provides access to the internal QItemSelectionModel's
-        selectionChanged signal for callbacks on prim selection changes.'''
-        return self.__hierarchyView.selectionModel().selectionChanged
+        """Provides access to the internal QItemSelectionModel's
+        selectionChanged signal for callbacks on prim selection changes."""
+        return self._hierarchyView.selectionModel().selectionChanged
 
     def SelectPaths(self, paths):
+        # type: (Iterable[Sdf.Path]) -> None
+        """
+        Parameters
+        ----------
+        paths : Iterable[Sdf.Path]
+        """
         itemSelection = QtCore.QItemSelection()
-        sourceModel = self.__filterModel.sourceModel()
+        sourceModel = self._filterModel.sourceModel()
         for path in paths:
             index = sourceModel.GetIndexForPath(path)
             if index and index.isValid():
                 itemSelection.select(index, index)
-        mappedSelection = self.__filterModel.mapSelectionFromSource(
+        mappedSelection = self._filterModel.mapSelectionFromSource(
             itemSelection)
-        self.__hierarchyView.selectionModel().select(mappedSelection,
-                                                     QtCore.QItemSelectionModel.ClearAndSelect)
+        self._hierarchyView.selectionModel().select(mappedSelection,
+                                                    QtCore.QItemSelectionModel.ClearAndSelect)
 
     def GetSelectedPrims(self):
-        selectedIndices = self.__hierarchyView.selectedIndexes()
+        # type: () -> List[Usd.Prim]
+        """
+        Returns
+        -------
+        List[Usd.Prim]
+        """
+        selectedIndices = self._hierarchyView.selectedIndexes()
         orderedPrims = []
         unorderedPrims = set()
         for index in selectedIndices:
-            prim = index.data(role=UsdQt.roles.HierarchyPrimRole)
-            prim = UsdQt.compatability.ResolveValue(prim)
+            prim = index.data(role=roles.HierarchyPrimRole)
             if prim not in unorderedPrims:
                 unorderedPrims.add(prim)
                 orderedPrims.append(prim)
         return orderedPrims
 
     def GetPrimSelectedIndices(self):
-        '''Provides access to the internal selected indices'''
-        return self.__hierarchyView.selectedIndexes()
+        # type: () -> List[QtCore.QModelIndex]
+        """Provides access to the internal selected indices.
+
+        Returns
+        -------
+        List[QtCore.QModelIndex]
+        """
+        return self._hierarchyView.selectedIndexes()
 
     def SetSourceModel(self, model):
-        '''Replaces the current editor's current model with the new model.
-        The model must be a subclass of HierarchyBaseModel.'''
-        self.__filterModel.setSourceModel(model)
+        # type: (HierarchyBaseModel) -> None
+        """Replaces the current editor's current model with the new model.
+        The model must be a subclass of HierarchyBaseModel.
+
+        Parameters
+        ----------
+        model : HierarchyBaseModel
+        """
+        self._filterModel.setSourceModel(model)
 
 
 if __name__ == "__main__":
     import sys
+    from pxr.UsdQt.hierarchyModel import HierarchyBaseModel
 
     app = QtWidgets.QApplication(sys.argv)
 
@@ -234,7 +290,7 @@ if __name__ == "__main__":
         stage = Usd.Stage.Open(
             '../usdQt/testenv/testUsdQtHierarchyModel/simpleHierarchy.usda')
 
-    model = UsdQt.HierarchyBaseModel(stage)
+    model = HierarchyBaseModel(stage)
 
     class Listener(QtCore.QObject):
 
@@ -244,7 +300,7 @@ if __name__ == "__main__":
         @QtCore.Slot()
         def OnPrimSelectionChanged(self, selected=None, deselected=None):
             for index in self.sender().selectedIndexes():
-                prim = index.data(role=UsdQt.roles.HierarchyPrimRole)
+                prim = index.data(role=roles.HierarchyPrimRole)
                 # print(prim)
 
     editor = HierarchyEditor()

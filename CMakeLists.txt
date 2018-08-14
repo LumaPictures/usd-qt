@@ -34,3 +34,8 @@ include_directories(SYSTEM ${PYTHON_INCLUDE_DIRS})
 include_directories(SYSTEM ${TBB_INCLUDE_DIRS})
 
 add_subdirectory(pxr)
+
+# TODO: Compile installed .py files as well
+install(DIRECTORY treemodel
+        DESTINATION lib/python
+        PATTERN "*.py")

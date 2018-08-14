@@ -28,9 +28,7 @@ from __future__ import print_function
 
 from ._Qt import QtCore, QtWidgets, QtGui
 
-from pxr import Usd
-from pxr import Gf
-from pxr import Tf
+from pxr import Gf, Tf, Usd
 
 from ._bindings import _AttributeProxy, _DisplayGroupProxy, _MetadataProxy, \
     _MetadataDictKeyProxy, _ObjectProxy, _PrimProxy, \
@@ -39,6 +37,9 @@ from ._bindings import _AttributeProxy, _DisplayGroupProxy, _MetadataProxy, \
 from . import valueWidgets
 from . import compatability
 from . import roles
+
+if False:
+    from typing import *
 
 
 class ValueDelegate(QtWidgets.QStyledItemDelegate):
@@ -53,20 +54,6 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
     widgets to the default UsdQt handlers or write a new StyledItemDelegate
     using ValueDelegate as a reference implementation.
     """
-
-    class _PainterContext(object):
-        def __init__(self, painter):
-            self.painter = painter
-
-        def __enter__(self):
-            self.painter.save()
-
-        def __exit__(self, *args):
-            self.painter.restore()
-
-    def __init__(self, parent=None):
-        super(ValueDelegate, self).__init__(parent)
-
     # def PaintArray(self, painter, option, index, arrayData, elementSize):
     #     super(ValueEditDelegate, self).paint(painter, option, QtCore.QModelIndex())
     #     arrayOption = QtWidgets.QStyleOptionViewItem(option)
@@ -91,8 +78,23 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
     # arrayOption.palette, True, Usdq.ToString(displayData[i][j]))
 
     def PaintColor(self, painter, option, index):
+        # type: (QtGui.QPainter, QtWidgets.QStyleOptionViewItem, QtCore.QModelIndex) -> None
+        """
+        Parameters
+        ----------
+        painter : QtGui.QPainter
+        option : QtWidgets.QStyleOptionViewItem
+        index : QtCore.QModelIndex
+        """
         super(ValueDelegate, self).paint(
             painter, option, QtCore.QModelIndex())
+
+        vecData = index.data(QtCore.Qt.EditRole)
+        if not vecData:
+            return
+        if len(vecData) not in (3, 4):
+            raise Exception("Paint color only supports color3f and color4f.")
+
         vecOption = QtWidgets.QStyleOptionViewItem(option)
         self.initStyleOption(vecOption, index)
         style = QtWidgets.QApplication.style()
@@ -100,34 +102,41 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
         top = vecOption.rect.top()
         width = vecOption.rect.width()
         height = vecOption.rect.height()
-
-        vecData = compatability.GetEditRole(index)
-        if not vecData:
-            return
-
         colorWidth = 20
         pad = 5
         columns = vecData.dimension
         cellWidth = (width - colorWidth) / columns
 
-        if len(vecData) not in (3, 4):
-            raise Exception("Paint color only supports color3f and color4f.")
         displayVecData = Gf.ConvertLinearToDisplay(vecData)
-        with self._PainterContext(painter):
-            painter.setBrush(QtGui.QColor(*[c * 255 for c in displayVecData]))
-            painter.setPen(QtCore.Qt.NoPen)
-            painter.drawRect(left, top, colorWidth, height)
+        painter.save()
+        painter.setBrush(QtGui.QColor(*[c * 255 for c in displayVecData]))
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.drawRect(left, top, colorWidth, height)
+        painter.restore()
 
         for i in xrange(columns):
-            cellRect = QtCore.QRect(colorWidth + pad + left + cellWidth * i, top,
-                                    cellWidth, height)
+            cellRect = QtCore.QRect(colorWidth + pad + left + cellWidth * i,
+                                    top, cellWidth, height)
             style.drawItemText(painter, cellRect, vecOption.displayAlignment,
                                vecOption.palette, True,
                                str(vecData[i]))
 
     def PaintVec(self, painter, option, index):
+        # type: (QtGui.QPainter, QtWidgets.QStyleOptionViewItem, QtCore.QModelIndex) -> None
+        """
+        Parameters
+        ----------
+        painter : QtGui.QPainter
+        option : QtWidgets.QStyleOptionViewItem
+        index : QtCore.QModelIndex
+        """
         super(ValueDelegate, self).paint(
             painter, option, QtCore.QModelIndex())
+
+        vecData = index.data(QtCore.Qt.EditRole)
+        if not vecData:
+            return
+
         vecOption = QtWidgets.QStyleOptionViewItem(option)
         self.initStyleOption(vecOption, index)
         style = QtWidgets.QApplication.style()
@@ -135,11 +144,6 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
         top = vecOption.rect.top()
         width = vecOption.rect.width()
         height = vecOption.rect.height()
-
-        vecData = compatability.GetEditRole(index)
-        if not vecData:
-            return
-
         columns = vecData.dimension
         cellWidth = width / columns
 
@@ -151,8 +155,21 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
                                str(vecData[i]))
 
     def PaintMatrix(self, painter, option, index):
+        # type: (QtGui.QPainter, QtWidgets.QStyleOptionViewItem, QtCore.QModelIndex) -> None
+        """
+        Parameters
+        ----------
+        painter : QtGui.QPainter
+        option : QtWidgets.QStyleOptionViewItem
+        index : QtCore.QModelIndex
+        """
         super(ValueDelegate, self).paint(
             painter, option, QtCore.QModelIndex())
+
+        matrixData = index.data(QtCore.Qt.EditRole)
+        if not matrixData:
+            return
+
         matrixOption = QtWidgets.QStyleOptionViewItem(option)
         self.initStyleOption(matrixOption, index)
         style = QtWidgets.QApplication.style()
@@ -160,11 +177,6 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
         top = matrixOption.rect.top()
         width = matrixOption.rect.width()
         height = matrixOption.rect.height()
-
-        matrixData = compatability.GetEditRole(index)
-        if not matrixData:
-            return
-
         rows = matrixData.dimension[0]
         columns = matrixData.dimension[1]
         cellWidth = width / columns
@@ -172,16 +184,23 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
 
         for i in xrange(rows):
             for j in xrange(columns):
-                component = str(compatability.ResolveValue(matrixData[i][j])) \
-                    if matrixData[i][j] is not None else ''
+                component = matrixData[i][j] or ''
                 cellRect = QtCore.QRect(left + cellWidth * j,
                                         top + cellHeight * i,
                                         cellWidth, cellHeight)
                 style.drawItemText(painter, cellRect,
                                    matrixOption.displayAlignment,
-                                   matrixOption.palette, True, component)
+                                   matrixOption.palette, True, str(component))
 
     def PaintTab(self, painter, option, index):
+        # type: (QtGui.QPainter, QtWidgets.QStyleOptionViewItem, QtCore.QModelIndex) -> None
+        """
+        Parameters
+        ----------
+        painter : QtGui.QPainter
+        option : QtWidgets.QStyleOptionViewItem
+        index : QtCore.QModelIndex
+        """
         super(ValueDelegate, self).paint(
             painter, option, QtCore.QModelIndex())
 
@@ -189,7 +208,6 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
         defaultOption = QtWidgets.QStyleOptionViewItem(option)
 
         displayRole = index.data(QtCore.Qt.DisplayRole)
-        displayRole = compatability.ResolveValue(displayRole)
 
         self.initStyleOption(defaultOption, index)
         style.drawItemText(painter, defaultOption.rect,
@@ -199,7 +217,6 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
 
     def paint(self, painter, option, index):
         editorHint = index.data(roles.EditorHintRole)
-        editorHint = compatability.ResolveValue(editorHint)
 
         if type(editorHint) is roles.EditorHintBasicValue:
             if editorHint.type in valueWidgets.matrixTypes:
@@ -217,6 +234,17 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
         super(ValueDelegate, self).paint(painter, option, index)
 
     def CreateBasicValueEditor(self, tfType, parent):
+        # type: (Tf.Type, QtWidgets.QWidget) -> QtWidgets.QWidget
+        """
+        Parameters
+        ----------
+        tfType : Tf.Type
+        parent : QtWidgets.QWidget
+
+        Returns
+        -------
+        QtWidgets.QWidget
+        """
         if tfType == Tf.Type.FindByName('bool'):
             editor = valueWidgets.BoolEdit(parent=parent)
             editor.editFinished.connect(self.CommitAndCloseEditor)
@@ -225,17 +253,39 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
             return valueWidgets.valueTypeMap[tfType](parent=parent)
 
     def CreateColorValueEditor(self, tfType, parent):
+        # type: (Tf.Type, QtWidgets.QWidget) -> valueWidgets._ColorEdit
+        """
+
+        Parameters
+        ----------
+        tfType : Tf.Type
+        parent : QtWidgets.QWidget
+
+        Returns
+        -------
+        valueWidgets._ColorEdit
+        """
         editor = valueWidgets.colorTypeMap[tfType](parent=parent)
         return editor
 
     def CreateTextComboEditor(self, allowedValues, parent):
+        # type: (List[str], QtWidgets.QWidget) -> valueWidgets.TextComboEdit
+        """
+        Parameters
+        ----------
+        allowedValues : List[str]
+        parent : QtWidgets.QWidget
+
+        Returns
+        -------
+        valueWidgets.TextComboEdit
+        """
         editor = valueWidgets.TextComboEdit(allowedValues, parent=parent)
         editor.editFinished.connect(self.CommitAndCloseEditor)
         return editor
 
     def createEditor(self, parent, option, index):
         editorHint = index.data(roles.EditorHintRole)
-        editorHint = compatability.ResolveValue(editorHint)
 
         if type(editorHint) is roles.EditorHintBasicValue:
             return self.CreateBasicValueEditor(editorHint.type, parent)
@@ -262,7 +312,6 @@ class ValueDelegate(QtWidgets.QStyledItemDelegate):
 
     def sizeHint(self, option, index):
         editorHint = index.data(roles.EditorHintRole)
-        editorHint = compatability.ResolveValue(editorHint)
 
         if (type(editorHint) == roles.EditorHintBasicValue and
                 editorHint.type in valueWidgets.matrixTypes):

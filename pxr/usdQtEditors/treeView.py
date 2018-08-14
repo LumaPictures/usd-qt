@@ -29,33 +29,40 @@ from __future__ import print_function
 import sys
 
 from pxr import Sdf
-from pxr.UsdQt._bindings import _DisplayGroupProxy
+
 from ._Qt import QtCore, QtWidgets
+
+if False:
+    from typing import *
 
 
 class TreeView(QtWidgets.QTreeView):
     """Specialization of QTreeView to add selection edit based functionality.
-    
+
     Selection edits allow editing of all selected attriutes simultaneously.
 
     This class should be as sparse as possible.  In general, all models and
-    functionality should work with QTreeView natively.  
-    
-    This exists because commitData seems like the best place for selection 
-    based overrides. Neither the delegate nor the model have access to the 
-    selection model. To avoid breaking encapsulation, we use this wrapper 
+    functionality should work with QTreeView natively.
+
+    This exists because commitData seems like the best place for selection
+    based overrides. Neither the delegate nor the model have access to the
+    selection model. To avoid breaking encapsulation, we use this wrapper
     class instead.
     """
-
     SelectedEditOff = 0
     SelectedEditColumnsOnly = 1
 
     def __init__(self, parent=None):
+        """
+        Parameters
+        ----------
+        parent : Optional[QtWidgets.QWidget]
+        """
         super(TreeView, self).__init__(parent)
-        self.SetSelectedEditMode(TreeView.SelectedEditColumnsOnly)
+        self._selectionEditMode = TreeView.SelectedEditColumnsOnly
 
     def SetSelectedEditMode(self, mode):
-        self.__selectionEditMode = mode
+        self._selectionEditMode = mode
 
     def commitData(self, editor):
         """overriden to support multiple selected index edits"""
@@ -70,7 +77,7 @@ class TreeView(QtWidgets.QTreeView):
             super(TreeView, self).commitData(editor)
             return
 
-        if self.__selectionEditMode == TreeView.SelectedEditColumnsOnly:
+        if self._selectionEditMode == TreeView.SelectedEditColumnsOnly:
             selection = [i for i in self.selectionModel().selectedIndexes()
                          if i.column() == editorIndex.column()
                          and i != editorIndex]
@@ -95,7 +102,7 @@ class TreeView(QtWidgets.QTreeView):
                     try:
                         self.model().setData(index, value, QtCore.Qt.EditRole)
                     except Exception, e:
-                        # TODO: We should do something better than printing to 
+                        # TODO: We should do something better than printing to
                         # stderr
-                        print("Exception during multi-edit:", e, 
+                        print("Exception during multi-edit:", e,
                             file=sys.stderr)

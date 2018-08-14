@@ -22,9 +22,11 @@
 # language governing permissions and limitations under the Apache License.
 #
 
+"""
+Contains UsdQt-specific Qt user roles, as well as some hint types for custom
+editor widgets.
+"""
 from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 from ._Qt import QtCore
 
@@ -35,21 +37,17 @@ from ._Qt import QtCore
 # All UsdQt EditorHints are defined below and are prefixed with EditorHint.
 EditorHintRole = QtCore.Qt.UserRole + 2
 
-# Used in models representing layer stacks to represent the depth in the
-# in the hierarchy.  Sublayers of the root layer have depth 1.  Sublayers of 
-# those layers have depth 2.
-LayerStackDepthRole = QtCore.Qt.UserRole + 3
-
 # Used to retrieve the prim object in hierarchy models.
-HierarchyPrimRole = QtCore.Qt.UserRole + 4
+HierarchyPrimRole = QtCore.Qt.UserRole + 3
 
-# Specializations that leverage UsdQt at its core can use UsdQtUserRole as the 
+# Specializations that leverage UsdQt at its core can use UsdQtUserRole as the
 # first safe index for additional user roles
 UsdQtUserRole = QtCore.Qt.UserRole + 16
 
 
 class EditorHintBasicValue(object):
     """Used for values whose editor can be inferred soley from the TfType"""
+    __slots__ = ('__type',)
 
     def __init__(self, tfType):
         self.__type = tfType
@@ -58,9 +56,10 @@ class EditorHintBasicValue(object):
     def type(self):
         return self.__type
 
-        
+
 class EditorHintColorValue(object):
     """Hint for when a color editor needs to be instantiated"""
+    __slots__ = ('__type',)
 
     def __init__(self, tfType):
         self.__type = tfType
@@ -72,6 +71,7 @@ class EditorHintColorValue(object):
 
 class EditorHintTextCombo(object):
     """Used for a string/token editor restricted by a list of allowed values"""
+    __slots__ = ('__allowedValues',)
 
     def __init__(self, allowedValues):
         self.__allowedValues = allowedValues
@@ -83,6 +83,7 @@ class EditorHintTextCombo(object):
 
 class EditorHintTab(object):
     """Used when an item should be drawn as a tab"""
+    __slots__ = ()
 
     def __init__(self):
         pass
