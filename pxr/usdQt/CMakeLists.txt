@@ -13,7 +13,6 @@ if (INSTALL_PURE_PYTHON)
         hierarchyModel.py
         hooks.py
         layerModel.py
-        layers.py
         opinionModel.py
         opinionStackModel.py
         qtUtils.py
@@ -22,7 +21,6 @@ if (INSTALL_PURE_PYTHON)
         usdUtils.py
         valueDelegate.py
         valueWidgets.py
-        variantSets.py
     )
 else ()
     set(PYTHON_FILES

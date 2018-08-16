@@ -35,7 +35,7 @@ from ._Qt import QtCore, QtGui, QtWidgets
 from pxr import Sdf, Tf, Usd
 from pxr.UsdQt.hierarchyModel import HierarchyBaseModel
 from pxr.UsdQt.hooks import UsdQtHooks
-from pxr.UsdQt.layers import LayerStackBaseModel
+from pxr.UsdQt.layerModel import LayerStackBaseModel
 from pxr.UsdQt.qtUtils import DARK_ORANGE, MenuAction, MenuSeparator, \
     MenuBuilder, ContextMenuMixin, MenuBarBuilder, CopyToClipboard
 from pxr.UsdQt.usdUtils import GetPrimVariants
