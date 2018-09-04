@@ -60,7 +60,7 @@ class OpinionStackWidget(QtWidgets.QWidget):
         self._showAllAction.setCheckable(True)
         self._closeAction = self._toolBar.addAction("Close")
         self._showAllAction.toggled.connect(self._OnShowAllToggled)
-        self._closeAction.triggered.connect(self._OnClose)
+        self._closeAction.triggered.connect(lambda checked=None: self._OnClose())
 
         self._opinionFilter = OpinionStackFilter()
         self._view = QtWidgets.QTreeView()
