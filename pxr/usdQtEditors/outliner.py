@@ -120,8 +120,7 @@ class LayerStackModel(LayerStackBaseModel):
             self._listener = None
 
     def _OnEditTargetChanged(self, notice, stage):
-        self.dataChanged[QtCore.QModelIndex, QtCore.QModelIndex].emit(
-            NULL_INDEX, NULL_INDEX)
+        self.dataChanged.emit(NULL_INDEX, NULL_INDEX)
 
 
 LayerStackDialogContext = namedtuple('LayerStackDialogContext',
@@ -389,8 +388,8 @@ class SelectVariants(MenuAction):
                         (setValue == NO_VARIANT_SELECTION
                          and currentValue == ''):
                     a.setChecked(True)
-                a.triggered.connect(partial(self._ApplyVariant,
-                                            prim, setName, setValue))
+                a.triggered.connect(lambda checked=None, p=prim, n=setName, v=setValue:
+                                    self._ApplyVariant(p, n, v))
         return menu.menuAction()
 
 

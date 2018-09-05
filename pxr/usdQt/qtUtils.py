@@ -136,7 +136,7 @@ class MenuAction(object):
             text = self.__class__.__name__
         action = QtWidgets.QAction(text, None)
         self.Update(action, context)
-        action.triggered.connect(lambda: self.Do(context))
+        action.triggered.connect(lambda checked=None: self.Do(context))
         return action
 
     def Update(self, action, context):
