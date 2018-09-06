@@ -263,6 +263,11 @@ class EditTargetDialog(QtWidgets.QDialog):
                 or self._editTargetChangeCallback(newLayer):
             self._stage.SetEditTarget(newLayer)
 
+    def ResetStage(self, stage):
+        self._dataModel.ResetStage(stage)
+        self._stage = stage
+
+
 
 OutlinerContext = namedtuple('OutlinerContext',
                              ['qtParent', 'outliner', 'stage',
@@ -483,8 +488,6 @@ class SaveState(object):
         # but then restore users edits
         if diskContents != currentContents:
             layer.ImportFromString(currentContents)
-        # reset stage to avoid any problems with references to stale prims
-        self.outliner.ResetStage()
         return diskContents
 
     def CheckOriginalContents(self, editLayer):
@@ -647,9 +650,9 @@ class OutlinerViewDelegate(QtWidgets.QStyledItemDelegate):
         parent : Optional[QtGui.QWidget]
         """
         super(OutlinerViewDelegate, self).__init__(parent=parent)
-        self._activeLayer = stage.GetEditTarget().GetLayer()
-        self._listener = Tf.Notice.Register(Usd.Notice.StageEditTargetChanged,
-                                            self._OnEditTargetChanged, stage)
+        self._activeLayer = None
+        self._listener = None
+        self.ResetStage(stage)
 
     # Qt methods ---------------------------------------------------------------
     def paint(self, painter, options, modelIndex):
@@ -676,6 +679,16 @@ class OutlinerViewDelegate(QtWidgets.QStyledItemDelegate):
                                                    modelIndex)
 
     # Custom methods -----------------------------------------------------------
+    def ResetStage(self, stage):
+        if stage:
+            self._activeLayer = stage.GetEditTarget().GetLayer()
+            self._listener = \
+                Tf.Notice.Register(Usd.Notice.StageEditTargetChanged,
+                                   self._OnEditTargetChanged, stage)
+        else:
+            self._listener = None
+            self._activeLayer = None
+
     def _OnEditTargetChanged(self, notice, stage):
         self.SetActiveLayer(stage.GetEditTarget().GetLayer())
 
@@ -728,6 +741,9 @@ class OutlinerRole(object):
 
 class UsdOutliner(QtWidgets.QDialog):
     """UsdStage editing application which displays the hierarchy of a stage."""
+    # Emitted when a new stage should be loaded into the outliners models
+    stageChanged = QtCore.Signal(Usd.Stage)
+
     def __init__(self, stage, role=None, parent=None):
         # type: (Usd.Stage, Optional[Union[Type[OutlinerRole], OutlinerRole]], Optional[QtGui.QWidget]) -> None
         """
@@ -737,16 +753,14 @@ class UsdOutliner(QtWidgets.QDialog):
         role : Optional[Union[Type[OutlinerRole], OutlinerRole]]
         parent : Optional[QtGui.QWidget]
         """
-        assert isinstance(stage, Usd.Stage), 'A Stage instance is required'
         super(UsdOutliner, self).__init__(parent=parent)
 
-        self._stage = stage
+        self._stage = None
+        self._listener = None
         self._dataModel = HierarchyBaseModel(stage=stage, parent=self)
-        self._listener = Tf.Notice.Register(Usd.Notice.StageEditTargetChanged,
-                                            self._OnEditTargetChanged, stage)
+        self.ResetStage(stage)
 
         self.setModal(False)
-        self.UpdateTitle()
 
         if role is None:
             role = OutlinerRole
@@ -759,6 +773,7 @@ class UsdOutliner(QtWidgets.QDialog):
 
         delegate = OutlinerViewDelegate(stage, parent=view)
         view.setItemDelegate(delegate)
+        self.stageChanged.connect(delegate.ResetStage)
 
         self.menuBarBuilder = MenuBarBuilder(
             self,
@@ -846,9 +861,25 @@ class UsdOutliner(QtWidgets.QDialog):
         """
         return self._stage.GetEditTarget().GetLayer()
 
-    def ResetStage(self):
-        # TODO: Need to make sure this is still safe
-        self._dataModel.ResetStage(self._stage)
+    def ResetStage(self, stage):
+        """Reset the stage for this outliner and child dialogs.
+
+        Parameters
+        ----------
+        stage : Union[Usd.Stage, None]
+            If None is given, this will clear the current stage
+        """
+        self._stage = stage
+        self._dataModel.ResetStage(stage)
+        if stage:
+            self._listener = \
+                Tf.Notice.Register(Usd.Notice.StageEditTargetChanged,
+                                   self._OnEditTargetChanged, stage)
+        else:
+            self._listener = None
+
+        self.UpdateTitle()
+        self.stageChanged.emit(stage)
 
     def UpdateTitle(self, identifier=None):
         # type: (Optional[str]) -> None
@@ -866,6 +897,7 @@ class UsdOutliner(QtWidgets.QDialog):
         if layer is None:
             layer = self.GetEditTargetLayer()
         dialog = LayerTextEditorDialog.GetSharedInstance(layer, parent=self)
+        self.stageChanged.connect(dialog.close)
         dialog.show()
         dialog.raise_()
         dialog.activateWindow()
@@ -876,6 +908,7 @@ class UsdOutliner(QtWidgets.QDialog):
                 self._stage,
                 editTargetChangeCallback=self._LayerDialogEditTargetChangeCallback,
                 parent=self)
+            self.stageChanged.connect(dialog.ResetStage)
             self.editTargetDialog = dialog
         self.editTargetDialog.show()
         self.editTargetDialog.raise_()
