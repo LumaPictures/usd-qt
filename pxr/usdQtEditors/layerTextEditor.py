@@ -115,7 +115,6 @@ class LayerTextEditorDialog(QtWidgets.QDialog):
     """Dialog version of LayerTextEditor that enables easy sharing of instances.
     """
     _sharedInstances = {}
-
     def __init__(self, layer, readOnly=False, parent=None):
         # type: (Sdf.Layer, bool, Optional[QtWidgets.QWidget]) -> None
         """

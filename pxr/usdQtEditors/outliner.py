@@ -128,15 +128,22 @@ LayerStackDialogContext = namedtuple('LayerStackDialogContext',
                                      ['qtParent', 'layerDialog', 'stage',
                                       'selectedLayer', 'editTargetLayer'])
 
-# TODO: Reconcile with identical outliner action
+
 class ShowLayerText(MenuAction):
     defaultText = 'Show Layer Text'
 
     def Do(self, context):
-        if context.selectedLayer:
+        if not context.selectedLayer:
+            return
+        qtParent = context.qtParent
+        if qtParent and hasattr(qtParent, 'ShowLayerTextDialog'):
+            # a parent dialog is in charge of tracking layers
+            qtParent.ShowLayerTextDialog(context.selectedLayer)
+        else:
+            # use global shared instance registry
             dialog = LayerTextEditorDialog.GetSharedInstance(
                 context.selectedLayer,
-                parent=context.qtParent or context.layerDialog)
+                parent=qtParent or context.layerDialog)
             dialog.show()
             dialog.raise_()
             dialog.activateWindow()
@@ -789,6 +796,7 @@ class UsdOutliner(QtWidgets.QDialog):
         self.resize(900, 600)
 
         # Instances of child dialogs (for reference-counting purposes)
+        self._sharedLayerTextEditors = {}
         self.editTargetDialog = None
         self.variantEditorDialog = None
 
@@ -893,10 +901,39 @@ class UsdOutliner(QtWidgets.QDialog):
             identifier = self.GetEditTargetLayer().identifier
         self.setWindowTitle('Outliner - %s' % identifier)
 
+    def _OnLayerTextEditorFinished(self, layer):
+        dialog = self._sharedLayerTextEditors.pop(layer, None)
+        if dialog:
+            dialog.deleteLater()
+
+    def GetSharedLayerTextEditorInstance(self, layer):
+        # type: (Sdf.Layer, bool, Optional[QtWidgets.QWidget]) -> LayerTextEditorDialog
+        """Convenience method to get or create a shared editor dialog instance.
+
+        Parameters
+        ----------
+        key : Any
+        parent : Optional[QtWidgets.QWidget]
+
+        Returns
+        -------
+        LayerTextEditorDialog
+        """
+        dialog = self._sharedLayerTextEditors.get(layer)
+        if dialog is None:
+            readOnly = not layer.permissionToEdit
+            dialog = LayerTextEditorDialog(layer,
+                                           readOnly=readOnly,
+                                           parent=self)
+            self._sharedLayerTextEditors[layer] = dialog
+            dialog.finished.connect(
+                lambda result: self._OnLayerTextEditorFinished(layer))
+        return dialog
+
     def ShowLayerTextDialog(self, layer=None):
         if layer is None:
             layer = self.GetEditTargetLayer()
-        dialog = LayerTextEditorDialog.GetSharedInstance(layer, parent=self)
+        dialog = self.GetSharedLayerTextEditorInstance(layer)
         self.stageChanged.connect(dialog.close)
         dialog.show()
         dialog.raise_()
