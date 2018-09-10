@@ -163,7 +163,7 @@ class OpenLayer(MenuAction):
     def Do(self, context):
         if context.selectedLayer:
             # Role is currently lost
-            dlg = UsdOutliner.FromUsdFile(context.selectedLayer.identifier)
+            dlg = UsdOutlinerDialog.FromUsdFile(context.selectedLayer.identifier)
             dlg.show()
             dlg.raise_()
             dlg.activateWindow()
@@ -199,7 +199,7 @@ class LayerStackTreeView(ContextMenuMixin, QtWidgets.QTreeView):
                 return index.internalPointer().layer
 
 
-class EditTargetDialog(QtWidgets.QDialog):
+class EditTargetEditor(QtWidgets.QWidget):
     def __init__(self, stage, editTargetChangeCallback=None, parent=None):
         # type: (Usd.Stage, Optional[Callable[[Sdf.Layer], bool]], Optional[QtWidgets.QWidget]) -> None
         """
@@ -213,13 +213,12 @@ class EditTargetDialog(QtWidgets.QDialog):
             edit target will not be changed.
         parent : Optional[QtWidgets.QWidget]
         """
-        super(EditTargetDialog, self).__init__(parent=parent)
+        super(EditTargetEditor, self).__init__(parent=parent)
         self._stage = stage
         self._dataModel = LayerStackModel(stage, parent=self)
         self._editTargetChangeCallback = editTargetChangeCallback
 
         # Widget and other Qt setup
-        self.setModal(False)
         self.setWindowTitle('Select Edit Target')
 
         self.view = LayerStackTreeView(self, parent=self)
@@ -235,8 +234,6 @@ class EditTargetDialog(QtWidgets.QDialog):
         layout.setSpacing(2)
         layout.addWidget(self.view)
         self.view.expandAll()
-
-        self.resize(700, 200)
 
     def GetMenuContext(self):
         # type: () -> LayerStackDialogContext
@@ -274,6 +271,19 @@ class EditTargetDialog(QtWidgets.QDialog):
         self._dataModel.ResetStage(stage)
         self._stage = stage
 
+
+class EditTargetDialog(QtWidgets.QDialog):
+    """Dialog for the edit target editor."""
+    def __init__(self, stage, editTargetChangeCallback=None, parent=None):
+        super(EditTargetDialog, self).__init__(parent=parent)
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.editor = EditTargetEditor(
+            stage,
+            editTargetChangeCallback=editTargetChangeCallback,
+            parent=self)
+        layout.addWidget(self.editor)
+        self.resize(700, 200)
 
 
 OutlinerContext = namedtuple('OutlinerContext',
@@ -746,7 +756,7 @@ class OutlinerRole(object):
                                        ShowEditTargetDialog])]
 
 
-class UsdOutliner(QtWidgets.QDialog):
+class UsdOutliner(QtWidgets.QWidget):
     """UsdStage editing application which displays the hierarchy of a stage."""
     # Emitted when a new stage should be loaded into the outliners models
     stageChanged = QtCore.Signal(Usd.Stage)
@@ -766,8 +776,6 @@ class UsdOutliner(QtWidgets.QDialog):
         self._listener = None
         self._dataModel = HierarchyBaseModel(stage=stage, parent=self)
         self.ResetStage(stage)
-
-        self.setModal(False)
 
         if role is None:
             role = OutlinerRole
@@ -792,8 +800,6 @@ class UsdOutliner(QtWidgets.QDialog):
         layout.setSpacing(2)
         layout.addWidget(self.menuBarBuilder.menuBar)
         layout.addWidget(view)
-
-        self.resize(900, 600)
 
         # Instances of child dialogs (for reference-counting purposes)
         self._sharedLayerTextEditors = {}
@@ -945,11 +951,24 @@ class UsdOutliner(QtWidgets.QDialog):
                 self._stage,
                 editTargetChangeCallback=self._LayerDialogEditTargetChangeCallback,
                 parent=self)
-            self.stageChanged.connect(dialog.ResetStage)
+            self.stageChanged.connect(dialog.editor.ResetStage)
             self.editTargetDialog = dialog
         self.editTargetDialog.show()
         self.editTargetDialog.raise_()
         self.editTargetDialog.activateWindow()
+
+
+class UsdOutlinerDialog(QtWidgets.QDialog):
+    """UsdStage editing application which displays the hierarchy of a stage."""
+    def __init__(self, stage, role=None, parent=None):
+        super(UsdOutlinerDialog, self).__init__(parent=parent)
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.outliner = UsdOutliner(stage, role=role, parent=self)
+        layout.addWidget(self.outliner)
+
+        self.setModal(False)
+        self.resize(900, 600)
 
     @classmethod
     def FromUsdFile(cls, usdFile, role=None, parent=None):
@@ -980,6 +999,6 @@ if __name__ == '__main__':
 
     usdFileArg = sys.argv[1]
 
-    dialog = UsdOutliner.FromUsdFile(usdFileArg)
+    dialog = UsdOutlinerDialog.FromUsdFile(usdFileArg)
     dialog.show()
     dialog.exec_()

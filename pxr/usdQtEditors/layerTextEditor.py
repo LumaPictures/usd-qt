@@ -127,8 +127,8 @@ class LayerTextEditorDialog(QtWidgets.QDialog):
         super(LayerTextEditorDialog, self).__init__(parent=parent)
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        editor = LayerTextEditor(layer, readOnly=readOnly, parent=self)
-        layout.addWidget(editor)
+        self.editor = LayerTextEditor(layer, readOnly=readOnly, parent=self)
+        layout.addWidget(self.editor)
 
         self.setWindowTitle('Layer: %s' % layer.identifier)
         self.resize(800, 600)
