@@ -132,7 +132,8 @@ LayerStackDialogContext = namedtuple('LayerStackDialogContext',
 class ShowLayerText(MenuAction):
     defaultText = 'Show Layer Text'
 
-    def Do(self, context):
+    def Do(self):
+        context = self.GetCurrentContext()
         if not context.selectedLayer:
             return
         qtParent = context.qtParent
@@ -152,7 +153,8 @@ class ShowLayerText(MenuAction):
 class CopyLayerPath(MenuAction):
     defaultText = 'Copy Layer Identifier'
 
-    def Do(self, context):
+    def Do(self):
+        context = self.GetCurrentContext()
         if context.selectedLayer:
             CopyToClipboard(context.selectedLayer.identifier)
 
@@ -160,7 +162,8 @@ class CopyLayerPath(MenuAction):
 class OpenLayer(MenuAction):
     defaultText = 'Open Layer in Outliner'
 
-    def Do(self, context):
+    def Do(self):
+        context = self.GetCurrentContext()
         if context.selectedLayer:
             # Role is currently lost
             dlg = UsdOutlinerDialog.FromUsdFile(context.selectedLayer.identifier)
@@ -298,7 +301,8 @@ class ActivatePrims(MenuAction):
     def Update(self, action, context):
         action.setEnabled(bool(context.selectedPrims))
 
-    def Do(self, context):
+    def Do(self):
+        context = self.GetCurrentContext()
         with Sdf.ChangeBlock():
             for prim in context.selectedPrims:
                 prim.SetActive(True)
@@ -310,7 +314,8 @@ class DeactivatePrims(MenuAction):
     def Update(self, action, context):
         action.setEnabled(bool(context.selectedPrims))
 
-    def Do(self, context):
+    def Do(self):
+        context = self.GetCurrentContext()
         with Sdf.ChangeBlock():
             for prim in context.selectedPrims:
                 prim.SetActive(False)
@@ -322,7 +327,8 @@ class AddTransform(MenuAction):
     def Update(self, action, context):
         action.setEnabled(bool(context.selectedPrim))
 
-    def Do(self, context):
+    def Do(self):
+        context = self.GetCurrentContext()
         # TODO: Right now this only produces Xforms. May need to support the
         # ability to specify types for new prims eventually.
         name, _ = QtWidgets.QInputDialog.getText(context.qtParent,
@@ -360,7 +366,8 @@ class RemovePrim(MenuAction):
                 break
         action.setText(text)
 
-    def Do(self, context):
+    def Do(self):
+        context = self.GetCurrentContext()
         ask = True
         buttons = QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.Cancel
         if len(context.selectedPrims) > 1:
@@ -420,9 +427,11 @@ class AddReference(MenuAction):
     defaultText = 'Add Reference...'
 
     def Update(self, action, context):
+        context = self.GetCurrentContext()
         action.setEnabled(bool(context.selectedPrim))
 
-    def Do(self, context):
+    def Do(self):
+        context = self.GetCurrentContext()
         refPath = UsdQtHooks.Call('GetReferencePath', stage=context.stage)
         if refPath:
             stage = context.stage
@@ -560,7 +569,8 @@ class SaveEditLayer(MenuAction):
     def __init__(self, state):
         self.state = state
 
-    def Do(self, context):
+    def Do(self):
+        context = self.GetCurrentContext()
         """
         Save the current edit target to the appropriate place.
         """
@@ -581,14 +591,16 @@ class SaveEditLayer(MenuAction):
 class ShowEditTargetLayerText(MenuAction):
     defaultText = 'Show Current Layer Text'
 
-    def Do(self, context):
+    def Do(self):
+        context = self.GetCurrentContext()
         context.outliner.ShowLayerTextDialog()
 
 
 class ShowEditTargetDialog(MenuAction):
     defaultText = 'Change Edit Target'
 
-    def Do(self, context):
+    def Do(self):
+        context = self.GetCurrentContext()
         context.outliner.ShowEditTargetDialog()
 
 
