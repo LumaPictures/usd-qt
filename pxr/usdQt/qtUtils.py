@@ -105,7 +105,7 @@ class _MenuSeparator(object):
     def __call__(self, *args, **kwargs):
         return self
 
-    def AddToMenu(self, menu, context):
+    def AddToMenu(self, menu, context, contextCallback=None):
         menu.addSeparator()
 
 
@@ -115,6 +115,33 @@ MenuSeparator = _MenuSeparator()
 class MenuAction(object):
     """Base class for menu actions."""
     defaultText = None
+
+    def __init__(self):
+        self._contextCallback = None
+
+    def SetContextCallback(self, context):
+        """Set a callback for the action to get an up-to-date context when it
+        needs it.
+
+        Parameters
+        -------
+        context : Union[Callable, None]
+        """
+        self._contextCallback = context
+
+    def GetCurrentContext(self):
+        # type: () -> MenuContext
+        """Get the current context dynamically.
+
+        The context needs to be accessible within the Do() method. It might
+        have changed since the menu was built or shown.
+
+        Returns
+        -------
+        context : MenuContext
+        """
+        if self._contextCallback:
+            return self._contextCallback()
 
     def Build(self, context):
         # type: (MenuContext) -> Optional[QAction]
@@ -136,7 +163,7 @@ class MenuAction(object):
             text = self.__class__.__name__
         action = QtWidgets.QAction(text, None)
         self.Update(action, context)
-        action.triggered.connect(lambda: self.Do(context))
+        action.triggered.connect(self.Do)
         return action
 
     def Update(self, action, context):
@@ -157,8 +184,8 @@ class MenuAction(object):
         """
         pass
 
-    def AddToMenu(self, menu, context):
-        # type: (QtWidgets.QMenu, MenuContext) -> None
+    def AddToMenu(self, menu, context, contextCallback=None):
+        # type: (QtWidgets.QMenu, MenuContext, Optional[Callable]) -> None
         """Add this action to a `QMenu` that is being built.
 
         This calls `self.Build()` to create a `QAction`, and if the result is
@@ -172,22 +199,27 @@ class MenuAction(object):
         ----------
         menu : QtWidgets.QMenu
         context : MenuContext
+            Use this as an optimization to avoid fetching the same context when
+            adding multiple items.
+        contextCallback : Optional[Callable]
+            A Callable is needed so the Do() method can get an up-to-date
+            context.
         """
+        self.SetContextCallback(contextCallback)
+
         action = self.Build(context)
         if action is not None:
             action.setData(self)
             menu.addAction(action)
             action.setParent(menu)
 
-    def Do(self, context):
+    def Do(self):
         # type: (MenuContext) -> None
         """Called when the action is triggered.
 
-        Subclasses must reimplement this.
+        Use self.GetCurrentContext() to get an up-to-date MenuContext.
 
-        Parameters
-        ----------
-        context : MenuContext
+        Subclasses must reimplement this.
         """
         raise NotImplementedError
 
@@ -217,8 +249,8 @@ class SimpleMenuAction(MenuAction):
         if self.updateCallback:
             self.updateCallback(action, context)
 
-    def Do(self, context):
-        self.actionCallback(context)
+    def Do(self):
+        self.actionCallback(self.GetCurrentContext())
 
 
 class MenuBuilder(object):
@@ -246,8 +278,8 @@ class MenuBuilder(object):
                                 'of MenuAction is required'.format(action))
         self.actions = actionInstances
 
-    def Build(self, context, parent=None):
-        # type: (MenuContext, Optional[QtWidgets.QWidget]) -> Optional[QtWidgets.QMenu]
+    def Build(self, context, contextCallback=None, parent=None):
+        # type: (MenuContext, Optional[Callable], Optional[QtWidgets.QWidget]) -> Optional[QtWidgets.QMenu]
         """Build and return a new `QMenu` instance using the current list of
         actions and the given context, and parented to the given Qt parent.
 
@@ -256,6 +288,7 @@ class MenuBuilder(object):
         Parameters
         ----------
         context : MenuContext
+        contextCallback : Optional[Callable]
         parent : Optional[QtWidgets.QWidget]
 
         Returns
@@ -264,7 +297,7 @@ class MenuBuilder(object):
         """
         menu = QtWidgets.QMenu(self.name, parent)
         for action in self.actions:
-            action.AddToMenu(menu, context)
+            action.AddToMenu(menu, context, contextCallback=contextCallback)
         if not menu.isEmpty():
             return menu
 
@@ -290,7 +323,10 @@ class ContextMenuMixin(object):
     # Qt methods ---------------------------------------------------------------
     def contextMenuEvent(self, event):
         context = self.GetMenuContext()
-        menu = self._contextMenuBuilder.Build(context, parent=self)
+        menu = self._contextMenuBuilder.Build(
+            context,
+            contextCallback=self.GetMenuContext,
+            parent=self)
         if menu:
             menu.exec_(event.globalPos())
             event.accept()
@@ -329,8 +365,9 @@ class MenuBarBuilder(object):
         self._menuBuilders = {}  # type: Dict[str, MenuBuilder]
         self._menuBar = QtWidgets.QMenuBar(parent=parent)
         if menuBuilders:
+            context = self._contextProvider.GetMenuContext()
             for builder in menuBuilders:
-                self.AddMenu(builder)
+                self.AddMenu(builder, context)
 
     @property
     def menuBar(self):
@@ -350,13 +387,14 @@ class MenuBarBuilder(object):
             if actionData and isinstance(actionData, MenuAction):
                 actionData.Update(action, context)
 
-    def AddMenu(self, menuBuilder):
-        # type: (MenuBuilder) -> bool
+    def AddMenu(self, menuBuilder, context):
+        # type: (MenuBuilder, MenuContext) -> bool
         """Register a new menu from a `MenuBuilder`.
 
         Parameters
         ----------
         menuBuilder : MenuBuilder
+        context : MenuContext
 
         Returns
         -------
@@ -366,8 +404,10 @@ class MenuBarBuilder(object):
         name = menuBuilder.name
         if name in self._menus:
             raise ValueError('A menu named %s already exists' % name)
-        context = self._contextProvider.GetMenuContext()
-        menu = menuBuilder.Build(context, parent=self._menuBar)
+        menu = menuBuilder.Build(
+            context,
+            contextCallback=self._contextProvider.GetMenuContext,
+            parent=self._menuBar)
         if menu:
             self._menuBar.addMenu(menu)
             menu.aboutToShow.connect(partial(self._MenuAboutToShow, name))
