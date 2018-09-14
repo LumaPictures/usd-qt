@@ -40,6 +40,7 @@ from pxr.UsdQt.qtUtils import DARK_ORANGE, MenuAction, MenuSeparator, \
     MenuBuilder, ContextMenuMixin, MenuBarBuilder, CopyToClipboard
 from pxr.UsdQt.usdUtils import GetPrimVariants
 from pxr.UsdQtEditors.layerTextEditor import LayerTextEditorDialog
+from pxr.UsdQtEditors.variantEditor import VariantEditorDialog
 
 if False:
     from typing import *
@@ -603,6 +604,14 @@ class ShowEditTargetDialog(MenuAction):
         context.outliner.ShowEditTargetDialog()
 
 
+class ShowVariantEditor(MenuAction):
+    defaultText = 'Show Variant Editor'
+
+    def Do(self):
+        context = self.GetCurrentContext()
+        context.outliner.ShowVariantEditor()
+
+
 class OutlinerTreeView(ContextMenuMixin, QtWidgets.QTreeView):
     # Emitted with lists of selected and deselected prims
     primSelectionChanged = QtCore.Signal(list, list)
@@ -773,8 +782,8 @@ class OutlinerRole(object):
         saveState = SaveState(outliner)
         return [MenuBuilder('&File', [SaveEditLayer(saveState)]),
                 MenuBuilder('&Tools', [ShowEditTargetLayerText,
-                                       ShowEditTargetDialog])]
-
+                                       ShowEditTargetDialog,
+                                       ShowVariantEditor])]
 
 class UsdOutliner(QtWidgets.QWidget):
     """UsdStage editing application which displays the hierarchy of a stage."""
@@ -954,6 +963,22 @@ class UsdOutliner(QtWidgets.QWidget):
         self.editTargetDialog.show()
         self.editTargetDialog.raise_()
         self.editTargetDialog.activateWindow()
+
+    def ShowVariantEditor(self):
+        # only allow one window
+        if not self.variantEditorDialog:
+            prim = None
+            prims = self.view.SelectedPrims()
+            if len(prims) == 1:
+                prim = prims[0]
+            dialog = VariantEditorDialog(self.stage,
+                                         prim=prim,
+                                         parent=self)
+            self.view.primSelectionChanged.connect(dialog.editor.OnPrimSelectionChanged)
+            self.variantEditorDialog = dialog
+        self.variantEditorDialog.show()
+        self.variantEditorDialog.raise_()
+        self.variantEditorDialog.activateWindow()
 
 
 class UsdOutlinerDialog(QtWidgets.QDialog):
