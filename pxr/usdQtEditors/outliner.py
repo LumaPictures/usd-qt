@@ -600,8 +600,17 @@ class OutlinerTreeView(ContextMenuMixin, QtWidgets.QTreeView):
         self.setUniformRowHeights(True)
         self.header().setStretchLastSection(True)
 
-        self._dataModel = dataModel
+        self._dataModel = None
         self.setModel(dataModel)
+
+    def setModel(self, model):
+        self._dataModel = model
+
+        oldSelectionModel = self.selectionModel()
+        if oldSelectionModel:
+            oldSelectionModel.deleteLater()
+
+        super(OutlinerTreeView, self).setModel(model)
 
         # This can't be a one-liner because of a PySide refcount bug.
         selectionModel = self.selectionModel()
