@@ -222,8 +222,6 @@ class EditTargetEditor(QtWidgets.QWidget):
         self._editTargetChangeCallback = editTargetChangeCallback
 
         # Widget and other Qt setup
-        self.setWindowTitle('Select Edit Target')
-
         self.view = LayerStackTreeView(self, parent=self)
         self.view.setModel(self._dataModel)
         self.view.doubleClicked.connect(self.ChangeEditTarget)
@@ -279,6 +277,7 @@ class EditTargetDialog(QtWidgets.QDialog):
     """Dialog for the edit target editor."""
     def __init__(self, stage, editTargetChangeCallback=None, parent=None):
         super(EditTargetDialog, self).__init__(parent=parent)
+        self.setWindowTitle('Select Edit Target')
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         self.editor = EditTargetEditor(
@@ -843,9 +842,6 @@ class UsdOutliner(QtWidgets.QWidget):
     def stage(self):
         return self._stage
 
-    def _OnEditTargetChanged(self, notice, stage):
-        self.UpdateTitle()
-
     def _LayerDialogEditTargetChangeCallback(self, newLayer):
         currentLayer = self.GetEditTargetLayer()
         if newLayer == currentLayer or not newLayer.permissionToEdit:
@@ -885,7 +881,8 @@ class UsdOutliner(QtWidgets.QWidget):
         -------
         Sdf.Layer
         """
-        return self._stage.GetEditTarget().GetLayer()
+        if self._stage:
+            return self._stage.GetEditTarget().GetLayer()
 
     def ResetStage(self, stage):
         """Reset the stage for this outliner and child dialogs.
@@ -897,27 +894,7 @@ class UsdOutliner(QtWidgets.QWidget):
         """
         self._stage = stage
         self._dataModel.ResetStage(stage)
-        if stage:
-            self._listener = \
-                Tf.Notice.Register(Usd.Notice.StageEditTargetChanged,
-                                   self._OnEditTargetChanged, stage)
-        else:
-            self._listener = None
-
-        self.UpdateTitle()
         self.stageChanged.emit(stage)
-
-    def UpdateTitle(self, identifier=None):
-        # type: (Optional[str]) -> None
-        """
-        Parameters
-        ----------
-        identifier : Optional[str]
-            If not provided, it is acquired from the curent edit target.
-        """
-        if not identifier:
-            identifier = self.GetEditTargetLayer().identifier
-        self.setWindowTitle('Outliner - %s' % identifier)
 
     def _OnLayerTextEditorFinished(self, layer):
         dialog = self._sharedLayerTextEditors.pop(layer, None)
@@ -972,16 +949,31 @@ class UsdOutliner(QtWidgets.QWidget):
 
 class UsdOutlinerDialog(QtWidgets.QDialog):
     """UsdStage editing application which displays the hierarchy of a stage."""
+    stageChanged = QtCore.Signal(Usd.Stage)
+
     def __init__(self, stage, role=None, parent=None):
         super(UsdOutlinerDialog, self).__init__(parent=parent)
+
+        self._listener = None
+        self._stage = None
+        self.ResetStage(stage)
+
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         self.outliner = UsdOutliner(stage, role=role, parent=self)
         layout.addWidget(self.outliner)
+        self.stageChanged.connect(self.outliner.ResetStage)
 
         self.setModal(False)
         self.resize(900, 600)
 
+    # Qt Methods ---------------------------------------------------------------
+    def closeEvent(self, event):
+        # clearing stage to make sure no listeners are called as the qt objects
+        # are being destroyed.
+        self.ResetStage(None)
+
+    # Custom Methods ------------------------------------------------------------
     @classmethod
     def FromUsdFile(cls, usdFile, role=None, parent=None):
         # type: (str, Optional[Union[Type[OutlinerRole], OutlinerRole]], Optional[QtGui.QWidget]) -> UsdOutliner
@@ -1001,6 +993,37 @@ class UsdOutlinerDialog(QtWidgets.QDialog):
             assert stage, 'Failed to open stage'
             stage.SetEditTarget(stage.GetSessionLayer())
         return cls(stage, role=role, parent=parent)
+
+    def UpdateTitle(self, identifier=None):
+        # type: (Optional[str]) -> None
+        """
+        Parameters
+        ----------
+        identifier : Optional[str]
+            If not provided, it is acquired from the curent edit target.
+        """
+        if not identifier and self._stage:
+            identifier = self._stage.GetEditTarget().GetLayer().identifier
+        self.setWindowTitle('Outliner - %s' % identifier)
+
+    def _OnEditTargetChanged(self, notice, stage):
+        self.UpdateTitle()
+
+    def ResetStage(self, stage):
+        if stage:
+            self._listener = \
+                Tf.Notice.Register(Usd.Notice.StageEditTargetChanged,
+                                   self._OnEditTargetChanged, stage)
+        else:
+            if self._listener:
+                # we revoke the listener here because timing is critical and
+                # we cant wait for garbage collection.
+                self._listener.Revoke()
+            self._listener = None
+        self._stage = stage
+
+        self.UpdateTitle()
+        self.stageChanged.emit(stage)
 
 
 if __name__ == '__main__':
