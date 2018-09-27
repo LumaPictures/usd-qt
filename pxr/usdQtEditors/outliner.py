@@ -616,13 +616,11 @@ class OutlinerTreeView(ContextMenuMixin, QtWidgets.QTreeView):
     # Emitted with lists of selected and deselected prims
     primSelectionChanged = QtCore.Signal(list, list)
 
-    def __init__(self, dataModel, contextMenuActions, contextProvider=None,
-                 parent=None):
-        # type: (QtCore.QAbstractItemModel, List[MenuAction], Optional[ContextProvider], Optional[QtWidgets.QWidget]) -> None
+    def __init__(self, contextMenuActions, contextProvider=None, parent=None):
+        # type: (List[MenuAction], Optional[ContextProvider], Optional[QtWidgets.QWidget]) -> None
         """
         Parameters
         ----------
-        dataModel : QtCore.QAbstractItemModel
         contextMenuActions : List[MenuAction]
         contextProvider : Optional[ContextProvider]
         parent : Optional[QtWidgets.QWidget]
@@ -641,20 +639,25 @@ class OutlinerTreeView(ContextMenuMixin, QtWidgets.QTreeView):
         self.header().setStretchLastSection(True)
 
         self._dataModel = None
-        self.setModel(dataModel)
 
     def setModel(self, model):
-        self._dataModel = model
+        """
+        Parameters
+        ----------
+        model : QtCore.QAbstractItemModel
+        """
+        if model == self._dataModel:
+            return
 
         oldSelectionModel = self.selectionModel()
-        if oldSelectionModel:
-            oldSelectionModel.deleteLater()
-
         super(OutlinerTreeView, self).setModel(model)
+        self._dataModel = model
 
         # This can't be a one-liner because of a PySide refcount bug.
         selectionModel = self.selectionModel()
         selectionModel.selectionChanged.connect(self._SelectionChanged)
+        if oldSelectionModel:
+            oldSelectionModel.deleteLater()
 
     # Custom methods -----------------------------------------------------------
     @QtCore.Slot(QtCore.QItemSelection, QtCore.QItemSelection)
@@ -851,7 +854,6 @@ class UsdOutliner(QtWidgets.QWidget):
         QtWidgets.QAbstractItemView
         """
         return OutlinerTreeView(
-            self._dataModel,
             contextMenuActions=role.GetContextMenuActions(self),
             contextProvider=self,
             parent=self)
