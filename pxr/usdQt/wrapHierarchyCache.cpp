@@ -34,6 +34,8 @@ using namespace boost::python;
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
+TF_REFPTR_CONST_VOLATILE_GET(UsdQt_HierarchyCache::Proxy)
+
 void wrapHierarchyCache() {
     {
         typedef UsdQt_HierarchyCache This;

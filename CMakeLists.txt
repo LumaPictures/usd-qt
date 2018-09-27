@@ -5,8 +5,13 @@ project(usdqt)
 
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules;${CMAKE_CURRENT_SOURCE_DIR}/cmake/macros")
 
-add_compile_options(-Wall -Wno-unused-local-typedefs
-                    -Wno-deprecated -DBUILD_OPTLEVEL_OPT -DBUILD_COMPONENT_SRC_PREFIX="")
+if (NOT MSVC)
+  add_compile_options(-Wall -Wno-unused-local-typedefs -Wno-deprecated )
+else()
+  add_compile_options("/DNOMINMAX")
+endif()
+
+add_compile_options(-DBUILD_OPTLEVEL_OPT -DBUILD_COMPONENT_SRC_PREFIX="")
 
 option(INSTALL_PURE_PYTHON "Install pure python files. Disable to only install compiled extension" ON)
 

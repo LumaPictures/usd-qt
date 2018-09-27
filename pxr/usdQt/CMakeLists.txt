@@ -34,9 +34,11 @@ _pxr_python_module(usdQt
         tf
         usd
         ${Boost_PYTHON_LIBRARY}
+        ${PYTHON_LIBRARIES}
 
     INCLUDE_DIRS
         ${Boost_INCLUDE_DIRS}
+        ${PYTHON_INCLUDE_DIRS}
 
     CPPFILES
         attributeProxy.cpp

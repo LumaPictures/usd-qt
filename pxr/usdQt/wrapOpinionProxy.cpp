@@ -153,6 +153,17 @@ static std::string _DisplayGroupRepr(UsdQt_DisplayGroupProxyPtr proxy) {
                           proxy->GetName().GetText());
 }
 
+TF_REFPTR_CONST_VOLATILE_GET(UsdQt_ProxyBase)
+TF_REFPTR_CONST_VOLATILE_GET(UsdQt_ObjectProxy)
+TF_REFPTR_CONST_VOLATILE_GET(UsdQt_VariantSetsProxy)
+TF_REFPTR_CONST_VOLATILE_GET(UsdQt_VariantSetProxy)
+TF_REFPTR_CONST_VOLATILE_GET(UsdQt_MetadataProxy)
+TF_REFPTR_CONST_VOLATILE_GET(UsdQt_MetadataDictKeyProxy)
+TF_REFPTR_CONST_VOLATILE_GET(UsdQt_AttributeProxy)
+TF_REFPTR_CONST_VOLATILE_GET(UsdQt_RelationshipProxy)
+TF_REFPTR_CONST_VOLATILE_GET(UsdQt_PrimProxy)
+TF_REFPTR_CONST_VOLATILE_GET(UsdQt_DisplayGroupProxy)
+
 void wrapOpinionProxy() {
     {
         typedef UsdQt_ProxyBase This;
