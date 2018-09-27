@@ -264,7 +264,7 @@ class HierarchyBaseModel(QtCore.QAbstractItemModel):
         return self._index.GetChildCount(parentProxy)
 
     def Debug(self):
-        self._index.PrintFullIndex()
+        self._index.DebugFullIndex()
 
 
 class HierarchyStandardModel(HierarchyBaseModel):
