@@ -599,7 +599,7 @@ class OpinionStandardModel(OpinionBaseModel):
                 return proxy.GetValue()
         elif role == roles.EditorHintRole:
             if column == OpinionStandardModel.Value:
-                return roles.EditorHitBasicValue(proxy.GetType())
+                return roles.EditorHintBasicValue(proxy.GetType())
 
     def _GetDataForRelationship(self, proxy, column, role):
         # type: (UsdQtProxyBase, str, QtCore.Qt.ItemDataRole) -> Optional[Any]
@@ -694,7 +694,7 @@ class OpinionStandardModel(OpinionBaseModel):
             return self._GetDataForRelationship(proxy, column, role)
 
     def setData(self, index, value, role):
-        """Call the approriate set method for the EditRole proxy
+        """Call the appropriate set method for the EditRole proxy
 
         Traditionally, we would emit the "dataChanged" signal in the setData
         method directly. Instead, we are letting Usd's change notification

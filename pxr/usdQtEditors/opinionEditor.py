@@ -111,22 +111,22 @@ class OpinionEditor(QtWidgets.QWidget):
         self._layout = QtWidgets.QVBoxLayout()
         self.setLayout(self._layout)
         self._layout.addWidget(self._menuBar)
-        self._SetupActions()
-        self._SetupOptionsMenu()
-        self._SetupEditMenu()
-
-        self._filterLineEdit = QtWidgets.QLineEdit()
 
         self._view = treeView.TreeView()
-        itemDelegate = delegate if delegate else ValueDelegate()
-        self._view.setItemDelegate(itemDelegate)
+        if delegate is None:
+            delegate = ValueDelegate()
+        self._view.setItemDelegate(delegate)
         self._view.setEditTriggers(
             QtWidgets.QAbstractItemView.CurrentChanged |
             QtWidgets.QAbstractItemView.SelectedClicked |
             QtWidgets.QAbstractItemView.EditKeyPressed)
+        self._view.setColumnWidth(0, 160)
+        self._view.setColumnWidth(1, 160)
 
         self._splitter = QtWidgets.QSplitter(QtCore.Qt.Vertical, self)
-        self._layout.addWidget(self._filterLineEdit)
+        # TODO: Implement opinion filtering
+        # self._filterLineEdit = QtWidgets.QLineEdit()
+        # self._layout.addWidget(self._filterLineEdit)
         self._layout.addWidget(self._splitter)
         self._splitter.addWidget(self._view)
         self._view.setSelectionMode(
@@ -136,20 +136,6 @@ class OpinionEditor(QtWidgets.QWidget):
     @property
     def view(self):
         return self._view
-
-    def _SetupActions(self):
-        pass
-
-    def _SetupOptionsMenu(self):
-        self._optionsMenu = QtWidgets.QMenu("Options")
-        # self._optionsMenu.addAction(self._actionToggleOpinionDebugger)
-        self._menuBar.addMenu(self._optionsMenu)
-
-    def _SetupEditMenu(self):
-        self._editMenu = QtWidgets.QMenu("Edit")
-        # self._editMenu.addAction(self._actionToggleEditScalar)
-        # self._editMenu.addAction(self._actionToggleEditArray)
-        self._menuBar.addMenu(self._editMenu)
 
     def _SetupOpinionViewWidget(self):
         self._opinionViewer = OpinionStackWidget()
@@ -228,6 +214,25 @@ class OpinionController(QtCore.QObject):
         """
         self.model.ResetPrims(prims)
         self.editor.ResetColumnSpanned()
+
+
+class OpinionDialog(QtWidgets.QDialog):
+    def __init__(self, prims=None, parent=None):
+        from pxr.UsdQt.opinionModel import OpinionStandardModel
+        super(OpinionDialog, self).__init__(parent=parent)
+
+        self.editor = OpinionEditor()
+        model = OpinionStandardModel(prims)
+        self.editor.SetSourceModel(model)
+        self.controller = OpinionController(model, self.editor)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.editor)
+
+        # Widget and other Qt setup
+        self.setModal(False)
+        self.resize(700, 500)
 
 
 if __name__ == '__main__':
