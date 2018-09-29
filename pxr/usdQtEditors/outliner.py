@@ -321,6 +321,32 @@ class DeactivatePrims(MenuAction):
                 prim.SetActive(False)
 
 
+class MakeVisible(MenuAction):
+    defaultText = 'Make Visible'
+
+    def Update(self, action, context):
+        action.setEnabled(bool(context.selectedPrims))
+
+    def Do(self):
+        from pxr import UsdGeom
+        context = self.GetCurrentContext()
+        for prim in context.selectedPrims:
+            UsdGeom.Imageable(prim).MakeVisible()
+
+
+class MakeInvisible(MenuAction):
+    defaultText = 'Make Invisible'
+
+    def Update(self, action, context):
+        action.setEnabled(bool(context.selectedPrims))
+
+    def Do(self):
+        from pxr import UsdGeom
+        context = self.GetCurrentContext()
+        for prim in context.selectedPrims:
+            UsdGeom.Imageable(prim).MakeInvisible()
+
+
 class AddTransform(MenuAction):
     defaultText = 'Add Transform...'
 
@@ -604,6 +630,14 @@ class ShowEditTargetDialog(MenuAction):
         context.outliner.ShowEditTargetDialog()
 
 
+class ShowOpinionEditor(MenuAction):
+    defaultText = 'Show Opinion Editor'
+
+    def Do(self):
+        context = self.GetCurrentContext()
+        context.outliner.ShowOpinionEditor(context.selectedPrims)
+
+
 class ShowVariantEditor(MenuAction):
     defaultText = 'Show Variant Editor'
 
@@ -768,7 +802,7 @@ class OutlinerRole(object):
         List[Union[MenuAction, Type[MenuAction]]]
         """
         return [ActivatePrims, DeactivatePrims, SelectVariants, MenuSeparator,
-                RemovePrim]
+                RemovePrim, MakeVisible, MakeInvisible]
 
     @classmethod
     def GetMenuBarMenuBuilders(cls, outliner):
@@ -965,6 +999,21 @@ class UsdOutliner(QtWidgets.QWidget):
         self.editTargetDialog.show()
         self.editTargetDialog.raise_()
         self.editTargetDialog.activateWindow()
+
+    def ShowOpinionEditor(self, prims=None):
+        from pxr.UsdQt.opinionModel import OpinionStandardModel
+        from pxr.UsdQtEditors.opinionEditor import OpinionDialog
+
+        # only allow one window
+        if not prims:
+            prims = self.view.SelectedPrims()
+
+        dialog = OpinionDialog(prims=prims, parent=self)
+        self.view.primSelectionChanged.connect(
+            dialog.controller.ResetPrims)
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
 
     def ShowVariantEditor(self):
         # only allow one window
