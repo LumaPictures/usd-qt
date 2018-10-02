@@ -392,7 +392,7 @@ class LazyVariantTree(LazyItemTree):
     def _FetchItemChildren(self, parent):
         prim = self.prim
         if not prim:
-            return None
+            return []
 
         parentVariants = []
         isVariantSetItem = False
@@ -566,10 +566,12 @@ class VariantModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
     # Custom Methods -----------------------------------------------------------
 
     @property
+    def stage(self):
+        return self._stage
+
+    @property
     def prim(self):
-        if len(self._prims) == 1:
-            return self._prims[0]
-        return None
+        return self._prim
 
     def SelectVariant(self, item):
 
@@ -593,7 +595,7 @@ class VariantModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
 
     def RemoveItem(self, item):
         layer = self.GetEditLayer()
-        parent = self.getItemIndex(item, 0).parent()
+        parent = self.GetItemIndex(item, 0).parent()
         if item.isVariantSet:
             spec = layer.GetPrimAtPath(item.path.GetParentPath())
             if spec:
@@ -609,13 +611,17 @@ class VariantModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         if not modelIndex and not item:
             raise ValueError('Must pass either a modelIndex or an item')
         if not modelIndex:
-            modelIndex = self.getItemIndex(item, 0)
+            modelIndex = self.GetItemIndex(item, 0)
         if item is None:
             item = modelIndex.internalPointer()
 
         self.beginRemoveRows(modelIndex, 0,
-                             max(self.itemTree.childCount(parent=item) - 1, 0))
-        self.itemTree.forgetChildren(item)
+                             max(self.itemTree.ChildCount(parent=item) - 1, 0))
+        if item:
+            self.itemTree.ForgetChildren(item)
+        else:
+            # cannot forget root children, so make a new tree
+            self.itemTree = LazyVariantTree(self._prim)
         self.endRemoveRows()
 
     def ResetPrim(self, prim=None):
@@ -626,7 +632,8 @@ class VariantModel(AbstractTreeModelMixin, QtCore.QAbstractItemModel):
         self._prim = prim
         self.itemTree = LazyVariantTree(prim)
         self.endResetModel()
-        self.ResetStage(self._prim.GetStage())
+        if self._prim:
+            self.ResetStage(self._prim.GetStage())
 
     def ResetStage(self, stage):
         if stage == self._stage:
@@ -680,9 +687,11 @@ class AddVariant(MenuAction):
     def Update(self, action, context):
         action.setVisible(bool(AreAllVariantSets(context.selectedVariantItems)))
 
-    def Do(self, builder, selections):
+    def Do(self):
+        context = self.GetCurrentContext()
+        selections = context.selectedVariantItems
         name, _ = QtWidgets.QInputDialog.getText(
-            builder.view,
+            context.variantView,
             'Enter New Variant Name',
             'Name for the new variant \n%s=:'
             % '/'.join((i.variant.setName for i in selections)))
@@ -695,7 +704,7 @@ class AddVariant(MenuAction):
                                       select=True):
                 selectedItem.variantSet.AddVariant(name)
             # FIXME: Object changed stage notices
-            context.variantWidget.dataModel.RebuildUnder(item=selectedItem)
+            context.variantView.model().RebuildUnder(item=selectedItem)
 
 
 def _GetVariantSetName(parent):
@@ -718,35 +727,41 @@ class AddNestedVariantSet(MenuAction):
 
     def Do(self):
         context = self.GetCurrentContext()
-        name = _GetVariantSetName(context.variantWidget)
+        name = _GetVariantSetName(context.variantView)
         if not name:
             return
 
-        for selectedItem in selectedItems:
+        for selectedItem in context.selectedVariantItems:
             # want to add new variant set inside of parents variant context.
             with CreateVariantContext(selectedItem.prim,
                                       selectedItem.variants,
                                       select=True):
                 selectedItem.prim.GetVariantSets().AddVariantSet(name)
             # FIXME: Object changed stage notices
-            context.variantWidget.dataModel.RebuildUnder(item=selectedItem)
+            context.variantView.model().RebuildUnder(item=selectedItem)
 
 
 class AddVariantSet(MenuAction):
     defaultText = 'Add Top Level Variant Set'
 
     def Update(self, action, context):
-        action.setVisible(bool(len(selection) == 0))
+        if (context.variantView.model().prim and
+                len(context.selectedVariantItems) == 0):
+            action.setVisible(True)
+        else:
+            action.setVisible(False)
 
-    def Do(self, builder):
+    def Do(self):
         context = self.GetCurrentContext()
-        name = _GetVariantSetName(context.variantWidget)
+        name = _GetVariantSetName(context.variantView)
         if not name:
             return
-        model = context.variantWidget.dataModel
+        model = context.variantView.model()
         model.prim.GetVariantSets().AddVariantSet(name)
         # rebuild under the root or just reset the model...
-        model.ResetPrim()
+        prim = model.prim
+        model.ResetPrim(prim=None)
+        model.ResetPrim(prim=prim)
 
 
 class AddReference(MenuAction):
@@ -762,17 +777,18 @@ class AddReference(MenuAction):
         action.setText(text)
 
     def Do(self):
-        path = UsdQtUtilities.exec_('GetReferencePath',
-                                    builder.view,
-                                    stage=item.prim.GetStage())
+        context = self.GetCurrentContext()
+        item = context.selectedVariantItems[0]
+        path = UsdQtHooks.Call('GetReferencePath',
+                               context.variantView,
+                               stage=context.stage)
         if not path:
             return
-        context = self.GetCurrentContext()
         with CreateVariantContext(item.prim,
                                   item.variants,
                                   select=False):
             item.prim.GetReferences().SetReferences([Sdf.Reference(path)])
-        context.variantWidget.dataModel.RebuildUnder(item=item)
+        context.variantView.model().RebuildUnder(item=item)
 
 
 class SelectVariant(MenuAction):
@@ -784,24 +800,29 @@ class SelectVariant(MenuAction):
                           all(s.accessible for s in selections))
 
     def Do(self):
-        self.GetCurrentContext().variantWidget.dataModel.SelectVariant(item)
+        context = self.GetCurrentContext()
+        item = context.selectedVariantItems[0]
+        context.variantView.model().SelectVariant(item)
 
 
 class Remove(MenuAction):
 
     def Update(self, action, context):
+        if not context.selectedVariantItems:
+            action.setVisible(False)
+            return
         text = 'Remove "%s"' % ItemNames(context.selectedVariantItems)
-        action.setLabel(text)
+        action.setText(text)
 
     def Do(self):
         removed = []
         context = self.GetCurrentContext()
-        for item in sorted(selectedItems, key=lambda x: x.path):
+        for item in sorted(context.selectedVariantItems, key=lambda x: x.path):
             for removedPath in removed:
                 if item.path.HasPrefix(removedPath):
                     continue
             removed.append(item.path)
-            context.variantWidget.dataModel.RemoveItem(item)
+            context.variantView.model().RemoveItem(item)
 
 
 class VariantTreeView(ContextMenuMixin, QtWidgets.QTreeView):
@@ -820,19 +841,19 @@ class VariantTreeView(ContextMenuMixin, QtWidgets.QTreeView):
         self.setSelectionMode(self.ExtendedSelection)
 
     def SelectedVariantItems(self):
-        indexes = self.selection().selectedRows(0)
+        indexes = self.selectionModel().selectedRows(0)
         return [index.internalPointer() for index in indexes]
 
     def GetMenuContext(self):
         items = self.SelectedVariantItems()
-        return VariantEditorContext(variantWidget=self,
-                                    stage=self._stage,
+        return VariantEditorContext(variantView=self,
+                                    stage=self.model().stage,
                                     selectedVariantItems=items,
-                                    editTargetLayer=self.dataModel.GetEditLayer())
+                                    editTargetLayer=self.model().GetEditLayer())
 
 
 VariantEditorContext = namedtuple('VariantEditorContext',
-                                  ['variantWidget',
+                                  ['variantView',
                                    'stage',
                                    'selectedVariantItems',
                                    'editTargetLayer'])
@@ -847,6 +868,7 @@ class VariantEditor(QtWidgets.QWidget):
         Parameters
         ----------
         stage : Usd.Stage
+        prim : Usd.Prim
         parent : Optional[QtGui.QWidget]
         """
         super(VariantEditor, self).__init__(parent=parent)
@@ -864,29 +886,6 @@ class VariantEditor(QtWidgets.QWidget):
         self.view.setColumnWidth(2, 100)
         self.view.setExpandsOnDoubleClick(False)
         self.view.doubleClicked.connect(self.SelectVariant)
-        self.dataModel.modelReset.connect(self.Refresh)
-        # expand selected variants which wont have a cost.
-        # self.view.expandAll()
-
-    @QtCore.Slot()
-    def OnPrimSelectionChanged(self, selected=None, deselected=None):
-        title = '<multiple prims selected>'
-        prims = self.sender().SelectedPrims()
-        if len(prims) == 1:
-            prim = prims[0]
-            self.dataModel.ResetPrim(prim=prim)
-            title = prim.GetPath().pathString
-        elif len(prims) == 0:
-            title = '<no selection>'
-        self.setWindowTitle('Variant Editor: %s' % title)
-
-    # FIXME: Check that this is still a problem, and move this to react to
-    # an edit targetChange.
-    def Refresh(self):
-        editLayer = self._stage.GetEditTarget().GetLayer()
-        if not self._stage.HasLocalLayer(editLayer):
-            # warn that adding references and nested variants will fail.
-            self.setWindowTitle('Warning: Not editing local layer!')
 
     def SelectVariant(self, selectedIndex=None):
         if not selectedIndex:
@@ -903,15 +902,81 @@ class VariantEditor(QtWidgets.QWidget):
 
 
 class VariantEditorDialog(QtWidgets.QDialog):
+    INVALID_EDIT_TARGET = 'Warning: Not editing local layer!'
     def __init__(self, stage, prim=None, parent=None):
+        """
+        Parameters
+        ----------
+        stage : Usd.Stage
+        prim : Usd.Prim
+        parent : Optional[QtGui.QWidget]
+        """
         super(VariantEditorDialog, self).__init__(parent=parent)
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         self.editor = VariantEditor(stage, prim=prim, parent=self)
-        # FIXME: Qt 5.2
-        # self.editor.windowTitleChanged.connect(self.setWindowTitle)
         layout.addWidget(self.editor)
+        self._listener = None
+        self._stage = None
+        self._title = None
+        self.ResetStage(stage)
 
         # Widget and other Qt setup
         self.setModal(False)
         self.resize(700, 500)
+
+    def ResetStage(self, stage):
+        if stage:
+            self._listener = \
+                Tf.Notice.Register(Usd.Notice.StageEditTargetChanged,
+                                   self._OnEditTargetChanged,
+                                   stage)
+        else:
+            if self._listener:
+                self._listener.Revoke()
+            self._listener = None
+        self._stage = stage
+        self._CheckValidEditTarget()
+
+    def _CheckValidEditTarget(self):
+        """Make sure the edit target is one where we can add/remove variants.
+
+        Note: I suspect we might be able to get around this by delving into
+        the spec edits. However, eventually I'd like to be able to set a
+        variant edit context and author arbitrary edits in the outliner.
+
+        Returns
+        -------
+        isValid : bool
+        """
+        if not self._stage:
+            self.setWindowTitle('No stage loaded.')
+            return False
+
+        editLayer = self._stage.GetEditTarget().GetLayer()
+        if not self._stage.HasLocalLayer(editLayer):
+            # warn that adding references and nested variants will fail.
+            self.setWindowTitle(self.INVALID_EDIT_TARGET)
+            return False
+        elif self.windowTitle() == self.INVALID_EDIT_TARGET:
+            self.setWindowTitle(self._title)
+        return True
+
+    def _OnEditTargetChanged(self, notice, stage):
+        self._CheckValidEditTarget()
+
+    @QtCore.Slot()
+    def OnPrimSelectionChanged(self, selected=None, deselected=None):
+        prims = self.sender().SelectedPrims()
+        title = '<multiple prims selected>'
+        prim = None
+        if len(prims) == 1:
+            prim = prims[0]
+            title = prim.GetPath().pathString
+        elif len(prims) == 0:
+            title = '<no selection>'
+
+        self.editor.dataModel.ResetPrim(prim=prim)
+        self._title = 'Variant Editor: %s' % title
+        self.setWindowTitle(self._title)
+        self._CheckValidEditTarget()
