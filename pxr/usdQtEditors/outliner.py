@@ -458,7 +458,9 @@ class AddReference(MenuAction):
 
     def Do(self):
         context = self.GetCurrentContext()
-        refPath = UsdQtHooks.Call('GetReferencePath', stage=context.stage)
+        refPath = UsdQtHooks.Call('GetReferencePath',
+                                  context.outliner,
+                                  stage=context.stage)
         if refPath:
             stage = context.stage
             prim = context.selectedPrim
@@ -1025,7 +1027,8 @@ class UsdOutliner(QtWidgets.QWidget):
             dialog = VariantEditorDialog(self.stage,
                                          prim=prim,
                                          parent=self)
-            self.view.primSelectionChanged.connect(dialog.editor.OnPrimSelectionChanged)
+            self.view.primSelectionChanged.connect(dialog.OnPrimSelectionChanged)
+            self.stageChanged.connect(dialog.ResetStage)
             self.variantEditorDialog = dialog
         self.variantEditorDialog.show()
         self.variantEditorDialog.raise_()
