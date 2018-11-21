@@ -101,6 +101,7 @@ class LayerTextEditor(QtWidgets.QWidget):
             raise RuntimeError('Cannot save layer when readOnly is set')
         try:
             success = self._layer.ImportFromString(self.textArea.toPlainText())
+            self._layer.Save()
         except Tf.ErrorException as e:
             QtWidgets.QMessageBox.warning(self, 'Layer Syntax Error',
                                           'Failed to apply modified layer '
