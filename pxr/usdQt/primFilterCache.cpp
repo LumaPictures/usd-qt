@@ -26,6 +26,7 @@
 
 #include "pxr/base/tf/enum.h"
 #include "pxr/base/tf/registryManager.h"
+#include "pxr/base/tf/status.h"
 
 #include "pxr/base/work/loops.h"
 #include "tbb/parallel_reduce.h"
@@ -132,6 +133,25 @@ UsdQtPrimFilterCache::State UsdQtPrimFilterCache::_RunFilter(
 
     _stateMap[prim.GetPath().GetString()] = state;
     return state;
+}
+
+void UsdQtPrimFilterCache::PrintDebugString() const {
+    const auto convertToString = [] (State state) -> const char* {
+        if (state == State::Accept) {
+            return "Accept";
+        } else if (state == State::Intermediate) {
+            return "Intermediate";
+        } else if (state == State::Reject) {
+            return "Reject";
+        } else if (state == State::Untraversed) {
+            return "Untraversed";
+        } else {
+            return "Unknown";
+        }
+    };
+    for (auto item : _stateMap) {
+        TF_STATUS("%s %s", item.first.c_str(), convertToString(item.second));
+    }
 }
 
 void UsdQtPrimFilterCache::ApplyFilter(

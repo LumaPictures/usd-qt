@@ -99,11 +99,7 @@ public:
     /// the cache in a thread-unsafe matter.
     State GetState(const SdfPath& path);
 
-    void PrintDebugString() const {
-        for (auto item : _stateMap) {
-            std::cout << item.first << " " << item.second << std::endl;
-        }
-    }
+    void PrintDebugString() const;
 
 private:
     State _RunFilter(UsdPrim prim,
