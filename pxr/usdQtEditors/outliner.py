@@ -121,8 +121,7 @@ class LayerStackModel(LayerStackBaseModel):
             self._listener = None
 
     def _OnEditTargetChanged(self, notice, stage):
-        self.dataChanged[QtCore.QModelIndex, QtCore.QModelIndex].emit(
-            NULL_INDEX, NULL_INDEX)
+        self.dataChanged.emit(NULL_INDEX, NULL_INDEX)
 
 
 LayerStackDialogContext = namedtuple('LayerStackDialogContext',

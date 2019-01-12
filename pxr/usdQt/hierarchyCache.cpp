@@ -24,6 +24,7 @@
 
 #include <iostream>
 #include "pxr/base/tf/stringUtils.h"
+#include "pxr/base/tf/status.h"
 
 #include "debugCodes.h"
 #include "hierarchyCache.h"
@@ -238,12 +239,12 @@ void UsdQt_HierarchyCache::ResyncSubtrees(const std::vector<SdfPath>& paths) {
 }
 
 void UsdQt_HierarchyCache::DebugFullIndex() {
-    std::cout << "Root: " << _root->GetPrim() << std::endl;
+    TF_STATUS("Root: %s", _root->GetPrim().GetPath().GetText());
     for (const auto& it : _pathToProxy) {
-        std::cout << " [path]: " << it.first
-                  << " [prim valid]: " << it.second->GetPrim().IsValid()
-                  << " [child count]: " << it.second->_GetChildren().size()
-                  << std::endl;
+        TF_STATUS(" [path]: %s [prim valid]: %s [child count] %i",
+            it.first.GetText(),
+            (it.second->GetPrim().IsValid() ? "yes" : "no"),
+            static_cast<int>(it.second->_GetChildren().size()));
     }
 }
 
