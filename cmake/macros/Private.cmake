@@ -1276,13 +1276,11 @@ function(_pxr_library NAME)
             PUBLIC_HEADER "${args_PUBLIC_HEADERS}"
     )
 
-    set(pythonEnabled "PXR_PYTHON_ENABLED=1")
     if(TARGET shared_libs)
         set(pythonModulesEnabled "PXR_PYTHON_MODULES_ENABLED=1")
     endif()
     target_compile_definitions(${NAME}
         PUBLIC
-            ${pythonEnabled}
             ${apiPublic}
         PRIVATE
             MFB_PACKAGE_NAME=${PXR_PACKAGE}
