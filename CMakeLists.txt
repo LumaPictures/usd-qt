@@ -23,7 +23,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(USD REQUIRED)
 find_package(TBB REQUIRED)
 
-add_definitions(-DPXR_PYTHON_SUPPORT_ENABLED)
 find_package(PythonInterp 2.7 REQUIRED)
 find_package(PythonLibs 2.7 REQUIRED)
 
