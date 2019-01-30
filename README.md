@@ -5,7 +5,7 @@
 ## Project Goals
 
 The UI components that make up `usdview` are good reference for functionality,
-but they’re purpose-built for the application, and are implemented in ways that 
+but they’re purpose-built for the application, and are implemented in ways that
 make them difficult to decouple from it.
 
 This project is meant to provide application components that can provide similar
@@ -18,7 +18,7 @@ build a fully-functional `usdview` application.
 
 This project contains a mixture of pure Python and wrapped C++ code. All Qt code
 is written in pure Python to avoid the need to link against Qt and get `moc`
-involved in the build process. This may change in the future if deemed 
+involved in the build process. This may change in the future if deemed
 beneficial/necessary.
 
 The compiled extension module provides a set of helper classes that interface
@@ -37,11 +37,11 @@ it, which are used by some of the classes in `pxr.UsdQt`.
 
 ## Building/Installation
 
-The recommended (and currently only tested) way to build the project is using 
+The recommended (and currently only tested) way to build the project is using
 CMake. A `setup.py` file is provided as well, but it has not been tested with
 the most recent updates.
 
-#### Build Requirements 
+#### Build Requirements
 
 - Boost Python
 - USD
@@ -55,15 +55,38 @@ addition to the compiled extension module. This defaults to `ON`.
 #### A note about `UsdQt.py` and `UsdQtEditors.py`
 
 You may notice that the source contains `UsdQt.py` and `UsdQtEditors.py` files
-alongside the package source directories. These are "shim" modules that we've 
+alongside the package source directories. These are "shim" modules that we've
 found to be very useful during the development of this project, as they enable
 us to do more rapid editing and testing on the pure Python code without needing
 to run a CMake build and install between each minor edit. They are not installed
 with the project.
 
+## Using `UsdQt` with the USD Python bindings
+
+`UsdQt` uses `pkg_resources` (or `pkgutil` if the former is not available) to
+declare `pxr` as a "namespace package" at runtime. This allows it to overlay its
+sub-packages onto the same `pxr` package used by the USD Python bindings, so
+that the two projects can be installed in separate locations and still work
+together.
+
+However, the USD Python bindings do not currently declare `pxr` as a namespace
+package in a symmetrical way, which unfortunately means that if the USD Python
+bindings are listed before `UsdQt` on the module search path, you will not be
+able to import `pxr.UsdQt`. Thus, unless/until the USD Python bindings are
+updated to declare `pxr` as a namespace package, you will need to make sure
+`UsdQt` is listed before the USD Python bindings on the module search path.
+
+More information on namespace packages in Python can be found in the docs for
+`pkg_resources` and `pkgutil`:
+
+https://setuptools.readthedocs.io/en/latest/pkg_resources.html#namespace-package-support
+
+https://docs.python.org/2/library/pkgutil.html
+
 ## Using an alternate Qt API
 
-`UsdQt` expects the Qt API it uses to supply the PySide5/Qt5 module layout.
+`UsdQt` expects its underlying Qt API to adhere to the Qt5 module layout, and
+uses the PySide2 API.
 
 By default, it will attempt to import and use `PySide2`. This can be overridden
 by setting the `PXR_QT_PYTHON_BINDING` environment variable to the name of the

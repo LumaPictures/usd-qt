@@ -959,7 +959,7 @@ class UsdOutliner(QtWidgets.QWidget):
 
 class UsdOutlinerDialog(QtWidgets.QDialog):
     """UsdStage editing application which displays the hierarchy of a stage."""
-    stageChanged = QtCore.Signal(Usd.Stage)
+    stageChanged = QtCore.Signal(object)
 
     def __init__(self, stage, role=None, parent=None):
         super(UsdOutlinerDialog, self).__init__(parent=parent)
