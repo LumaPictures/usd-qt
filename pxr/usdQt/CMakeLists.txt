@@ -32,6 +32,10 @@ _pxr_python_module(usdQt
 	PYTHON_LIBRARY
     LIBRARIES
         tf
+        sdf
+        vt
+        pcp
+        arch
         usd
         ${Boost_PYTHON_LIBRARY}
         ${PYTHON_LIBRARIES}
