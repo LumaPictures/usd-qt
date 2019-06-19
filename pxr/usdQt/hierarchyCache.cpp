@@ -238,13 +238,13 @@ void UsdQt_HierarchyCache::ResyncSubtrees(const std::vector<SdfPath>& paths) {
 }
 
 void UsdQt_HierarchyCache::DebugFullIndex() {
-    std::cout << "Root: " << _root->GetPrim() << std::endl;
     for (const auto& it : _pathToProxy) {
         std::cout << " [path]: " << it.first
                   << " [prim valid]: " << it.second->GetPrim().IsValid()
                   << " [child count]: " << it.second->_GetChildren().size()
                   << std::endl;
     }
+  std::cout << "Root: " << _root->GetPrim().GetPrimPath() << std::endl;
 }
 
 PXR_NAMESPACE_CLOSE_SCOPE
