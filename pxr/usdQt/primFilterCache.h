@@ -26,6 +26,7 @@
 #define USDQT_PRIMFILTERCACHE_H
 
 #include <functional>
+#include <iostream>
 #include <unordered_map>
 
 #include "pxr/pxr.h"
