@@ -28,7 +28,8 @@ from __future__ import print_function
 import unittest
 import os.path
 
-from pxr import Sdf, Usd, UsdQt
+from pxr import Sdf, Usd
+from pxr.UsdQt._bindings import PrimFilterCache
 
 from collections import OrderedDict
 
@@ -41,27 +42,27 @@ class TestSimplePrimFilterCache(unittest.TestCase):
             os.path.join(os.path.splitext(__file__)[0], stagePath)
 
         self.stage = Usd.Stage.Open(stagePath)
-        self.cache = UsdQt.PrimFilterCache()
+        self.cache = PrimFilterCache()
 
     def testSimple(self):
         self.cache.ApplyPathContainsFilter(self.stage.GetPrimAtPath("/World"),
                                            "Accept", Usd.PrimDefaultPredicate)
 
         pathToState = OrderedDict([
-            ("/World", UsdQt.PrimFilterCache.Accept),
-            ("/World/Reject", UsdQt.PrimFilterCache.Reject),
-            ("/World/Accept", UsdQt.PrimFilterCache.Accept),
-            ("/World/AcceptParent", UsdQt.PrimFilterCache.Accept),
-            ("/World/AcceptParent/RejectChild", UsdQt.PrimFilterCache.Reject),
-            ("/World/AcceptParent/AcceptChild", UsdQt.PrimFilterCache.Accept),
-            ("/World/IntermediateParent/RejectChild", UsdQt.PrimFilterCache.Reject),
-            ("/World/IntermediateParent/AcceptChild", UsdQt.PrimFilterCache.Accept),
+            ("/World", PrimFilterCache.Accept),
+            ("/World/Reject", PrimFilterCache.Reject),
+            ("/World/Accept", PrimFilterCache.Accept),
+            ("/World/AcceptParent", PrimFilterCache.Accept),
+            ("/World/AcceptParent/RejectChild", PrimFilterCache.Reject),
+            ("/World/AcceptParent/AcceptChild", PrimFilterCache.Accept),
+            ("/World/IntermediateParent/RejectChild", PrimFilterCache.Reject),
+            ("/World/IntermediateParent/AcceptChild", PrimFilterCache.Accept),
             ("/World/IntermediateParent/IntermediateChild",
-             UsdQt.PrimFilterCache.Accept),
+             PrimFilterCache.Accept),
             ("/World/IntermediateParent/IntermediateChild/AcceptGrandchild",
-             UsdQt.PrimFilterCache.Accept),
+             PrimFilterCache.Accept),
             ("/World/IntermediateParent/IntermediateChild/RejectGrandchild",
-             UsdQt.PrimFilterCache.Reject)
+             PrimFilterCache.Reject)
         ]
         )
 

@@ -28,7 +28,8 @@ from __future__ import print_function
 import unittest2 as unittest
 import os.path
 
-from pxr import Usd, Sdf, UsdQt
+import pxr.UsdQt.layerModel as layerModel
+from pxr import Sdf, Usd
 from pxr.UsdQt._Qt import QtCore
 
 stageFilePath = "simpleLayerStack.usda"
@@ -43,7 +44,7 @@ class TestSimpleLayerModelBase(unittest.TestCase):
         self.stage = Usd.Stage.Open(stageFilePath)
         assert(self.stage)
 
-        self.model = UsdQt.LayerBaseModel(self.stage)
+        self.model = layerModel.LayerBaseModel(self.stage)
 
     def test_basicUsage(self):
         layerStack = self.stage.GetLayerStack(includeSessionLayers=True)
@@ -57,7 +58,7 @@ class TestSimpleLayerModelBase(unittest.TestCase):
                 self.model.data(self.model.createIndex(i + 1, 0)))
 
     def test_invalidModel(self):
-        invalidModel = UsdQt.LayerBaseModel()
+        invalidModel = layerModel.LayerBaseModel()
         self.assertEqual(invalidModel.rowCount(), 0)
         with self.assertRaises(Exception):
             invalidModel.data(invalidModel.createIndex(0, 0))
@@ -76,7 +77,7 @@ class TestSimpleLayerStandardModel(unittest.TestCase):
         self.stage = Usd.Stage.Open(stageFilePath)
         assert(self.stage)
 
-        self.model = UsdQt.LayerStandardModel(self.stage)
+        self.model = layerModel.LayerStandardModel(self.stage)
 
     def test_fileFormatFlagMask(self):
         layerStack = self.stage.GetLayerStack(includeSessionLayers=True)
