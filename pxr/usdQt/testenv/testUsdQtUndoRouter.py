@@ -25,25 +25,26 @@
 
 import unittest2 as unittest
 
-from pxr import Tf, Usd, UsdQt
+from pxr import Tf, Usd
+from pxr.UsdQt._bindings import (UndoBlock, UndoInverse, UndoRouter,
+                                 UndoStackNotice)
 
 
 class TestUndoRouter(unittest.TestCase):
 
     def setUp(self):
         self.stage = Usd.Stage.CreateInMemory()
-        UsdQt.UndoRouter.TrackLayer(self.stage.GetRootLayer())
+        UndoRouter.TrackLayer(self.stage.GetRootLayer())
         self.localUndoStack = []
-        self.listener = Tf.Notice.RegisterGlobally(
-            UsdQt.UndoStackNotice, self.Notice)
+        self.listener = Tf.Notice.RegisterGlobally(UndoStackNotice, self.Notice)
 
     def Notice(self, notice, sender):
-        inverse = UsdQt.UndoInverse()
-        UsdQt.UndoRouter.TransferEdits(inverse)
+        inverse = UndoInverse()
+        UndoRouter.TransferEdits(inverse)
         self.localUndoStack.append(inverse)
 
     def testExpiredStage(self):
-        with UsdQt.UndoBlock():
+        with UndoBlock():
             self.stage.DefinePrim('/World')
 
         self.stage = None
@@ -52,7 +53,7 @@ class TestUndoRouter(unittest.TestCase):
 
     def testMidEditBlockInversion(self):
         self.stage.DefinePrim('/World')
-        with UsdQt.UndoBlock():
+        with UndoBlock():
             with self.assertRaisesRegexp(Tf.ErrorException, 'Inversion during \
 open edit block may result in corrupted undo stack.'):
                 self.localUndoStack[-1].Invert()
@@ -75,30 +76,30 @@ open edit block may result in corrupted undo stack.'):
 
     def testRevokedListener(self):
         self.listener.Revoke()
-        with UsdQt.UndoBlock():
+        with UndoBlock():
             self.stage.DefinePrim('/World')
-        with UsdQt.UndoBlock():
+        with UndoBlock():
             self.stage.DefinePrim('/World/Child')
         self.assertEqual(self.localUndoStack, [])
 
     def testNestedUndoBlock(self):
-        with UsdQt.UndoBlock():
+        with UndoBlock():
             prim = self.stage.DefinePrim('/World')
 
         self.assertTrue(bool(prim))
-        with UsdQt.UndoBlock():
+        with UndoBlock():
             prim.SetActive(False)
-            with UsdQt.UndoBlock():
+            with UndoBlock():
                 prim.SetActive(True)
-                with UsdQt.UndoBlock():
+                with UndoBlock():
                     prim.SetActive(False)
 
         self.assertFalse(prim.IsActive())
         self.assertEqual(len(self.localUndoStack), 2)
 
-        with UsdQt.UndoBlock():
+        with UndoBlock():
             prim.SetActive(False)
-            with UsdQt.UndoBlock():
+            with UndoBlock():
                 prim.SetActive(True)
 
         self.assertTrue(prim.IsActive())
@@ -122,13 +123,13 @@ open edit block may result in corrupted undo stack.'):
         self.assertEqual(len(self.localUndoStack), 3)
 
     def testEmptyUndoBlock(self):
-        with UsdQt.UndoBlock():
+        with UndoBlock():
             pass
         self.assertEqual(self.localUndoStack, [])
 
-        with UsdQt.UndoBlock():
-            with UsdQt.UndoBlock():
-                with UsdQt.UndoBlock():
+        with UndoBlock():
+            with UndoBlock():
+                with UndoBlock():
                     pass
         self.assertEqual(self.localUndoStack, [])
 

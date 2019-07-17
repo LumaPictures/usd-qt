@@ -29,8 +29,9 @@ from __future__ import absolute_import
 import os
 import unittest
 
-from pxr.UsdQt._Qt import QtCore, QtWidgets, QtGui
-from pxr import Gf, Sdf, UsdQt
+import pxr.UsdQt.valueWidgets as valueWidgets
+from pxr import Gf, Sdf
+from pxr.UsdQt._Qt import QtCore, QtWidgets
 
 
 def setUpModule():
@@ -42,7 +43,7 @@ class TestMetaclass(unittest.TestCase):
 
     def testObject(self):
         class MyEditor(QtWidgets.QWidget):
-            __metaclass__ = UsdQt.valueWidgets._ValueEditMetaclass
+            __metaclass__ = valueWidgets._ValueEditMetaclass
             valueType = float
 
             def __init__(self):
@@ -61,7 +62,7 @@ class TestMetaclass(unittest.TestCase):
     def testNoValueType(self):
         """verify that the metaclass doesn't fail if value type isn't set"""
         class MyEditor(QtWidgets.QWidget):
-            __metaclass__ = UsdQt.valueWidgets._ValueEditMetaclass
+            __metaclass__ = valueWidgets._ValueEditMetaclass
 
             def __init__(self):
                 super(MyEditor, self).__init__()
@@ -70,7 +71,7 @@ class TestMetaclass(unittest.TestCase):
 
     def testValueTypeIsNone(self):
         class MyEditor(QtWidgets.QWidget):
-            __metaclass__ = UsdQt.valueWidgets._ValueEditMetaclass
+            __metaclass__ = valueWidgets._ValueEditMetaclass
             valueType = None
 
             def __init__(self):
@@ -154,7 +155,7 @@ class _Base:
 
 
 class TestStringEdit(_Base.TestValueEdit):
-    Widget = UsdQt.valueWidgets.StringEdit
+    Widget = valueWidgets.StringEdit
     SuccessValues = ['abcd', '', '-490', 'a', 'the quick brown fox']
     KeySequences = {('a', 'b', 'c', 'd', QtCore.Qt.Key_Return): 'abcd',
                     ('a', 'b', 'c', 'd',): 'abcd'}
@@ -164,7 +165,7 @@ class TestStringEdit(_Base.TestValueEdit):
 
 
 class TestPathEdit(_Base.TestValueEdit):
-    Widget = UsdQt.valueWidgets.PathEdit
+    Widget = valueWidgets.PathEdit
     SuccessValues = [Sdf.Path('/World'), Sdf.Path(),
                      Sdf.Path('Relative'), Sdf.Path('/World.property')]
     KeySequences = {}
@@ -177,7 +178,7 @@ class TestPathEdit(_Base.TestValueEdit):
 
 
 class TestIntEdit(_Base.TestValueEdit):
-    Widget = UsdQt.valueWidgets.IntEdit
+    Widget = valueWidgets.IntEdit
     SuccessValues = [1, -10000, 10000, 123456789, long(10000)]
     KeySequences = {('1', '0', '0', QtCore.Qt.Key_Return): 100,
                     ('1', '.', '0', '0',): 100,
@@ -189,7 +190,7 @@ class TestIntEdit(_Base.TestValueEdit):
 
 
 class TestFloatEdit(_Base.TestValueEdit):
-    Widget = UsdQt.valueWidgets.FloatEdit
+    Widget = valueWidgets.FloatEdit
     SuccessValues = [1, 1.0, 1e100, -10000, 10000, 123456789, 1.0, long(10000)]
     KeySequences = {('1', '.', '0', '0', QtCore.Qt.Key_Return): 1.0,
                     ('1', 'e', 'e', '-', '2',): 1e-2}
@@ -200,7 +201,7 @@ class TestFloatEdit(_Base.TestValueEdit):
 
 
 class TestVec2dEdit(_Base.TestValueEdit):
-    Widget = UsdQt.valueWidgets.Vec2dEdit
+    Widget = valueWidgets.Vec2dEdit
     SuccessValues = [Gf.Vec2f(1.0, 2.0), Gf.Vec2d(
         1.0, 2.0), Gf.Vec2h(1.0, 2.0), (1.0, 2.0), [1.0, 2.0]]
     SuccessCastedValues = {('1.0', '2.0'): (1.0, 2.0),
@@ -214,7 +215,7 @@ class TestVec2dEdit(_Base.TestValueEdit):
 
 
 class TestMatrix2dEdit(_Base.TestValueEdit):
-    Widget = UsdQt.valueWidgets.Matrix2dEdit
+    Widget = valueWidgets.Matrix2dEdit
     SuccessValues = [Gf.Matrix2f(1.0, 2.0, 3.0, 4.0),
                      Gf.Matrix2d(1.0, 2.0, 3.0, 4.0)]
     SuccessCastedValues = {(('1.0', '2.0'), ('3.0', '4.0')): Gf.Matrix2f(1.0, 2.0, 3.0, 4.0),
@@ -226,7 +227,7 @@ class TestMatrix2dEdit(_Base.TestValueEdit):
 
 
 class TestBoolEdit(_Base.TestValueEdit):
-    Widget = UsdQt.valueWidgets.BoolEdit
+    Widget = valueWidgets.BoolEdit
     SuccessValues = [True, False, 1, 0]
     SuccessCastedValues = {None: False, "0": True,
                            "1": True, "one": True, (0,): True, (1,): True}
@@ -238,7 +239,7 @@ class TestBoolEdit(_Base.TestValueEdit):
 
 
 class TestTextComboBoxEdit(_Base.TestValueEdit):
-    Widget = lambda self: UsdQt.valueWidgets.TextComboEdit(
+    Widget = lambda self: valueWidgets.TextComboEdit(
         ['value1', 'value2', 'value3'])
     SuccessValues = ['value1', 'value2', 'value3', 'invalidValue']
     SuccessCastedValues = {None: ''}
@@ -251,7 +252,7 @@ class TestTextComboBoxEdit(_Base.TestValueEdit):
 
 
 class TestColor4dEdit(_Base.TestValueEdit):
-    Widget = UsdQt.valueWidgets.Color4dEdit
+    Widget = valueWidgets.Color4dEdit
     SuccessValues = [Gf.Vec4d(.1, .2, .3, .4), (.5, .6, .7, .8)]
     SuccessCastedValues = {None: Gf.Vec4d()}
     KeySequences = {}
@@ -260,7 +261,7 @@ class TestColor4dEdit(_Base.TestValueEdit):
 
 
 class TestAssetEdit(_Base.TestValueEdit):
-    Widget = UsdQt.valueWidgets.AssetEdit
+    Widget = valueWidgets.AssetEdit
     SuccessValues = [Sdf.AssetPath('/path/to/file.ext'),
                      Sdf.AssetPath('./relativePath.ext')]
     SuccessCastedValues = {None: Sdf.AssetPath()}

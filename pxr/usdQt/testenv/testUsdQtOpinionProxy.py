@@ -29,8 +29,8 @@ import unittest
 import os.path
 
 from pxr import Tf, Sdf, Usd, Vt
-from pixar.UsdQt._bindings import _AttributeProxy, _MetadataProxy, _PrimProxy, \
-    _VariantSetsProxy, _VariantSetProxy
+from pxr.UsdQt._bindings import (_AttributeProxy, _MetadataProxy, _PrimProxy,
+                                 _VariantSetsProxy, _VariantSetProxy)
 
 
 class BaseClasses:
@@ -142,7 +142,7 @@ class TestAttributeProxy(BaseClasses.ProxyTest):
             self.assertTrue(attrProxy3.Set(22, Usd.TimeCode.Default()))
         self.assertTrue(attrProxy3.Clear())
         self.assertEqual(attrProxy3.Get(Usd.TimeCode.Default()), None)
-        
+
     def testAuthoredAndDefined(self):
         """Validates IsDefined() and IsAuthored() methods"""
         prim1 = self.stage.GetPrimAtPath('/World/Prim1')
@@ -150,10 +150,10 @@ class TestAttributeProxy(BaseClasses.ProxyTest):
 
         attrProxyX = _AttributeProxy(
             [prim1.GetAttribute('x'), prim2.GetAttribute('x')])
-            
+
         self.assertTrue(attrProxyX.IsDefined())
         self.assertTrue(attrProxyX.IsAuthored())
-        
+
 
     def testToken(self):
         """Validates GetAllowedTokens() for token attributes"""

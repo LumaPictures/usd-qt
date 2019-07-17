@@ -29,7 +29,8 @@ import unittest2 as unittest
 import os
 import os.path
 
-from pxr import Usd, UsdQt
+import pxr.UsdQt.hierarchyModel as hierarchyModel
+from pxr import Usd
 from pxr.UsdQt._Qt import QtCore, QtWidgets
 
 
@@ -47,8 +48,7 @@ class TestSimpleHierarchyDefault(unittest.TestCase):
             os.path.join(os.path.splitext(__file__)[0], stageFilePath)
         self.stage = Usd.Stage.Open(stageFilePath)
         self.stage.Reload()
-        self.model = UsdQt.HierarchyStandardModel(
-            self.stage)
+        self.model = hierarchyModel.HierarchyStandardModel(self.stage)
 
         self.world = self.stage.GetPrimAtPath('/World')
 
@@ -76,7 +76,7 @@ class TestSimpleHierarchyDefault(unittest.TestCase):
         self.VerifyHierarchyMatchesStage(self.world, self.worldIndex)
 
     def test_UnmodifiedFilterModel(self):
-        filterModel = UsdQt.HierarchyStandardFilterModel()
+        filterModel = hierarchyModel.HierarchyStandardFilterModel()
         filterModel.setSourceModel(self.model)
         pseudoRootIndex = filterModel.index(0, 0, QtCore.QModelIndex())
         filterIndex = filterModel.index(0, 0, pseudoRootIndex)
