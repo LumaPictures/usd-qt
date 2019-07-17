@@ -84,6 +84,15 @@ static SdfPathVector _GetTargets(UsdQt_RelationshipProxyPtr proxy) {
     return result;
 }
 
+static SdfPathVector _GetForwardedTargets(UsdQt_RelationshipProxyPtr proxy) {
+    SdfPathVector result;
+    if (!proxy->GetForwardedTargets(&result)) {
+        // TODO: Throw error.
+        return SdfPathVector();
+    }
+    return result;
+}
+
 static bool _SetValueAttribute(UsdQt_AttributeProxyPtr proxy, object value,
                                UsdTimeCode time) {
     SdfValueTypeName typeName = proxy->GetTypeName();
@@ -287,6 +296,7 @@ void wrapOpinionProxy() {
             .def(TfMakePyConstructor(&This::New))
             .def("GetName", &This::GetName)
             .def("GetTargets", &::_GetTargets)
+            .def("GetForwardedTargets", &::_GetForwardedTargets)
             .def("ClearTargets", &This::ClearTargets)
             .def("BlockTargets", &This::BlockTargets)
             .def("GetDocumentation", &This::GetDocumentation)

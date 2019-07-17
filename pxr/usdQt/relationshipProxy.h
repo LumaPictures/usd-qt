@@ -60,18 +60,18 @@ public:
 
     /// \brief Get the intersection of targets for the contained relationships
     ///
-    /// Return true if all GetTargets requests are succesful on the
+    /// Return true if all GetTargets requests are successful on the
     /// UsdRelationship contents.
     bool GetTargets(SdfPathVector* result) const;
 
     /// \brief Get the intersection of forwarded targets for the contained
     /// relationships
     ///
-    /// Return true if all GetForwardedTargets requests are succesful on the
+    /// Return true if all GetForwardedTargets requests are successful on the
     /// UsdRelationship contents.
     bool GetForwardedTargets(SdfPathVector* result) const;
 
-    /// \brief Clear targets for all relationshps on this proxy.
+    /// \brief Clear targets for all relationships on this proxy.
     ///
     /// Returns true if all UsdRelationship ClearTargets requests were
     /// successful.
