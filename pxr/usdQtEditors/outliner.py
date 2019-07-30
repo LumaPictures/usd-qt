@@ -307,7 +307,7 @@ class ActivatePrims(MenuAction):
 
 
 class DeactivatePrims(MenuAction):
-    defaultText = 'Dectivate'
+    defaultText = 'Deactivate'
 
     def Update(self, action, context):
         action.setEnabled(bool(context.selectedPrims))
