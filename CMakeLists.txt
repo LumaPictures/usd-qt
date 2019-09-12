@@ -3,6 +3,10 @@
 cmake_minimum_required(VERSION 3.1)
 project(usdqt)
 
+if (UNIX AND NOT APPLE)
+    set(LINUX TRUE)
+endif ()
+
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules;${CMAKE_CURRENT_SOURCE_DIR}/cmake/macros")
 
 if (NOT MSVC)

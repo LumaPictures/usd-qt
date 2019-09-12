@@ -1,5 +1,24 @@
 # Simple module to find USD.
 
+if (LINUX)
+    set(USD_LIB_EXTENSION ".so"
+        CACHE STRING "Extension of USD libraries")
+elseif (WIN32)
+    set(USD_LIB_EXTENSION ".lib"
+        CACHE STRING "Extension of USD libraries")
+else () # MacOS
+    set(USD_LIB_EXTENSION ".dylib"
+        CACHE STRING "Extension of USD libraries")
+endif ()
+
+if (WIN32)
+    set(USD_LIB_PREFIX ""
+        CACHE STRING "Prefix of USD libraries")
+else ()
+    set(USD_LIB_PREFIX lib
+        CACHE STRING "Prefix of USD libraries")
+endif ()
+
 # can use either ${USD_ROOT}, or ${USD_CONFIG_FILE} (which should be ${USD_ROOT}/pxrConfig.cmake)
 # to find USD, defined as either Cmake var or env var
 if (NOT DEFINED USD_ROOT AND NOT DEFINED ENV{USD_ROOT})
@@ -22,17 +41,10 @@ find_path(USD_INCLUDE_DIR pxr/pxr.h
                 $ENV{USD_ROOT}/include
           DOC "USD Include directory")
 
-if(WIN32)
-    find_path(USD_LIBRARY_DIR libusd.dll
-            PATHS ${USD_ROOT}/lib
-                  $ENV{USD_ROOT}/lib
-            DOC "USD Libraries directory")
-elseif(UNIX)
-    find_path(USD_LIBRARY_DIR libusd.so
-            PATHS ${USD_ROOT}/lib
-                  $ENV{USD_ROOT}/lib
-            DOC "USD Libraries directory")
-endif()
+find_path(USD_LIBRARY_DIR ${USD_LIB_PREFIX}usd${USD_LIB_EXTENSION}
+      PATHS ${USD_ROOT}/lib
+            $ENV{USD_ROOT}/lib
+      DOC "USD Libraries directory")
 
 find_file(USD_GENSCHEMA
           names usdGenSchema
@@ -114,6 +126,22 @@ if(USD_INCLUDE_DIR AND EXISTS "${USD_INCLUDE_DIR}/pxr/pxr.h")
     endforeach()
     set(USD_VERSION ${USD_MAJOR_VERSION}.${USD_MINOR_VERSION}.${USD_PATCH_VERSION})
 endif()
+
+set(USD_LIBS ar;arch;cameraUtil;garch;gf;glf;hd;hdSt;hdx;hf;hgi;hgiGL;hio;js;kind;ndr;pcp;plug;pxOsd;sdf;sdr;tf;trace;usd;usdAppUtils;usdGeom;usdHydra;usdImaging;usdImagingGL;usdLux;usdRi;usdShade;usdShaders;usdSkel;usdSkelImaging;usdUI;usdUtils;usdviewq;usdVol;usdVolImaging;vt;work;usd_ms)
+
+foreach (lib ${USD_LIBS})
+    find_library(USD_${lib}_LIBRARY
+        NAMES ${USD_LIB_PREFIX}${lib}${USD_LIB_EXTENSION}
+        HINTS ${USD_LIBRARY_DIR})
+    if (USD_${lib}_LIBRARY)
+        add_library(${lib} INTERFACE IMPORTED)
+        set_target_properties(${lib}
+            PROPERTIES
+            INTERFACE_LINK_LIBRARIES ${USD_${lib}_LIBRARY}
+        )
+        list(APPEND USD_LIBRARIES ${USD_${lib}_LIBRARY})
+    endif ()
+endforeach ()
 
 include(FindPackageHandleStandardArgs)
 
