@@ -29,8 +29,9 @@ import unittest2 as unittest
 import os
 import os.path
 
-from pxr import Usd, UsdQt
-from pxr.UsdQt._Qt import QtCore, QtWidgets
+import pxr.UsdQt.opinionModel as opinionModel
+from pxr import Usd
+from pxr.UsdQt._Qt import QtCore
 
 
 class TestOpinionModel(unittest.TestCase):
@@ -45,11 +46,11 @@ class TestOpinionModel(unittest.TestCase):
         prims = [self.stage.GetPrimAtPath(path) for path in
                  ['/MyPrim1/Child1', '/MyPrim1/Child2', '/MyPrim1/Child3', '/MyPrim1/Child4']]
 
-        model = UsdQt.OpinionStandardModel(prims)
+        model = opinionModel.OpinionStandardModel(prims)
         primIndex = model.index(0, 0, QtCore.QModelIndex())
         proxy = model.GetProxyForIndex(primIndex)
-        self.assertEqual(proxy.GetNames(), [
-                         'Child1', 'Child2', 'Child3', 'Child4'])
+        self.assertEqual(proxy.GetNames(),
+                         ['Child1', 'Child2', 'Child3', 'Child4'])
         self.assertEqual(model.data(primIndex),
                          'Child1, Child2, Child3, Child4')
 
@@ -81,7 +82,6 @@ class TestOpinionModel(unittest.TestCase):
     def testMetadata(self):
         prims = [self.stage.GetPrimAtPath(path) for path in
                  ['/MyPrim1', '/MyPrim2']]
-        #model = UsdQt.OpinionStandardModel(prims)
 
     def testInvalidSetData(self):
         """Ensure that indices are property cleaned when a bad setData occurs.

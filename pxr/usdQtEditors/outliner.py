@@ -821,6 +821,7 @@ class OutlinerRole(object):
         return [MenuBuilder('&File', [SaveEditLayer(saveState)]),
                 MenuBuilder('&Tools', [ShowEditTargetLayerText,
                                        ShowEditTargetDialog,
+                                       ShowOpinionEditor,
                                        ShowVariantEditor])]
 
 class UsdOutliner(QtWidgets.QWidget):

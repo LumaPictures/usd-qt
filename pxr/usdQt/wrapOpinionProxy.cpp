@@ -86,7 +86,7 @@ static SdfPathVector _GetTargets(UsdQt_RelationshipProxyPtr proxy) {
 
 static SdfPathVector _GetForwardedTargets(UsdQt_RelationshipProxyPtr proxy) {
     SdfPathVector result;
-    if (!proxy->GetTargets(&result)) {
+    if (!proxy->GetForwardedTargets(&result)) {
         // TODO: Throw error.
         return SdfPathVector();
     }
