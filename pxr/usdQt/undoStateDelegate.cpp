@@ -76,7 +76,7 @@ bool UsdQt_UndoStateDelegate::_InvertSetField(const SdfPath& path,
         TF_CODING_ERROR("Cannot invert field for expired layer.");
         return false;
     }
-    SetField(SdfAbstractDataSpecId(&path), fieldName, inverse);
+    SetField(path, fieldName, inverse);
     return true;
 }
 
@@ -91,7 +91,7 @@ bool UsdQt_UndoStateDelegate::_InvertSetFieldDictValueByKey(
             "Cannot invert field dictionary value for expired layer.");
         return false;
     }
-    SetFieldDictValueByKey(SdfAbstractDataSpecId(&path), fieldName, keyPath,
+    SetFieldDictValueByKey(path, fieldName, keyPath,
                            inverse);
     return true;
 }
@@ -104,7 +104,7 @@ bool UsdQt_UndoStateDelegate::_InvertSetTimeSample(
         TF_CODING_ERROR("Cannot invert time sample for expired layer.");
         return false;
     }
-    SetTimeSample(SdfAbstractDataSpecId(&path), time, inverse);
+    SetTimeSample(path, time, inverse);
     return true;
 }
 
@@ -123,11 +123,11 @@ bool UsdQt_UndoStateDelegate::_InvertCreateSpec(const SdfPath& path,
 /// XXX: This is copied straight from Sd.  Should this be refactored and
 /// packaged as a part of Sdf?
 static void _CopySpec(const SdfAbstractData& src, SdfAbstractData* dst,
-                      const SdfAbstractDataSpecId& specId) {
-    dst->CreateSpec(specId, src.GetSpecType(specId));
+                      const SdfPath& path) {
+    dst->CreateSpec(path, src.GetSpecType(path));
 
-    std::vector<TfToken> fields = src.List(specId);
-    TF_FOR_ALL(i, fields) { dst->Set(specId, *i, src.Get(specId, *i)); }
+    std::vector<TfToken> fields = src.List(path);
+    TF_FOR_ALL(i, fields) { dst->Set(path, *i, src.Get(path, *i)); }
 }
 
 bool UsdQt_UndoStateDelegate::_InvertDeleteSpec(
@@ -147,8 +147,8 @@ bool UsdQt_UndoStateDelegate::_InvertDeleteSpec(
         explicit _SpecCopier(SdfAbstractData* dst_) : dst(dst_) {}
 
         virtual bool VisitSpec(const SdfAbstractData& src,
-                               const SdfAbstractDataSpecId& specId) {
-            _CopySpec(src, dst, specId);
+                               const SdfPath& path) {
+            _CopySpec(src, dst, path);
             return true;
         }
 
@@ -228,85 +228,85 @@ bool UsdQt_UndoStateDelegate::_InvertPopPathChild(
 }
 
 void UsdQt_UndoStateDelegate::_OnSetFieldImpl(
-    const SdfAbstractDataSpecId& id, const TfToken& fieldName) {
+    const SdfPath& path, const TfToken& fieldName) {
     TF_DEBUG(USDQT_DEBUG_UNDOSTATEDELEGATE)
         .Msg("Setting Field '%s' for Spec '%s'\n", fieldName.GetText(),
-             id.GetFullSpecPath().GetText());
+             path.GetText());
     _MarkCurrentStateAsDirty();
-    const VtValue inverseValue = _layer->GetField(id, fieldName);
+    const VtValue inverseValue = _layer->GetField(path, fieldName);
     _RouteInverse(std::bind(&UsdQt_UndoStateDelegate::_InvertSetField,
-                            this, id.GetFullSpecPath(), fieldName,
+                            this, path, fieldName,
                             inverseValue));
 }
 
 void UsdQt_UndoStateDelegate::_OnSetFieldDictValueByKeyImpl(
-    const SdfAbstractDataSpecId& id, const TfToken& fieldName,
+    const SdfPath& path, const TfToken& fieldName,
     const TfToken& keyPath) {
     TF_DEBUG(USDQT_DEBUG_UNDOSTATEDELEGATE)
         .Msg("Setting Dictionary Field '%s' By Key '%s' for Spec '%s'\n",
              fieldName.GetText(), keyPath.GetText(),
-             id.GetFullSpecPath().GetText());
+			 path.GetText());
     _MarkCurrentStateAsDirty();
     const VtValue inverseValue =
-        _layer->GetFieldDictValueByKey(id, fieldName, keyPath);
+        _layer->GetFieldDictValueByKey(path, fieldName, keyPath);
     _RouteInverse(std::bind(
         &UsdQt_UndoStateDelegate::_InvertSetFieldDictValueByKey, this,
-        id.GetFullSpecPath(), fieldName, keyPath, inverseValue));
+		path, fieldName, keyPath, inverseValue));
 }
 
 void UsdQt_UndoStateDelegate::_OnSetTimeSampleImpl(
-    const SdfAbstractDataSpecId& id, double time) {
+    const SdfPath& path, double time) {
     TF_DEBUG(USDQT_DEBUG_UNDOSTATEDELEGATE)
         .Msg("Setting Time Sample '%f' for Spec '%s'\n", time,
-             id.GetFullSpecPath().GetText());
+             path.GetText());
     _MarkCurrentStateAsDirty();
 
-    if (!_GetLayer()->HasField(id, SdfFieldKeys->TimeSamples)) {
+    if (!_GetLayer()->HasField(path, SdfFieldKeys->TimeSamples)) {
         _RouteInverse(std::bind(&UsdQt_UndoStateDelegate::_InvertSetField,
-                                this, id.GetFullSpecPath(),
+                                this, path,
                                 SdfFieldKeys->TimeSamples, VtValue()));
     } else {
         VtValue oldValue;
-        _GetLayer()->QueryTimeSample(id, time, &oldValue);
+        _GetLayer()->QueryTimeSample(path, time, &oldValue);
         _RouteInverse(
             std::bind(&UsdQt_UndoStateDelegate::_InvertSetTimeSample, this,
-                      id.GetFullSpecPath(), time, oldValue));
+                      path, time, oldValue));
     }
 }
 
-void UsdQt_UndoStateDelegate::_OnSetField(const SdfAbstractDataSpecId& id,
+void UsdQt_UndoStateDelegate::_OnSetField(const SdfPath& path,
                                                const TfToken& fieldName,
                                                const VtValue& value) {
-    _OnSetFieldImpl(id, fieldName);
+    _OnSetFieldImpl(path, fieldName);
 }
 
 void UsdQt_UndoStateDelegate::_OnSetField(
-    const SdfAbstractDataSpecId& id, const TfToken& fieldName,
+    const SdfPath& path, const TfToken& fieldName,
     const SdfAbstractDataConstValue& value) {
-    _OnSetFieldImpl(id, fieldName);
+    _OnSetFieldImpl(path, fieldName);
 }
 
 void UsdQt_UndoStateDelegate::_OnSetFieldDictValueByKey(
-    const SdfAbstractDataSpecId& id, const TfToken& fieldName,
+    const SdfPath& path, const TfToken& fieldName,
     const TfToken& keyPath, const VtValue& value) {
-    _OnSetFieldDictValueByKeyImpl(id, fieldName, keyPath);
+    _OnSetFieldDictValueByKeyImpl(path, fieldName, keyPath);
 }
 
 void UsdQt_UndoStateDelegate::_OnSetFieldDictValueByKey(
-    const SdfAbstractDataSpecId& id, const TfToken& fieldName,
+    const SdfPath& path, const TfToken& fieldName,
     const TfToken& keyPath, const SdfAbstractDataConstValue& value) {
-    _OnSetFieldDictValueByKeyImpl(id, fieldName, keyPath);
+    _OnSetFieldDictValueByKeyImpl(path, fieldName, keyPath);
 }
 
 void UsdQt_UndoStateDelegate::_OnSetTimeSample(
-    const SdfAbstractDataSpecId& id, double time, const VtValue& value) {
-    _OnSetTimeSampleImpl(id, time);
+    const SdfPath& path, double time, const VtValue& value) {
+    _OnSetTimeSampleImpl(path, time);
 }
 
 void UsdQt_UndoStateDelegate::_OnSetTimeSample(
-    const SdfAbstractDataSpecId& id, double time,
+    const SdfPath& path, double time,
     const SdfAbstractDataConstValue& value) {
-    _OnSetTimeSampleImpl(id, time);
+    _OnSetTimeSampleImpl(path, time);
 }
 
 void UsdQt_UndoStateDelegate::_OnCreateSpec(const SdfPath& path,
@@ -323,7 +323,7 @@ void UsdQt_UndoStateDelegate::_OnCreateSpec(const SdfPath& path,
 // XXX: This is copied from SdLayer
 static void _CopySpecAtPath(const SdfAbstractData& src, SdfAbstractData* dst,
                             const SdfPath& path) {
-    _CopySpec(src, dst, SdfAbstractDataSpecId(&path));
+    _CopySpec(src, dst, path);
 }
 
 void UsdQt_UndoStateDelegate::_OnDeleteSpec(const SdfPath& path,

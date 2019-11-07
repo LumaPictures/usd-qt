@@ -87,33 +87,33 @@ private:
 
     void _OnSetLayer(const SdfLayerHandle& layer) override;
 
-    void _OnSetField(const SdfAbstractDataSpecId& id, const TfToken& fieldName,
+    void _OnSetField(const SdfPath& path, const TfToken& fieldName,
                      const VtValue& value) override;
-    virtual void _OnSetField(const SdfAbstractDataSpecId& id,
+    virtual void _OnSetField(const SdfPath& path,
                              const TfToken& fieldName,
                              const SdfAbstractDataConstValue& value) override;
-    void _OnSetFieldImpl(const SdfAbstractDataSpecId& id,
+    void _OnSetFieldImpl(const SdfPath& path,
                          const TfToken& fieldName);
 
-    virtual void _OnSetFieldDictValueByKey(const SdfAbstractDataSpecId& id,
+    virtual void _OnSetFieldDictValueByKey(const SdfPath& path,
                                            const TfToken& fieldName,
                                            const TfToken& keyPath,
                                            const VtValue& value) override;
     virtual void _OnSetFieldDictValueByKey(
-        const SdfAbstractDataSpecId& id, const TfToken& fieldName,
+        const SdfPath& path, const TfToken& fieldName,
         const TfToken& keyPath,
         const SdfAbstractDataConstValue& value) override;
-    void _OnSetFieldDictValueByKeyImpl(const SdfAbstractDataSpecId& id,
+    void _OnSetFieldDictValueByKeyImpl(const SdfPath& path,
                                        const TfToken& fieldName,
                                        const TfToken& keyPath);
 
-    virtual void _OnSetTimeSample(const SdfAbstractDataSpecId& id, double time,
+    virtual void _OnSetTimeSample(const SdfPath& path, double time,
                                   const VtValue& value) override;
 
     virtual void _OnSetTimeSample(
-        const SdfAbstractDataSpecId& id, double time,
+        const SdfPath& path, double time,
         const SdfAbstractDataConstValue& value) override;
-    void _OnSetTimeSampleImpl(const SdfAbstractDataSpecId& id, double time);
+    void _OnSetTimeSampleImpl(const SdfPath& path, double time);
 
     virtual void _OnCreateSpec(const SdfPath& path, SdfSpecType specType,
                                bool inert) override;
