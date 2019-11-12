@@ -1,6 +1,12 @@
 # UsdQt
 
-**Qt components for building custom USD tools**
+### Qt components for building custom USD tools
+
+#### Current Branch Compatibility
+
+- master : USD 19.07
+     - Should be compatible with the post-19.07 USD dev branch up to and including [b6ccb4e5](https://github.com/PixarAnimationStudios/USD/commit/b6ccb4e543dea2ab4cd41b0fc162c5501ac9b103)
+- dev : USD 19.11+
 
 ## Project Goals
 
