@@ -67,7 +67,7 @@ PXR_NAMESPACE_OPEN_SCOPE
 /// with UsdQt.UndoBlock():
 ///    prim.GetAttribute('hello').Set(True)
 ///
-class UsdQtUndoRouter : boost::noncopyable {
+class UsdQtUndoRouter : BOOST_NS::noncopyable {
 private:
     int _depth = 0;
     UsdQtUndoInverse _inversion;

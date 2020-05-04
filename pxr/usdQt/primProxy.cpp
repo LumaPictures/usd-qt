@@ -26,7 +26,7 @@
 
 #include <boost/range/adaptor/sliced.hpp>
 
-using boost::adaptors::slice;
+using BOOST_NS::adaptors::slice;
 
 PXR_NAMESPACE_OPEN_SCOPE
 

@@ -34,7 +34,7 @@
 #include "undoInverse.h"
 #include "undoRouter.h"
 
-using namespace boost::python;
+using namespace BOOST_NS::python;
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -68,13 +68,13 @@ private:
 void wrapUndoRouter() {
     {
         typedef UsdQt_PythonUndoBlock This;
-        class_<This, boost::noncopyable>("UndoBlock", init<>())
+        class_<This, BOOST_NS::noncopyable>("UndoBlock", init<>())
             .def("__enter__", &This::Open)
             .def("__exit__", &This::Close);
     }
     {
         typedef UsdQtUndoRouter This;
-        class_<This, boost::noncopyable>("UndoRouter", no_init)
+        class_<This, BOOST_NS::noncopyable>("UndoRouter", no_init)
             .def("TrackLayer", &This::TrackLayer)
             .def("TransferEdits", &This::TransferEdits)
             .staticmethod("TrackLayer")
@@ -86,7 +86,7 @@ void wrapUndoRouter() {
     }
     {
         typedef UsdQtUndoInverse This;
-        class_<This, boost::noncopyable>("UndoInverse", init<>())
+        class_<This, BOOST_NS::noncopyable>("UndoInverse", init<>())
             .def("Invert", &This::Invert);
     }
 }

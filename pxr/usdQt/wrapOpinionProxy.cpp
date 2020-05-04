@@ -42,7 +42,7 @@
 #include "relationshipProxy.h"
 #include "variantSetsProxy.h"
 
-using namespace boost::python;
+using namespace BOOST_NS::python;
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -177,12 +177,12 @@ void wrapOpinionProxy() {
     {
         typedef UsdQt_ProxyBase This;
         typedef UsdQt_ProxyBasePtr ThisPtr;
-        class_<This, ThisPtr, boost::noncopyable>("_ProxyBase", no_init);
+        class_<This, ThisPtr, BOOST_NS::noncopyable>("_ProxyBase", no_init);
     }
     {
         typedef UsdQt_ObjectProxy This;
         typedef UsdQt_ObjectProxyPtr ThisPtr;
-        class_<This, ThisPtr, boost::noncopyable,
+        class_<This, ThisPtr, BOOST_NS::noncopyable,
                bases<UsdQt_ProxyBase>>("_ObjectProxy", no_init)
             .def("ContainsPathOrDescendent", &This::ContainsPathOrDescendent)
             .def("ContainsPath", &This::ContainsPath);
@@ -192,7 +192,7 @@ void wrapOpinionProxy() {
         typedef UsdQt_VariantSetsProxyPtr ThisPtr;
         std::vector<std::string> (This::*ThisGetNames)() const =
             &This::GetNames;
-        class_<This, ThisPtr, boost::noncopyable, bases<UsdQt_ProxyBase>>(
+        class_<This, ThisPtr, BOOST_NS::noncopyable, bases<UsdQt_ProxyBase>>(
             "_VariantSetsProxy", no_init)
             .def(TfPyRefAndWeakPtr())
             .def(TfMakePyConstructor(&This::New))
@@ -208,7 +208,7 @@ void wrapOpinionProxy() {
         typedef UsdQt_VariantSetProxy This;
         typedef UsdQt_VariantSetProxyPtr ThisPtr;
 
-        class_<This, ThisPtr, boost::noncopyable,
+        class_<This, ThisPtr, BOOST_NS::noncopyable,
                bases<UsdQt_ProxyBase>>("_VariantSetProxy", no_init)
             .def(TfPyRefAndWeakPtr())
             .def(TfMakePyConstructor(&This::New))
@@ -225,7 +225,7 @@ void wrapOpinionProxy() {
         typedef UsdQt_MetadataProxy This;
         typedef UsdQt_MetadataProxyPtr ThisPtr;
 
-        class_<This, ThisPtr, boost::noncopyable,
+        class_<This, ThisPtr, BOOST_NS::noncopyable,
                bases<UsdQt_ProxyBase>>("_MetadataProxy", no_init)
             .def(TfPyRefAndWeakPtr())
             .def(TfMakePyConstructor(&This::New))
@@ -246,7 +246,7 @@ void wrapOpinionProxy() {
     {
         typedef UsdQt_MetadataDictKeyProxy This;
         typedef UsdQt_MetadataDictKeyProxyPtr ThisPtr;
-        class_<This, ThisPtr, boost::noncopyable,
+        class_<This, ThisPtr, BOOST_NS::noncopyable,
                bases<UsdQt_ProxyBase>>("_MetadataDictKeyProxy", no_init)
             .def(TfPyRefAndWeakPtr())
             .def(TfMakePyConstructor(&This::New))
@@ -261,7 +261,7 @@ void wrapOpinionProxy() {
     {
         typedef UsdQt_AttributeProxy This;
         typedef UsdQt_AttributeProxyPtr ThisPtr;
-        class_<This, ThisPtr, boost::noncopyable, bases<UsdQt_ObjectProxy>>(
+        class_<This, ThisPtr, BOOST_NS::noncopyable, bases<UsdQt_ObjectProxy>>(
             "_AttributeProxy", no_init)
             .def(TfPyRefAndWeakPtr())
             .def(TfMakePyConstructor(&This::New))
@@ -290,7 +290,7 @@ void wrapOpinionProxy() {
         typedef UsdQt_RelationshipProxy This;
         typedef UsdQt_RelationshipProxyPtr ThisPtr;
 
-        class_<This, ThisPtr, boost::noncopyable, bases<UsdQt_ObjectProxy>>(
+        class_<This, ThisPtr, BOOST_NS::noncopyable, bases<UsdQt_ObjectProxy>>(
             "_RelationshipProxy", no_init)
             .def(TfPyRefAndWeakPtr())
             .def(TfMakePyConstructor(&This::New))
@@ -312,7 +312,7 @@ void wrapOpinionProxy() {
         typedef UsdQt_PrimProxy This;
         typedef UsdQt_PrimProxyPtr ThisPtr;
 
-        class_<This, ThisPtr, boost::noncopyable, bases<UsdQt_ObjectProxy>>(
+        class_<This, ThisPtr, BOOST_NS::noncopyable, bases<UsdQt_ObjectProxy>>(
             "_PrimProxy", no_init)
             .def(TfPyRefAndWeakPtr())
             .def(TfMakePyConstructor(&This::New))
@@ -338,7 +338,7 @@ void wrapOpinionProxy() {
         typedef UsdQt_DisplayGroupProxy This;
         typedef UsdQt_DisplayGroupProxyPtr ThisPtr;
 
-        class_<This, ThisPtr, boost::noncopyable,
+        class_<This, ThisPtr, BOOST_NS::noncopyable,
                bases<UsdQt_ProxyBase>>("_DisplayGroupProxy", no_init)
             .def(TfPyRefAndWeakPtr())
             .def(TfMakePyConstructor(&This::New))

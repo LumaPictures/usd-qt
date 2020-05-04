@@ -29,7 +29,7 @@
 
 PXR_NAMESPACE_OPEN_SCOPE
 
-using boost::adaptors::slice;
+using BOOST_NS::adaptors::slice;
 using std::remove_if;
 
 VtTokenArray UsdQt_AttributeProxy::GetAllowedTokens() const {

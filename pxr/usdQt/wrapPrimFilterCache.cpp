@@ -30,7 +30,7 @@
 
 #include "primFilterCache.h"
 
-using namespace boost::python;
+using namespace BOOST_NS::python;
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -38,7 +38,7 @@ void wrapPrimFilterCache() {
     {
         typedef UsdQtPrimFilterCache This;
         scope obj =
-            class_<This, boost::noncopyable>("PrimFilterCache", init<>())
+            class_<This, BOOST_NS::noncopyable>("PrimFilterCache", init<>())
                 .def("ApplyPathContainsFilter", &This::ApplyPathContainsFilter)
                 .def("GetState", &This::GetState)
                 .def("PrintDebugString", &This::PrintDebugString);

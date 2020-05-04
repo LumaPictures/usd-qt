@@ -33,7 +33,7 @@
 #include "undoBlock.h"
 #include "undoStateDelegate.h"
 
-using boost::adaptors::slice;
+using BOOST_NS::adaptors::slice;
 
 PXR_NAMESPACE_OPEN_SCOPE
 

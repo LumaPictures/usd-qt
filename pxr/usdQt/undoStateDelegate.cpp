@@ -159,13 +159,13 @@ bool UsdQt_UndoStateDelegate::_InvertDeleteSpec(
         SdfAbstractData* const dst;
     };
 
-    _SpecCopier specCopier(boost::get_pointer(_GetLayerData()));
+    _SpecCopier specCopier(BOOST_NS::get_pointer(_GetLayerData()));
     deletedData->VisitSpecs(&specCopier);
     return true;
 }
 
 bool UsdQt_UndoStateDelegate::_InvertMoveSpec(const SdfPath& oldPath,
-                                                   const SdfPath& newPath) {
+                                              const SdfPath& newPath) {
     TF_DEBUG(USDQT_DEBUG_UNDOSTATEDELEGATE)
         .Msg("Inverting move of '%s' to '%s'\n", oldPath.GetText(),
              newPath.GetText());
@@ -334,8 +334,9 @@ void UsdQt_UndoStateDelegate::_OnDeleteSpec(const SdfPath& path,
 
     SdfDataRefPtr deletedData = TfCreateRefPtr(new SdfData());
     SdfLayer::TraversalFunction copyFunc = std::bind(
-        &_CopySpecAtPath, boost::cref(*boost::get_pointer(_GetLayerData())),
-        boost::get_pointer(deletedData), std::placeholders::_1);
+        &_CopySpecAtPath,
+        BOOST_NS::cref(*BOOST_NS::get_pointer(_GetLayerData())),
+        BOOST_NS::get_pointer(deletedData), std::placeholders::_1);
     _GetLayer()->Traverse(path, copyFunc);
 
     const SdfSpecType deletedSpecType = _GetLayer()->GetSpecType(path);

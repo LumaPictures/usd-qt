@@ -30,7 +30,7 @@
 
 PXR_NAMESPACE_OPEN_SCOPE
 
-using boost::adaptors::slice;
+using BOOST_NS::adaptors::slice;
 
 UsdQt_VariantSetsProxy::UsdQt_VariantSetsProxy(
     const std::vector<UsdPrim>& prims)

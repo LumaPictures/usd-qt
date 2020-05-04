@@ -29,7 +29,7 @@
 
 PXR_NAMESPACE_OPEN_SCOPE
 
-using boost::adaptors::slice;
+using BOOST_NS::adaptors::slice;
 
 UsdQt_MetadataProxy::UsdQt_MetadataProxy(const std::vector<UsdObject>& objects,
                                          TfToken field)

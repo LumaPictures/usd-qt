@@ -30,7 +30,7 @@
 
 #include "hierarchyCache.h"
 
-using namespace boost::python;
+using namespace BOOST_NS::python;
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -40,7 +40,7 @@ void wrapHierarchyCache() {
     {
         typedef UsdQt_HierarchyCache This;
         scope obj =
-            class_<This, boost::noncopyable>(
+            class_<This, BOOST_NS::noncopyable>(
                 "_HierarchyCache", init<UsdPrim, Usd_PrimFlagsPredicate>())
                 .def("GetChildCount", &This::GetChildCount)
                 .def("GetChild", &This::GetChild)
@@ -53,8 +53,8 @@ void wrapHierarchyCache() {
                 .def("GetProxy", &This::GetProxy)
                 .def("GetPredicate", &This::GetPredicate)
                 .def("DebugFullIndex", &This::DebugFullIndex);
-        class_<This::Proxy, TfWeakPtr<This::Proxy>, boost::noncopyable>("Proxy",
-                                                                        no_init)
+        class_<This::Proxy, TfWeakPtr<This::Proxy>, BOOST_NS::noncopyable>("Proxy",
+                                                                           no_init)
             .def(TfPyRefAndWeakPtr())
             .def("GetPrim", &This::Proxy::GetPrim);
     }

@@ -1,6 +1,10 @@
 set(PXR_PREFIX pxr/usdQt)
 set(PXR_PACKAGE usdQt)
 
+add_compile_definitions(BOOST_NS=${BOOST_SYMBOL_NAMESPACE})
+
+# Adding these targets tricks the `_pxr_python_module` function into working
+# outside of a normal USD build context.
 add_custom_target(shared_libs)
 add_custom_target(python ALL)
 

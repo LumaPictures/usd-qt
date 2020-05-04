@@ -36,7 +36,7 @@ void UsdQtUndoInverse::_Append(std::function<bool()> inverse) {
 
 void UsdQtUndoInverse::_Invert() {
     SdfChangeBlock changeBlock;
-    for (const auto& inverse : boost::adaptors::reverse(_inversion)) {
+    for (const auto& inverse : BOOST_NS::adaptors::reverse(_inversion)) {
         inverse();
     }
 }

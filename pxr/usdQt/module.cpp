@@ -24,7 +24,7 @@
 
 #include "pxr/base/tf/pyModule.h"
 
-using namespace boost::python;
+using namespace BOOST_NS::python;
 
 TF_WRAP_MODULE {
     TF_WRAP(HierarchyCache);

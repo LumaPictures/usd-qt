@@ -19,6 +19,10 @@ add_compile_options(-DBUILD_OPTLEVEL_OPT -DBUILD_COMPONENT_SRC_PREFIX="")
 
 option(INSTALL_PURE_PYTHON "Install pure python files. Disable to only install compiled extension" ON)
 
+set(BOOST_SYMBOL_NAMESPACE "boost"
+    CACHE STRING
+    "The symbol namespace used in the Boost build. Defaults to \"boost\"")
+
 include(Private)
 
 set(CMAKE_CXX_STANDARD 11)
