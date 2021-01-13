@@ -25,7 +25,9 @@ set(BOOST_SYMBOL_NAMESPACE "boost"
 
 include(Private)
 
-set(CMAKE_CXX_STANDARD 11)
+if (NOT DEFINED CMAKE_CXX_STANDARD)
+    set(CMAKE_CXX_STANDARD 11)
+endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(USD REQUIRED)
@@ -35,7 +37,10 @@ find_package(PythonInterp 2.7 REQUIRED)
 find_package(PythonLibs 2.7 REQUIRED)
 
 set(Boost_USE_STATIC_LIBS OFF)
-find_package(Boost COMPONENTS python REQUIRED)
+find_package(Boost COMPONENTS python27)
+if (NOT Boost_FOUND)
+    find_package(Boost COMPONENTS python REQUIRED)
+endif()
 
 include_directories(${Boost_INCLUDE_DIRS})
 
