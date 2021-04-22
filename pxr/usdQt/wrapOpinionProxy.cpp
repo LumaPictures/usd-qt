@@ -298,7 +298,6 @@ void wrapOpinionProxy() {
             .def("GetTargets", &::_GetTargets)
             .def("GetForwardedTargets", &::_GetForwardedTargets)
             .def("ClearTargets", &This::ClearTargets)
-            .def("BlockTargets", &This::BlockTargets)
             .def("GetDocumentation", &This::GetDocumentation)
             .def("GetMetadataFields", &This::GetMetadataFields)
             .def("CreateMetadataProxy", &This::CreateMetadataProxy,

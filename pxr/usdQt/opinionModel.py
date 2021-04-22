@@ -763,8 +763,6 @@ class OpinionStandardModel(OpinionBaseModel):
         proxy = self.GetProxyForIndex(index)
         if type(proxy) is _AttributeProxy:
             proxy.BlockValue()
-        elif type(proxy) is _RelationshipProxy:
-            proxy.BlockTargets()
 
     def flags(self, index):
         column = self.columns[index.column()]

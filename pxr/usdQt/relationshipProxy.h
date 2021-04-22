@@ -76,9 +76,6 @@ public:
     /// Returns true if all UsdRelationship ClearTargets requests were
     /// successful.
     bool ClearTargets(bool removeSpec);
-
-    /// \brief Authors a block on all relationships for this proxy.
-    bool BlockTargets();
 };
 
 PXR_NAMESPACE_CLOSE_SCOPE

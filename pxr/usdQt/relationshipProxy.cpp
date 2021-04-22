@@ -108,14 +108,6 @@ bool UsdQt_RelationshipProxy::ClearTargets(bool removeSpec) {
     return success;
 }
 
-bool UsdQt_RelationshipProxy::BlockTargets() {
-    bool success = true;
-    for (const auto& relationship : _relationships) {
-        success &= relationship.BlockTargets();
-    }
-    return success;
-}
-
 std::vector<UsdRelationship>& UsdQt_RelationshipProxy::_GetObjects() {
     return _relationships;
 }
