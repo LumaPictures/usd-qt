@@ -23,6 +23,7 @@
 #
 
 import collections
+import sys
 
 if False:
     from typing import *
@@ -369,15 +370,26 @@ class ItemTree(object):
             stack.extend(self._GetItemChildren(item))
             yield item
 
-    def IterItems(self):
-        """Return an iterator over all of the key-item pairs in the tree, in an
-        undefined order.
+    if sys.version_info[0] < 3:
+        def IterItems(self):
+            """Return an iterator over all of the key-item pairs in the tree, in an
+            undefined order.
 
-        Returns
-        -------
-        Iterator[Tuple[Hashable, TreeItem]]
-        """
-        return self._keyToItem.iteritems()
+            Returns
+            -------
+            Iterator[Tuple[Hashable, TreeItem]]
+            """
+            return self._keyToItem.iteritems()
+    else:
+        def IterItems(self):
+            """Return an iterator over all of the key-item pairs in the tree, in an
+            undefined order.
+
+            Returns
+            -------
+            Iterator[Tuple[Hashable, TreeItem]]
+            """
+            return iter(self._keyToItem.items())
 
 
 class LazyItemTree(ItemTree):

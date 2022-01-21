@@ -33,9 +33,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(USD REQUIRED)
 find_package(TBB REQUIRED)
 
-find_package(PythonInterp 2.7 REQUIRED)
-find_package(PythonLibs 2.7 REQUIRED)
+find_package(PythonInterp REQUIRED)
+find_package(PythonLibs REQUIRED)
 
+set(BUILD_SHARED_LIBS ON)
 set(Boost_USE_STATIC_LIBS OFF)
 find_package(Boost COMPONENTS python27)
 if (NOT Boost_FOUND)

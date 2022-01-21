@@ -25,7 +25,7 @@
 """
 An extensible Usd stage outliner.
 """
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 
 from collections import namedtuple
 from functools import partial
@@ -600,7 +600,7 @@ class SaveEditLayer(MenuAction):
         """
         editTarget = context.editTargetLayer
         if not editTarget.dirty:
-            print 'Nothing to save'
+            print('Nothing to save')
             return
         if not self.state.CheckOriginalContents(editTarget):
             return
