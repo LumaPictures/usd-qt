@@ -38,10 +38,7 @@ find_package(PythonLibs REQUIRED)
 
 set(BUILD_SHARED_LIBS ON)
 set(Boost_USE_STATIC_LIBS OFF)
-find_package(Boost COMPONENTS python27)
-if (NOT Boost_FOUND)
-    find_package(Boost COMPONENTS python REQUIRED)
-endif()
+find_package(Boost COMPONENTS python REQUIRED)
 
 include_directories(${Boost_INCLUDE_DIRS})
 
