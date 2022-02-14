@@ -38,7 +38,19 @@ find_package(PythonLibs REQUIRED)
 
 set(BUILD_SHARED_LIBS ON)
 set(Boost_USE_STATIC_LIBS OFF)
-find_package(Boost COMPONENTS python REQUIRED)
+
+# Replicate behaviour of newer USD builds where newer versions of Boost
+# require a different python component name
+find_package(Boost COMPONENTS python)
+if (NOT Boost_FOUND)
+    set(python_version_nodot "${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}")
+    find_package(Boost
+        COMPONENTS
+            python${python_version_nodot}
+        REQUIRED
+    )
+    set(Boost_PYTHON_LIBRARY "${Boost_PYTHON${python_version_nodot}_LIBRARY}")
+endif()
 
 include_directories(${Boost_INCLUDE_DIRS})
 
