@@ -456,7 +456,9 @@ class AddReference(MenuAction):
 
     def Do(self):
         context = self.GetCurrentContext()
-        refPath = UsdQtHooks.Call('GetReferencePath', stage=context.stage)
+        refPath = UsdQtHooks.Call('GetReferencePath',
+                                  context.outliner,
+                                  stage=context.stage)
         if refPath:
             stage = context.stage
             prim = context.selectedPrim
